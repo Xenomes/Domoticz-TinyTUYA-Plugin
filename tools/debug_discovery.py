@@ -26,25 +26,28 @@ c = tinytuya.Cloud(
         apiDeviceID=DEVICEID
         )
 
-# Display list of devices
-devices = c.getdevices()
-print("Device List: %r" % devices)
-
 if (os.path.exists("dump.json")):
         f = open("dump.json", "r+")
 else:
         f = open("dump.json", "w")
-for d in devices:
-        print("Device:\n",d["id"])
+        
+# Display list of devices
+devices = c.getdevices()
+for i in range(len(devices)):
+        devices[i - 1]['key'] = 'Deleted'
 
+print("List of devices: \n", devices)
+f.write("List of devices: \n" + json.dumps(devices, indent=2))
+
+for d in devices:
         # Display Properties of Device
-        result = c.getproperties(d["id"])
-        print("\nProperties of device:\n", result)
-        f.write("Properties of device:\n" + json.dumps(result, indent=2))
+        result = c.getfunctions(d["id"])
+        print("\nFunctions of device: " + d["id"] + "\n", result)
+        f.write("\nFunctions of device: " + d["id"] + "\n" + json.dumps(result, indent=2))
 
         # Display Status of Device
         result = c.getstatus(d["id"])
-        print("\nStatus of device:\n", result)
-        f.write("\nStatus of device:\n" + json.dumps(result, indent=2))
+        print("\nStatus of device: " + d["id"] + "\n", result)
+        f.write("\nStatus of device: " + d["id"] + "\n" + json.dumps(result, indent=2))
 
 f.close()
