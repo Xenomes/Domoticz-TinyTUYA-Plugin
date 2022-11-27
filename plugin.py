@@ -5,7 +5,7 @@
 """
 <plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.0.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
-        Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=33145">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=33145</a><br/>
+        Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
         <h2>TinyTUYA Plugin v.1.0.0</h2><br/>
@@ -149,7 +149,6 @@ class BasePlugin:
                 # Update status of Domoticz device 
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
                 if Color['m'] == 2:
-                    Color = {'m':2, 't':Color['t'] }
                     Domoticz.Debug(Color)
                     # Set new level
                     SendCommandCloud(DeviceID, 'temp_value', inv_val(Color['t']))
@@ -358,9 +357,9 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
 
                     if dev_type in ('light', 'dimmer'):
-                        if (currentstatuslight == False and bool(nValue) != False) or int(dimtuya) == 0:
+                        if (currentstatuslight == False and bool(nValue) != currentstatuslight) or int(dimtuya) == 0:
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif (currentstatuslight == True and bool(nValue) != True) or str(dimtuya) != str(sValue):
+                        elif (currentstatuslight == True and bool(nValue) != currentstatuslight) or str(dimtuya) != str(sValue):
                                 UpdateDevice(dev['id'], 1, int(dimtuya), 1, 0)
                         '''
                         elif currentstatuslight == True and workmode == 'white':
