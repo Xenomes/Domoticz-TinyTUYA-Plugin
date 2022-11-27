@@ -5,9 +5,9 @@ Controls TUYA devices your network mainly on/off switches and Lights and in the 
 
 ## Installation
 
-* The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
+* The plugin make use of an IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
 
-Python version 3.7 or higher required & Domoticz version 2022.2 or greater.
+Python version 3.6 or higher required & Domoticz version 2022.2 or greater.
 
 To install:
 * Go in your Domoticz directory using a command line and open the plugins directory.
@@ -25,12 +25,15 @@ To update:
 
 ## Configuration
 
-Enter your apiRegion, apiKey, apiSecret and DeviceID (This id id used to detect all the other devices) from your IoT Cloud Platform account, keep the setting 'Data Timeout' disabled. The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.
+Enter your apiRegion, apiKey, apiSecret and Search deviceID (This id is used to detect all the other devices) from your IoT Cloud Platform account, keep the setting 'Data Timeout' disabled. The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.
 
 ## Usage
 
-In the web UI, navigate to the Hardware page. In the hardware dropdown there will be an entry called "TinyTUYA" -- configure and add the hardware there.
-Devices detected are created in the 'Devices' tab, to use them you need to click the green arrow icon and 'Add' them to Domoticz.
+In the web UI, navigate to the Hardware page. In the hardware dropdown there will be an entry called "TinyTUYA" -- configure and add the hardware there. 
+
+## Test device
+
+I had only a RGBWW light to fully test the script, if there is missing a fuction in the plugin and it is not noted on the TODO list you can provide the data from you device by edit and running the debug_discovery.py in the tools dirictory.
 
 ## Change log
 
