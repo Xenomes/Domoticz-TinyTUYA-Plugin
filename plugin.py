@@ -323,7 +323,7 @@ def onHandleThread(startup):
                 UpdateDevice(dev['id'], 1, 'Off', 0, 1)
             elif online == True and Devices[dev['id']].TimedOut == 1:
                 UpdateDevice(dev['id'], 1, 'Off' if StatusDeviceTuya(dev['id'], 'switch_led') == False else 'On', 0, 0)                
-            else:
+            elif online == True and Devices[dev['id']].TimedOut == 0:
                 try:
                     # Status Tuya
                     # Domoticz.Debug(StatusDeviceTuya(dev['id'], 'temp_value') / 2.55)
@@ -357,9 +357,9 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
 
                     if dev_type in ('light', 'dimmer'):
-                        if (currentstatuslight == False and bool(nValue) != currentstatuslight) or int(dimtuya) == 0:
+                        if (currentstatuslight == False and bool(nValue) != False) or int(dimtuya) == 0:
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif (currentstatuslight == True and bool(nValue) != currentstatuslight) or str(dimtuya) != str(sValue):
+                        elif (currentstatuslight == True and bool(nValue) != True) or str(dimtuya) != str(sValue):
                                 UpdateDevice(dev['id'], 1, int(dimtuya), 1, 0)
                         '''
                         elif currentstatuslight == True and workmode == 'white':
