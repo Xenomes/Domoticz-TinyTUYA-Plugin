@@ -11,14 +11,14 @@ Python version 3.6 or higher required & Domoticz version 2022.2 or greater.
 
 To install:
 * Go in your Domoticz directory using a command line and open the plugins directory.
-* The plugin required Python library tuyaha and requests ```sudo pip3 install tinytuya```
+* The plugin required Python library tinytuya ```sudo pip3 install tinytuya```
 * Run: ```git clone https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git```
 * Restart Domoticz.
 
 ## Updating
 
 To update:
-* Upgrade the tuyaha and requests library ```sudo pip3 install tinytuya --upgrade```
+* Upgrade the tinytuya library ```sudo pip3 install tinytuya --upgrade```
 * Go in your Domoticz directory using a command line and open the plugins directory then the Domoticz-TUYA directory.
 * Run: ```git pull```
 * Restart Domoticz.
