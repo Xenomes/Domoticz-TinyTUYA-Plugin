@@ -21,8 +21,11 @@
             <li>All devices that have on/off state should be supported</li>
         </ul>
         <h3>Configuration</h3>
-        Enter your apiRegion, apiKey, apiSecret and DeviceID (This id id used to detect all the other devices) from your IoT Cloud Platform account and everything will be detected automatically.
-        Devices can be renamed in Domoticz or you can rename them in the App and remove them from Domoticz so they are detected with a new name or layout.
+        <ul style="list-style-type:square">
+        <li>Enter your apiRegion, apiKey, apiSecret and Search deviceID (This id is used to detect all the other devices) from your IoT Cloud Platform account, keep the setting 'Data Timeout' disabled.</li>
+        <li>A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID.</li>
+        <li>The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.</li>
+        </ul>
     </description>
     <params>
         <param field="Mode1" label="apiRegion" width="150px" required="true" default="EU">
