@@ -25,7 +25,7 @@ To update:
 
 ## Configuration
 
-Enter your apiRegion, apiKey, apiSecret and Search deviceID (This id is used to detect all the other devices) from your IoT Cloud Platform account, keep the setting 'Data Timeout' disabled. The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.
+Enter your apiRegion, apiKey, apiSecret and Search deviceID (This id is used to detect all the other devices) from your IoT Cloud Platform account, keep the setting 'Data Timeout' disabled. A deviceID can be fount on yout IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID. The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.
 
 ## Usage
 
