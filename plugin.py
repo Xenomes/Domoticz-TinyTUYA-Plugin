@@ -316,7 +316,7 @@ def onHandleThread(startup):
 
             # Check device is removed
             if dev['id'] not in str(Devices):
-                raise Exception('Device not found! Device temoved or Accept new Hardware not active?')
+                raise Exception('Device not found! Device removed or Accept New Hardware not active?')
 
             #update devices in Domoticz
             Domoticz.Debug('Update devices in Domoticz')
