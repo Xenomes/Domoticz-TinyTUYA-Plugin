@@ -419,15 +419,19 @@ def onHandleThread(startup):
 
                     if dev_type == 'switch':
                         if currentstatus == False:
+                            # Set new state
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                         elif currentstatus == True:
+                            # Set new state
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
 
                     if dev_type in ('light', 'dimmer'):
                         if (currentstatus == False and bool(nValue) != False) or int(dimtuya) == 0:
+                            # Set new state
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                         elif (currentstatus == True and bool(nValue) != True) or str(dimtuya) != str(sValue):
-                                UpdateDevice(dev['id'], 1, int(dimtuya), 1, 0)
+                            # Set new level
+                            UpdateDevice(dev['id'], 1, int(dimtuya), 1, 0)
                         '''
                         elif currentstatus == True and workmode == 'white':
                             Domoticz.Debug(temptuya['t'])
@@ -442,36 +446,46 @@ def onHandleThread(startup):
                         '''
                     if dev_type == 'cover':
                         if currentstatus == False:
+                            # Set new state
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                         elif currentstatus == True:
+                            # Set new state
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
 
                     if dev_type == 'heater':
                         if currentstatus == False:
+                            # Set new state
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                         elif currentstatus == True:
+                            # Set new state
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
                         if 'temp_current' in str(result):
                             currenttemp = StatusDeviceTuya(dev['id'], 'temp_current')
                             if currenttemp != Devices[dev['id']].Units[2].sValue:
+                                # Set new sValue
                                 UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
                         if 'temp_set' in str(result):
                             currenttemp_set = StatusDeviceTuya(dev['id'], 'temp_set')
                             if currenttemp != Devices[dev['id']].Units[3].sValue:
+                                # Set new sValue
                                 UpdateDevice(dev['id'], 3, currenttemp_set, 1, 0)
 
                     if dev_type == 'thermostat':
                         if currentstatus == False:
+                            # Set new state
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                         elif currentstatus == True:
+                            # Set new state
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
                         if 'temp_current' in str(result):
                             currenttemp = StatusDeviceTuya(dev['id'], 'temp_current')
                             if currenttemp != Devices[dev['id']].Units[2].sValue:
+                                # Set new sValue
                                 UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
                         if 'temp_set' in str(result):
                             currenttemp_set = StatusDeviceTuya(dev['id'], 'temp_set')
                             if currenttemp != Devices[dev['id']].Units[3].sValue:
+                                # Set new sValue
                                 UpdateDevice(dev['id'], 3, currenttemp_set, 1, 0)
                         if 'mode' in str(result):
                             currentmode = StatusDeviceTuya(dev['id'], 'temp_set')
@@ -484,6 +498,7 @@ def onHandleThread(startup):
                             elif currentmode == 'Cold':
                                 currentmodeval = 40
                             if currentmode != Devices[dev['id']].Units[4].sValue:
+                                # Set new sValue
                                 UpdateDevice(dev['id'], 4, currentmodeval, 1, 0)
 
                 except Exception as err:
