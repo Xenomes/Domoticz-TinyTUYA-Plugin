@@ -42,3 +42,4 @@ I had only a RGBWW light to fully test the script, if there is missing a fuction
 | Version | Information|
 | ----- | ---------- |
 | 1.0.0 | Initial upload version |
+| 1.1.0 | Add Heater (Power, read and set temperature) |

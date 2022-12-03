@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.0.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
@@ -137,7 +137,7 @@ class BasePlugin:
                 # Set new level
                 SendCommandCloud(DeviceID, 'switch_led', False)
                 # Update status of Domoticz device
-                UpdateDevice(DeviceID, 1, Level, 0, 0)
+                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
             elif Command == 'On':
                 # Set new level
                 SendCommandCloud(DeviceID, 'switch_led', True)
@@ -173,22 +173,40 @@ class BasePlugin:
                 # Set new state
                 SendCommandCloud(DeviceID, 'switch_1', False)
                 # Update status of Domoticz device
-                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                UpdateDevice(DeviceID, 1, 'Open', 0, 0)
             elif Command == 'Close':
                 # Set new state
                 SendCommandCloud(DeviceID, 'switch_1', True)
                 # Update status of Domoticz device
-                UpdateDevice(DeviceID, 1, 'On', 1, 0)
+                UpdateDevice(DeviceID, 1, 'Close', 1, 0)
             elif Command == 'Stop':
                 # Set new state
                 SendCommandCloud(DeviceID, 'switch_1', True)
                 # Update status of Domoticz device
-                UpdateDevice(DeviceID, 1, 'On', 1, 0)
+                UpdateDevice(DeviceID, 1, 'Stop', 1, 0)
             elif Command == 'Set Level':
                 # Set new state
                 SendCommandCloud(DeviceID, 'switch_1', True)
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
+                
+        elif dev_type == 'Heater':
+            if Command == 'Off':
+                # Set new level
+                SendCommandCloud(DeviceID, 'switch', False)
+                # Update status of Domoticz device
+                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+            elif Command == 'On':
+                # Set new level
+                SendCommandCloud(DeviceID, 'switch', True)
+                # Update status of Domoticz device
+                UpdateDevice(DeviceID, 1, 'On', 1, 0)
+            elif Command == 'Set Level':
+                # Set new level
+                SendCommandCloud(DeviceID, 'temp_set', Level)
+                # Update status of Domoticz device
+                UpdateDevice(DeviceID, 3, Level, 1, 0)
+
         # Set last update
         # self.last_update = time.time()
 
@@ -275,7 +293,8 @@ def onHandleThread(startup):
                 deviceinfo = tinytuya.find_device(dev['id'])
                 
                 if dev['id'] not in Devices:
-                    if dev_type == 'light': # for localcontol: and deviceinfo['ip'] != None
+                    if dev_type == 'light':
+                        # for localcontol: and deviceinfo['ip'] != None
                         #if 'colour' in [item['values'] for item in functions if item['code'] == 'work_mode'][0]:
                         if 'switch_led' in str(functions) and 'colour' in str(functions) and 'white' in str(functions) and 'temp_value' in str(functions) and 'bright_value' in str(functions):
                             # Light Color and White temperature contol (RGBWW)
@@ -306,11 +325,15 @@ def onHandleThread(startup):
                     #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used = 1).Create()
                     elif dev_type == 'cover':
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=3, Used = 1).Create()
-                    elif dev_type in ('switch', 'unknown'):
+                    elif dev_type == 'switch':
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used = 1).Create()
-                    elif dev_type == 'sensor':
-                        Domoticz.Error('No controls found for your sensor device!')
-
+                    elif dev_type == 'heater':
+                        Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=15, Used = 1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used = 1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Used = 1).Create()
+                        
+                    else:
+                        Domoticz.Error('No controls found for your device!')
                 # Set extra info
                 setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type,  'mac': dev['mac'], 'ip': deviceinfo['ip'], 'version': deviceinfo['version'] })
 
@@ -329,11 +352,14 @@ def onHandleThread(startup):
             elif online == True and Devices[dev['id']].TimedOut == 0:
                 try:
                     # Status Tuya
-                    # Domoticz.Debug(StatusDeviceTuya(dev['id'], 'temp_value') / 2.55)
-                    currentstatusswitch = StatusDeviceTuya(dev['id'], 'switch_1')
-                    currentstatuslight = StatusDeviceTuya(dev['id'], 'switch_led')
-                    
-                    workmode = StatusDeviceTuya(dev['id'], 'work_mode')
+                    if 'switch_led' in str(result):
+                        currentstatus = StatusDeviceTuya(dev['id'], 'switch_led')
+                    elif 'switch_1' in str(result):
+                        currentstatus = StatusDeviceTuya(dev['id'], 'switch_1')
+                    elif 'switch' in str(result):
+                        currentstatus = StatusDeviceTuya(dev['id'], 'switch')
+
+                    # workmode = StatusDeviceTuya(dev['id'], 'work_mode')
                     if 'bright_value' in str(result):
                         dimtuya = brightness_to_pct(str(StatusDeviceTuya(dev['id'], 'bright_value')))
                     '''
@@ -354,33 +380,46 @@ def onHandleThread(startup):
                     '''
 
                     if dev_type == 'switch':
-                        if currentstatusswitch == False:
+                        if currentstatus == False:
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif currentstatusswitch == True:
+                        elif currentstatus == True:
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
 
                     if dev_type in ('light', 'dimmer'):
-                        if (currentstatuslight == False and bool(nValue) != False) or int(dimtuya) == 0:
+                        if (currentstatus == False and bool(nValue) != False) or int(dimtuya) == 0:
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif (currentstatuslight == True and bool(nValue) != True) or str(dimtuya) != str(sValue):
+                        elif (currentstatus == True and bool(nValue) != True) or str(dimtuya) != str(sValue):
                                 UpdateDevice(dev['id'], 1, int(dimtuya), 1, 0)
                         '''
-                        elif currentstatuslight == True and workmode == 'white':
+                        elif currentstatus == True and workmode == 'white':
                             Domoticz.Debug(temptuya['t'])
                             Domoticz.Debug(color['t'])
                             if int((temptuya['t'])) != int(color['t']):
                                 Domoticz.Debug(str((temptuya['t'])) + ' ' + str(color['t']))
                                 UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
                                 UpdateDevice(dev['id'], 1, temptuya, 1, 0)
-                        elif currentstatuslight == True and workmode == 'colour':
+                        elif currentstatus == True and workmode == 'colour':
                             if type(color) == dict and (color['r'] != rtuya or color['g'] != gtuya or color['b'] != btuya ):
                                 UpdateDevice(dev['id'], 1, colorupdate, 1, 0)
                         '''
                     if dev_type == 'cover':
-                        if currentstatusswitch == False:
+                        if currentstatus == False:
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif currentstatusswitch == True:
+                        elif currentstatus == True:
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
+
+                    if dev_type == 'heater':
+                        if currentstatus == False:
+                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                        elif currentstatus == True:
+                            UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        if 'temp_current' in str(result):
+                            currenttemp = StatusDeviceTuya(dev['id'], 'temp_current')
+                            UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
+                        if 'temp_set' in str(result):
+                            currenttemp_set = StatusDeviceTuya(dev['id'], 'temp_set')
+                            UpdateDevice(dev['id'], 2, currenttemp_set, 1, 0)
+
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -420,6 +459,8 @@ def DeviceType(category):
         result = 'light'
     elif category in {'cl', 'clkg', 'jdcljqr'}:
         result = 'cover'
+    elif category in {'qn'}:
+        result = 'heater'
     else:
         result = 'unknown'
     return result
