@@ -453,10 +453,12 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
                         if 'temp_current' in str(result):
                             currenttemp = StatusDeviceTuya(dev['id'], 'temp_current')
-                            UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
+                            if currenttemp != Devices[dev['id']].Units[2].sValue:
+                                UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
                         if 'temp_set' in str(result):
                             currenttemp_set = StatusDeviceTuya(dev['id'], 'temp_set')
-                            UpdateDevice(dev['id'], 3, currenttemp_set, 1, 0)
+                            if currenttemp != Devices[dev['id']].Units[3].sValue:
+                                UpdateDevice(dev['id'], 3, currenttemp_set, 1, 0)
 
                     if dev_type == 'thermostat':
                         if currentstatus == False:
@@ -465,10 +467,12 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
                         if 'temp_current' in str(result):
                             currenttemp = StatusDeviceTuya(dev['id'], 'temp_current')
-                            UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
+                            if currenttemp != Devices[dev['id']].Units[2].sValue:
+                                UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
                         if 'temp_set' in str(result):
                             currenttemp_set = StatusDeviceTuya(dev['id'], 'temp_set')
-                            UpdateDevice(dev['id'], 3, currenttemp_set, 1, 0)
+                            if currenttemp != Devices[dev['id']].Units[3].sValue:
+                                UpdateDevice(dev['id'], 3, currenttemp_set, 1, 0)
                         if 'mode' in str(result):
                             currentmode = StatusDeviceTuya(dev['id'], 'temp_set')
                             if currentmode == 'Auto':
@@ -479,7 +483,8 @@ def onHandleThread(startup):
                                 currentmodeval = 30
                             elif currentmode == 'Cold':
                                 currentmodeval = 40
-                            UpdateDevice(dev['id'], 4, currentmodeval, 1, 0)
+                            if currentmode != Devices[dev['id']].Units[4].sValue:
+                                UpdateDevice(dev['id'], 4, currentmodeval, 1, 0)
 
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
