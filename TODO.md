@@ -12,9 +12,8 @@ TUYA Plugin for Domoticz home automation
 - [x] 19/11/22 add Light function
 - [x] 24/11/22 add tuya app read back to Domoticz for switch, dimmer and Lights (status and brightness only at the moment)
 - [x] 26/11/22 make a detection for the lights (dim, temp, color and color with temp) 
-- [ ] 27/11/22 add cover funtcion
+- [x] 27/11/22 release for the public
+- [ ] start add cover funtcion need tester
+- [ ] start add heater power/set temp/read temp funtcion
 - [ ] duplucate all functions from the Domoticz-Tuya-Plugin
-- [ ] Test for other users
-- [ ] release for the public
-- [ ] add temperature funtcion 
 - [ ] add tuya app read back to Domoticz for color and tempature
