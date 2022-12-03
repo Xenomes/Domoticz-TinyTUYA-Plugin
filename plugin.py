@@ -67,19 +67,19 @@ class BasePlugin:
     enabled = False
     def __init__(self):
         return
-         
+
     def onStart(self):
         Domoticz.Log('TinyTUYA plugin started')
         if Parameters['Mode6'] != '0':
             Domoticz.Debugging(int(Parameters['Mode6']))
             # Domoticz.Log('Debugger started, use 'telnet 0.0.0.0 4444' to connect')
-            # import rpdb  
+            # import rpdb
             # rpdb.set_trace()
             DumpConfigToLog()
         else:
             Domoticz.Log('onStart called')
         # Domoticz.Heartbeat(1)
-        onHandleThread(True) 
+        onHandleThread(True)
 
     def onStop(self):
         Domoticz.Log('onStop called')
@@ -149,7 +149,7 @@ class BasePlugin:
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
             elif Command == 'Set Color':
-                # Update status of Domoticz device 
+                # Update status of Domoticz device
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
                 if Color['m'] == 2:
                     Domoticz.Debug(Color)
@@ -166,7 +166,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'colour_data', hvs)
                     # Update status of Domoticz device
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
-                    UpdateDevice(DeviceID, 1, Color, 1, 0) 
+                    UpdateDevice(DeviceID, 1, Color, 1, 0)
 
         if dev_type == ('cover'):
             if Command == 'Open':
@@ -189,7 +189,7 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'switch_1', True)
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
-                
+
         elif dev_type == 'Heater':
             if Command == 'Off':
                 # Set new level
@@ -207,6 +207,36 @@ class BasePlugin:
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 3, Level, 1, 0)
 
+        elif dev_type == 'thermostat':
+            if Command == 'Off':
+                # Set new level
+                SendCommandCloud(DeviceID, 'switch', False)
+                # Update status of Domoticz device
+                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+            elif Command == 'On':
+                # Set new level
+                SendCommandCloud(DeviceID, 'switch', True)
+                # Update status of Domoticz device
+                UpdateDevice(DeviceID, 1, 'On', 1, 0)
+            elif Command == 'Set Level' and Unit == 3:
+                # Set new level
+                SendCommandCloud(DeviceID, 'temp_set', Level)
+                # Update status of Domoticz device
+                UpdateDevice(DeviceID, 3, Level, 1, 0)
+            elif Command == 'Set Level' and Unit == 4:
+                # Set new level
+                if Level == 10:
+                    LevelName = 'Auto'
+                elif Level == 20:
+                    LevelName = 'Hot'
+                elif Level == 30:
+                    LevelName = 'Eco'
+                elif Level == 40:
+                    LevelName = 'Cold'
+                SendCommandCloud(DeviceID, 'mode', LevelName)
+                # Update status of Domoticz device
+                UpdateDevice(DeviceID, 4, Level, 1, 0)
+
         # Set last update
         # self.last_update = time.time()
 
@@ -218,7 +248,7 @@ class BasePlugin:
         # device for the Domoticz
         Devices[DeviceID].Units[Unit].Delete
         Domoticz.Debug('Device ID: ' + str(DeviceID) + ' delete')
-    
+
     def onDisconnect(self, Connection):
         Domoticz.Log('onDisconnect called')
 
@@ -271,7 +301,7 @@ def onHandleThread(startup):
             devs = tuya.getdevices()
             token = tuya.token
             # Check credentials
-            if 'sign invalid' in str(token):
+            if 'sign invalid' in str(token) or token == None:
                 raise Exception('Credentials are incorrect!')
 
             # Check ID search device is valid
@@ -286,12 +316,12 @@ def onHandleThread(startup):
             online = tuya.getconnectstatus(dev['id'])
             result = tuya.getstatus(dev['id'])['result']
             dev_type = DeviceType(tuya.getfunctions(dev['id'])['result']['category'])
-            
+
             # Create devices
             if startup == True:
                 Domoticz.Debug('Create devices')
                 deviceinfo = tinytuya.find_device(dev['id'])
-                
+
                 if dev['id'] not in Devices:
                     if dev_type == 'light':
                         # for localcontol: and deviceinfo['ip'] != None
@@ -331,7 +361,15 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=15, Used = 1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used = 1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Used = 1).Create()
-                        
+                    elif dev_type == 'Thermostat':
+                        options = {}
+                        options['LevelActions'] = ''
+                        options['LevelNames'] = '|'.join(['Auto', 'Hot', 'Eco', 'Cold'])
+                        options['SelectorStyle'] = '0'
+                        Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=15, Used = 1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used = 1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Used = 1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Used = 1).Create()
                     else:
                         Domoticz.Error('No controls found for your device!')
                 # Set extra info
@@ -344,11 +382,11 @@ def onHandleThread(startup):
             #update devices in Domoticz
             Domoticz.Debug('Update devices in Domoticz')
             # Domoticz.Debug('Test script:' + str(getConfigItem(dev['id'])))
-            
+
             if online == False and Devices[dev['id']].TimedOut == 0:
                 UpdateDevice(dev['id'], 1, 'Off', 0, 1)
             elif online == True and Devices[dev['id']].TimedOut == 1:
-                UpdateDevice(dev['id'], 1, 'Off' if StatusDeviceTuya(dev['id'], 'switch_led') == False else 'On', 0, 0)                
+                UpdateDevice(dev['id'], 1, 'Off' if StatusDeviceTuya(dev['id'], 'switch_led') == False else 'On', 0, 0)
             elif online == True and Devices[dev['id']].TimedOut == 0:
                 try:
                     # Status Tuya
@@ -418,7 +456,30 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
                         if 'temp_set' in str(result):
                             currenttemp_set = StatusDeviceTuya(dev['id'], 'temp_set')
-                            UpdateDevice(dev['id'], 2, currenttemp_set, 1, 0)
+                            UpdateDevice(dev['id'], 3, currenttemp_set, 1, 0)
+
+                    if dev_type == 'thermostat':
+                        if currentstatus == False:
+                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                        elif currentstatus == True:
+                            UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        if 'temp_current' in str(result):
+                            currenttemp = StatusDeviceTuya(dev['id'], 'temp_current')
+                            UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
+                        if 'temp_set' in str(result):
+                            currenttemp_set = StatusDeviceTuya(dev['id'], 'temp_set')
+                            UpdateDevice(dev['id'], 3, currenttemp_set, 1, 0)
+                        if 'mode' in str(result):
+                            currentmode = StatusDeviceTuya(dev['id'], 'temp_set')
+                            if currentmode == 'Auto':
+                                currentmodeval = 10
+                            elif currentmode == 'Hot':
+                                currentmodeval = 20
+                            elif currentmode == 'Eco':
+                                currentmodeval = 30
+                            elif currentmode == 'Cold':
+                                currentmodeval = 40
+                            UpdateDevice(dev['id'], 4, currentmodeval, 1, 0)
 
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
@@ -446,7 +507,7 @@ def DumpConfigToLog():
             Domoticz.Debug("--->Unit sValue:   '" + Unit.sValue + "'")
             Domoticz.Debug("--->Unit LastLevel: " + str(Unit.LastLevel))
     return
-    
+
 # Select device type from category
 def DeviceType(category):
     'convert category to device type'
@@ -461,13 +522,14 @@ def DeviceType(category):
         result = 'cover'
     elif category in {'qn'}:
         result = 'heater'
+    elif category in {'wk'}:
+        result = 'thermostat'
     else:
         result = 'unknown'
     return result
 
 def UpdateDevice(ID, Unit, sValue, nValue, TimedOut):
     # Make sure that the Domoticz device still exists (they can be deleted) before updating it
-    Domoticz.Debug(type(sValue))
     if ID in Devices:
         if Devices[ID].Units[Unit].sValue != sValue or Devices[ID].Units[Unit].nValue != nValue or Devices[ID].TimedOut != TimedOut:
             Devices[ID].Units[Unit].sValue = str(sValue)
@@ -498,7 +560,7 @@ def pct_to_brightness(p):
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     result = round(22.68 + (int(p) * ((255 - 22.68) / 100)))
     return result
-    
+
 def brightness_to_pct(v):
     # Convert a raw to a percentage value 25 = 1% => 255 = 100%
     result = round((100 / (255 - 22.68) * (int(v) - 22.68)))
@@ -512,7 +574,7 @@ def rgb_to_hsv(r, g, b):
     return h, s, v
 
 def hsv_to_rgb(h, s, v):
-    r, g, b = colorsys.hsv_to_rgb(h / 360, s / 255, v / 255) 
+    r, g, b = colorsys.hsv_to_rgb(h / 360, s / 255, v / 255)
     r = round(r * 255)
     g = round(g * 255)
     b = round(b * 255)
@@ -546,7 +608,7 @@ def getConfigItem(Key=None, Values=None):
     except Exception as inst:
         Domoticz.Error('Domoticz.Configuration read failed: ' + str(inst))
     return Value
-    
+
 def setConfigItem(Key=None, Value=None):
     Config = {}
     try:
