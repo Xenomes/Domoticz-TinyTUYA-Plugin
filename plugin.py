@@ -426,10 +426,10 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
 
                     if dev_type in ('light', 'dimmer'):
-                        if (currentstatus == False and bool(nValue) != False) or int(dimtuya) == 0:
+                        if (currentstatus == False and bool(nValue) != False) or (int(dimtuya) == 0 and bool(nValue) != False):
                             # Set new state
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif (currentstatus == True and bool(nValue) != True) or str(dimtuya) != str(sValue):
+                        elif (currentstatus == True and bool(nValue) != True) or (str(dimtuya) != str(sValue) and bool(nValue) != False):
                             # Set new level
                             UpdateDevice(dev['id'], 1, int(dimtuya), 1, 0)
                         '''
