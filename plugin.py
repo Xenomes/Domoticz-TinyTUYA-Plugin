@@ -311,7 +311,7 @@ def onHandleThread(startup):
         # Initialize/Update devices from TUYA API
         devs = tuya.getdevices(verbose=False)
         for dev in devs:
-            Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']))
+            Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'])))
             functions = tuya.getfunctions(dev['id'])['result']['functions']
             online = tuya.getconnectstatus(dev['id'])
             result = tuya.getstatus(dev['id'])['result']
@@ -374,6 +374,7 @@ def onHandleThread(startup):
                         Domoticz.Error('No controls found for your device!')
                 # Set extra info
                 setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type,  'mac': dev['mac'], 'ip': deviceinfo['ip'], 'version': deviceinfo['version'] })
+                Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
             if dev['id'] not in str(Devices):
