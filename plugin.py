@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.1.0</h2><br/>
+        <h2>TinyTUYA Plugin v.1.1.1</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -220,19 +220,19 @@ class BasePlugin:
                 UpdateDevice(DeviceID, 1, 'On', 1, 0)
             elif Command == 'Set Level' and Unit == 3:
                 # Set new level
-                SendCommandCloud(DeviceID, 'temp_set', Level)
+                SendCommandCloud(DeviceID, 'temp_set', Level * 10)
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 3, Level, 1, 0)
             elif Command == 'Set Level' and Unit == 4:
                 # Set new level
                 if Level == 10:
-                    LevelName = 'Auto'
+                    LevelName = 'auto'
                 elif Level == 20:
-                    LevelName = 'Hot'
+                    LevelName = 'hot'
                 elif Level == 30:
-                    LevelName = 'Eco'
+                    LevelName = 'eco'
                 elif Level == 40:
-                    LevelName = 'Cold'
+                    LevelName = 'cold'
                 SendCommandCloud(DeviceID, 'mode', LevelName)
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 4, Level, 1, 0)
@@ -293,7 +293,6 @@ def onHeartbeat():
 
 def onHandleThread(startup):
     # Run for every device on startup and heartbeat
-
     try:
         if startup == True:
             global tuya
@@ -335,10 +334,10 @@ def onHandleThread(startup):
                         elif 'switch_led' in str(functions) and 'colour' in str(functions) and not 'white' in str(functions) and 'temp_value' not in str(functions) and 'bright_value' in str(functions):
                             # Light Color control (RGB)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7,  Used = 1).Create()
-                        elif 'switch_led' in str(functions) and 'colour' not in str(functions) and 'white' in str(functions) and 'temp_value' in str(functions) and 'bright_value' in str(functions):
+                        elif 'switch_led' in str(functions) and 'colour' not in str(functions) and not 'white' in str(functions) and 'temp_value' in str(functions) and 'bright_value' in str(functions):
                             # Light White temperature control
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=8, Switchtype=7,  Used = 1).Create()
-                        elif 'switch_led' in str(functions) and 'colour' not in str(functions) and 'white' in str(functions) and 'temp_value' not in str(functions) and 'bright_value' in str(functions):
+                        elif 'switch_led' in str(functions) and 'colour' not in str(functions) and not 'white' in str(functions) and 'temp_value' not in str(functions) and 'bright_value' in str(functions):
                             # Light Brightness control
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=3, Switchtype=7,  Used = 1).Create()
                         elif 'switch_led' in str(functions) and 'colour' not in str(functions) and 'white' not in str(functions) and 'temp_value' not in str(functions) and 'bright_value' not in str(functions):
@@ -347,12 +346,6 @@ def onHandleThread(startup):
                         else:
                             # Error
                             Domoticz.Error('No controls found for your light device!')
-                    # elif dev_type == 'climate':
-                    #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used = 1).Create()
-                    # elif dev_type == 'fan':
-                    #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=7, Used = 1).Create()
-                    # elif dev_type == 'lock':
-                    #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used = 1).Create()
                     elif dev_type == 'cover':
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=3, Used = 1).Create()
                     elif dev_type == 'switch':
@@ -361,7 +354,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=15, Used = 1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used = 1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Used = 1).Create()
-                    elif dev_type == 'Thermostat':
+                    elif dev_type == 'thermostat':
                         options = {}
                         options['LevelActions'] = ''
                         options['LevelNames'] = '|'.join(['Auto', 'Hot', 'Eco', 'Cold'])
@@ -370,6 +363,16 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used = 1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Used = 1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Used = 1).Create()
+                    elif dev_type == 'temperaturehumiditysensor':
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used = 1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used = 1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=1, Used = 1).Create()
+                    # elif dev_type == 'climate':
+                    #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used = 1).Create()
+                    # elif dev_type == 'fan':
+                    #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=7, Used = 1).Create()
+                    # elif dev_type == 'lock':
+                    #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used = 1).Create()
                     else:
                         Domoticz.Error('No controls found for your device!')
                 # Set extra info
@@ -480,14 +483,14 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
                         if 'temp_current' in str(result):
                             currenttemp = StatusDeviceTuya(dev['id'], 'temp_current')
-                            if currenttemp != Devices[dev['id']].Units[2].sValue:
+                            if currenttemp != Devices[dev['id']].Units[2].sValue * 10:
                                 # Set new sValue
-                                UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
+                                UpdateDevice(dev['id'], 2, currenttemp / 10, 1, 0)
                         if 'temp_set' in str(result):
                             currenttemp_set = StatusDeviceTuya(dev['id'], 'temp_set')
-                            if currenttemp != Devices[dev['id']].Units[3].sValue:
+                            if currenttemp_set != Devices[dev['id']].Units[3].sValue * 10:
                                 # Set new sValue
-                                UpdateDevice(dev['id'], 3, currenttemp_set, 1, 0)
+                                UpdateDevice(dev['id'], 3, currenttemp_set / 10, 1, 0)
                         if 'mode' in str(result):
                             currentmode = StatusDeviceTuya(dev['id'], 'temp_set')
                             if currentmode == 'Auto':
@@ -501,6 +504,24 @@ def onHandleThread(startup):
                             if currentmode != Devices[dev['id']].Units[4].sValue:
                                 # Set new sValue
                                 UpdateDevice(dev['id'], 4, currentmodeval, 1, 0)
+
+                    if dev_type == 'temperaturehumiditysensor':
+                        if 'va_temperature' in str(result):
+                            currenttemp = StatusDeviceTuya(dev['id'], 'va_temperature')
+                            if currenttemp != Devices[dev['id']].Units[1].sValue * 10:
+                                # Set new sValue
+                                UpdateDevice(dev['id'], 1, currenttemp / 10, 1, 0)
+                        if 'va_humidity' in str(result):
+                            currenthumi = StatusDeviceTuya(dev['id'], 'va_humidity')
+                            if currenthumi != Devices[dev['id']].Units[2].sValue:
+                                # Set new sValue
+                                UpdateDevice(dev['id'], 2, currenthumi / 10, 1, 0)
+                        if 'va_temperature' in str(result):
+                            currenttemp = StatusDeviceTuya(dev['id'], 'va_temperature')
+                            currenthumi = StatusDeviceTuya(dev['id'], 'va_humidity')
+                            if currenttemp != Devices[dev['id']].Units[1].sValue * 10 or currenthumi != Devices[dev['id']].Units[2].sValue: # Temporary as test
+                                # Set new sValue
+                                UpdateDevice(dev['id'], 3, currenttemp / 10 & ";" & currenthumi , 1, 0)
 
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
@@ -545,6 +566,8 @@ def DeviceType(category):
         result = 'heater'
     elif category in {'wk'}:
         result = 'thermostat'
+    elif category in {'wsdcg'}:
+        result = 'temperaturehumiditysensor'
     else:
         result = 'unknown'
     return result
