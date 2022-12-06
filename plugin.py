@@ -515,7 +515,7 @@ def onHandleThread(startup):
                             currenthumi = StatusDeviceTuya(dev['id'], 'va_humidity')
                             if currenthumi != Devices[dev['id']].Units[2].sValue:
                                 # Set new sValue
-                                UpdateDevice(dev['id'], 2, currenthumi / 10, 1, 0)
+                                UpdateDevice(dev['id'], 2, currenthumi, 1, 0)
                         if 'va_temperature' in str(result):
                             currenttemp = StatusDeviceTuya(dev['id'], 'va_temperature')
                             currenthumi = StatusDeviceTuya(dev['id'], 'va_humidity')
