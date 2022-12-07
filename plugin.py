@@ -351,21 +351,21 @@ def onHandleThread(startup):
                     elif dev_type == 'switch':
                         if 'switch_1' in str(functions) and 'switch_2' not in str(functions):
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if 'switch_2' in str(functions):
-                            Domoticz.Unit(Name=dev['name'] + ' (Switch 1)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                            Domoticz.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if 'switch_3' in str(functions):
-                            Domoticz.Unit(Name=dev['name'] + ' (Switch 3)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if 'switch_4' in str(functions):
-                            Domoticz.Unit(Name=dev['name'] + ' (Switch 4)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if 'switch_5' in str(functions):
-                            Domoticz.Unit(Name=dev['name'] + ' (Switch 5)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if 'cur_current'in str(result):
-                            Domoticz.Unit(Name=dev['name'] + '(A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
-                        if 'cur_power'in str(result):
-                            Domoticz.Unit(Name=dev['name'] + '(kWh)', DeviceID=dev['id'], Unit=12, Type=243, Subtype=29, Used=1).Create()
-                        if 'cur_voltage'in str(result):
-                            Domoticz.Unit(Name=dev['name'] + '(V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
+                        # if 'switch_2' in str(functions):
+                        #     Domoticz.Unit(Name=dev['name'] + ' (Switch 1)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        #     Domoticz.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # if 'switch_3' in str(functions):
+                        #     Domoticz.Unit(Name=dev['name'] + ' (Switch 3)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # if 'switch_4' in str(functions):
+                        #     Domoticz.Unit(Name=dev['name'] + ' (Switch 4)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # if 'switch_5' in str(functions):
+                        #     Domoticz.Unit(Name=dev['name'] + ' (Switch 5)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # if 'cur_current'in str(result):
+                        #     Domoticz.Unit(Name=dev['name'] + '(A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
+                        # if 'cur_power'in str(result):
+                        #     Domoticz.Unit(Name=dev['name'] + '(kWh)', DeviceID=dev['id'], Unit=12, Type=243, Subtype=29, Used=1).Create()
+                        # if 'cur_voltage'in str(result):
+                        #     Domoticz.Unit(Name=dev['name'] + '(V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
                     elif dev_type == 'heater':
                         Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=15, Used=1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=1).Create()
