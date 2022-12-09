@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.1.2</h2><br/>
+        <h2>TinyTUYA Plugin v.1.1.3</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -78,7 +78,7 @@ class BasePlugin:
             # rpdb.set_trace()
             DumpConfigToLog()
 
-        # Domoticz.Heartbeat(1)
+        Domoticz.Heartbeat(60)
         onHandleThread(True)
 
     def onStop(self):
@@ -147,13 +147,11 @@ class BasePlugin:
                 if scalemode == 'v2':
                     # Set new level
                     SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness_v2(Level))
-                    # Update status of Domoticz device
-                    UpdateDevice(DeviceID, 1, Level, 1, 0)
                 else:
                     # Set new level
                     SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness(Level))
-                    # Update status of Domoticz device
-                    UpdateDevice(DeviceID, 1, Level, 1, 0)
+                # Update status of Domoticz device
+                UpdateDevice(DeviceID, 1, Level, 1, 0)
             elif Command == 'Set Color':
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
@@ -162,33 +160,27 @@ class BasePlugin:
                         # Set new level
                         SendCommandCloud(DeviceID, 'temp_value', inv_val_v2(Color['t']))
                         SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness_v2(Level))
-                        # Update status of Domoticz device
-                        UpdateDevice(DeviceID, 1, Level, 1, 0)
-                        UpdateDevice(DeviceID, 1, Color, 1, 0)
                     else:
                         # Set new level
                         SendCommandCloud(DeviceID, 'temp_value', inv_val(Color['t']))
                         SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness(Level))
-                        # Update status of Domoticz device
-                        UpdateDevice(DeviceID, 1, Level, 1, 0)
-                        UpdateDevice(DeviceID, 1, Color, 1, 0)
+                    # Update status of Domoticz device
+                    UpdateDevice(DeviceID, 1, Level, 1, 0)
+                    UpdateDevice(DeviceID, 1, Color, 1, 0)
                 elif Color['m'] == 3:
                     if scalemode == 'v2':
                         h,s,v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
                         hvs = {'h':h,'s':s,'v':Level * 10}
                         # Set new level
                         SendCommandCloud(DeviceID, 'colour_data', hvs)
-                        # Update status of Domoticz device
-                        UpdateDevice(DeviceID, 1, Level, 1, 0)
-                        UpdateDevice(DeviceID, 1, Color, 1, 0)
                     else:
                         h,s,v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
                         hvs = {'h':h,'s':s,'v':Level * 2.55}
                         # Set new level
                         SendCommandCloud(DeviceID, 'colour_data', hvs)
                         # Update status of Domoticz device
-                        UpdateDevice(DeviceID, 1, Level, 1, 0)
-                        UpdateDevice(DeviceID, 1, Color, 1, 0)
+                    UpdateDevice(DeviceID, 1, Level, 1, 0)
+                    UpdateDevice(DeviceID, 1, Color, 1, 0)
 
         if dev_type == ('cover'):
             if Command == 'Open':
@@ -406,7 +398,7 @@ def onHandleThread(startup):
                     elif dev_type == 'temperaturehumiditysensor':
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=1).Create()
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=1, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
                     # elif dev_type == 'climate':
                     #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
                     # elif dev_type == 'fan':
@@ -568,13 +560,14 @@ def onHandleThread(startup):
                             currenthumi = StatusDeviceTuya(dev['id'], 'va_humidity')
                             if currenthumi != Devices[dev['id']].Units[2].sValue:
                                 # Set new sValue
-                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                        if 'va_temperature' in str(result):
+                                UpdateDevice(dev['id'], 2, 0, str(currenthumi), 0)
+                        if 'va_temperature' in str(result) and 'va_humidity' in str(result):
                             currenttemp = StatusDeviceTuya(dev['id'], 'va_temperature')
                             currenthumi = StatusDeviceTuya(dev['id'], 'va_humidity')
-                            if currenttemp != Devices[dev['id']].Units[1].sValue * 10 or currenthumi != Devices[dev['id']].Units[2].sValue: # Temporary as test
+                            currentdomo = Devices[dev['id']].Units[3].sValue
+                            if currenttemp != currentdomo.split(';')[0] * 10 or currenthumi != currentdomo.split(';')[1]: # Temporary as test
                                 # Set new sValue
-                                UpdateDevice(dev['id'], 3, currenttemp / 10 & ";" & currenthumi & ";" & "0", 0, 0)
+                                UpdateDevice(dev['id'], 3, str(currenttemp / 10) & ";" & str(currenthumi) & ';0', 0, 0)
                     Domoticz
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
