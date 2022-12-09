@@ -113,6 +113,7 @@ class BasePlugin:
 
         # Control device and update status in Domoticz
         dev_type = getConfigItem(DeviceID, 'category')
+        scalemode = getConfigItem(DeviceID, 'scalemode')
 
         if dev_type in ('switch', 'dimmer'):
             if Command == 'Off':
@@ -143,29 +144,51 @@ class BasePlugin:
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 1, 'On', 1, 0)
             elif Command == 'Set Level':
-                # Set new level
-                SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness(Level))
-                # Update status of Domoticz device
-                UpdateDevice(DeviceID, 1, Level, 1, 0)
+                if scalemode == 'v2':
+                    # Set new level
+                    SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness_v2(Level))
+                    # Update status of Domoticz device
+                    UpdateDevice(DeviceID, 1, Level, 1, 0)
+                else:
+                    # Set new level
+                    SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness(Level))
+                    # Update status of Domoticz device
+                    UpdateDevice(DeviceID, 1, Level, 1, 0)
             elif Command == 'Set Color':
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
                 if Color['m'] == 2:
-                    Domoticz.Debug(Color)
-                    # Set new level
-                    SendCommandCloud(DeviceID, 'temp_value', inv_val(Color['t']))
-                    SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness(Level))
-                    # Update status of Domoticz device
-                    UpdateDevice(DeviceID, 1, Level, 1, 0)
-                    UpdateDevice(DeviceID, 1, Color, 1, 0)
+                    if scalemode == 'v2':
+                        # Set new level
+                        SendCommandCloud(DeviceID, 'temp_value', inv_val_v2(Color['t']))
+                        SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness_v2(Level))
+                        # Update status of Domoticz device
+                        UpdateDevice(DeviceID, 1, Level, 1, 0)
+                        UpdateDevice(DeviceID, 1, Color, 1, 0)
+                    else:
+                        # Set new level
+                        SendCommandCloud(DeviceID, 'temp_value', inv_val(Color['t']))
+                        SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness(Level))
+                        # Update status of Domoticz device
+                        UpdateDevice(DeviceID, 1, Level, 1, 0)
+                        UpdateDevice(DeviceID, 1, Color, 1, 0)
                 elif Color['m'] == 3:
-                    h,s,v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
-                    hvs = {'h':h,'s':s,'v':Level * 2.55}
-                    # Set new level
-                    SendCommandCloud(DeviceID, 'colour_data', hvs)
-                    # Update status of Domoticz device
-                    UpdateDevice(DeviceID, 1, Level, 1, 0)
-                    UpdateDevice(DeviceID, 1, Color, 1, 0)
+                    if scalemode == 'v2':
+                        h,s,v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
+                        hvs = {'h':h,'s':s,'v':Level * 10}
+                        # Set new level
+                        SendCommandCloud(DeviceID, 'colour_data', hvs)
+                        # Update status of Domoticz device
+                        UpdateDevice(DeviceID, 1, Level, 1, 0)
+                        UpdateDevice(DeviceID, 1, Color, 1, 0)
+                    else:
+                        h,s,v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
+                        hvs = {'h':h,'s':s,'v':Level * 2.55}
+                        # Set new level
+                        SendCommandCloud(DeviceID, 'colour_data', hvs)
+                        # Update status of Domoticz device
+                        UpdateDevice(DeviceID, 1, Level, 1, 0)
+                        UpdateDevice(DeviceID, 1, Color, 1, 0)
 
         if dev_type == ('cover'):
             if Command == 'Open':
@@ -315,15 +338,16 @@ def onHandleThread(startup):
             online = tuya.getconnectstatus(dev['id'])
             result = tuya.getstatus(dev['id'])['result']
             dev_type = DeviceType(tuya.getfunctions(dev['id'])['result']['category'])
+            scalemode = 'v2' if '_v2' in str(result) else 'v1'
 
             # Create devices
             if startup == True:
                 Domoticz.Debug('Create devices')
                 deviceinfo = tinytuya.find_device(dev['id'])
-
                 if dev['id'] not in Devices:
                     if dev_type == 'light':
                         # for localcontol: and deviceinfo['ip'] != None
+
                         #if 'colour' in [item['values'] for item in functions if item['code'] == 'work_mode'][0]:
                         if 'switch_led' in str(functions) and 'colour' in str(functions) and 'white' in str(functions) and 'temp_value' in str(functions) and 'bright_value' in str(functions):
                             # Light Color and White temperature contol (RGBWW)
@@ -395,7 +419,7 @@ def onHandleThread(startup):
                         UpdateDevice(dev['id'], 1, 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.', 0, 0)
 
                 # Set extra info
-                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type,  'mac': dev['mac'], 'ip': deviceinfo['ip'], 'version': deviceinfo['version'] })
+                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type,  'mac': dev['mac'], 'ip': deviceinfo['ip'], 'version': deviceinfo['version'] , 'scalemode': scalemode})
                 Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
@@ -442,10 +466,11 @@ def onHandleThread(startup):
 
                     if dev_type == ('light'):
                         # workmode = StatusDeviceTuya(dev['id'], 'work_mode')
-                        if 'bright_value_v2' in str(result):
-                            dimtuya = brightness_to_pct_v2(str(StatusDeviceTuya(dev['id'], 'bright_value')))
-                        elif 'bright_value' in str(result):
-                            dimtuya = brightness_to_pct(str(StatusDeviceTuya(dev['id'], 'bright_value')))
+                        if 'bright_value' in str(result):
+                            if scalemode == 'v2':
+                                dimtuya = brightness_to_pct_v2(str(StatusDeviceTuya(dev['id'], 'bright_value')))
+                            else:
+                                dimtuya = brightness_to_pct(str(StatusDeviceTuya(dev['id'], 'bright_value')))
                         '''
                         Finding other way to detect
                         dimlevel = Devices[dev['id']].Units[1].sValue if type(Devices[dev['id']].Units[1].sValue) == int else dimtuya
@@ -633,7 +658,7 @@ def pct_to_brightness(p):
     result = round(22.68 + (int(p) * ((255 - 22.68) / 100)))
     return result
 
-def pct_to_brightness(p):
+def pct_to_brightness_v2(p):
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     result = round(int(p) * 10)
     return result
@@ -655,11 +680,25 @@ def rgb_to_hsv(r, g, b):
     v = int(v * 255)
     return h, s, v
 
+def rgb_to_hsv_v2(r, g, b):
+    h,s,v = colorsys.rgb_to_hsv(r / 1000, g / 1000, b / 1000)
+    h = int(h * 360)
+    s = int(s * 1000)
+    v = int(v * 1000)
+    return h, s, v
+
 def hsv_to_rgb(h, s, v):
     r, g, b = colorsys.hsv_to_rgb(h / 360, s / 255, v / 255)
     r = round(r * 255)
     g = round(g * 255)
     b = round(b * 255)
+    return r, g, b
+
+def hsv_to_rgb_v2(h, s, v):
+    r, g, b = colorsys.hsv_to_rgb(h / 360, s / 1000, v / 1000)
+    r = round(r * 1000)
+    g = round(g * 1000)
+    b = round(b * 1000)
     return r, g, b
 
 def inv_pct(v):
@@ -668,6 +707,10 @@ def inv_pct(v):
 
 def inv_val(v):
     result = 255 - v
+    return result
+
+def inv_val_v2(v):
+    result = 1000 - v
     return result
 
 def temp_cw_ww(t):
