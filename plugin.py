@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.1.3</h2><br/>
+        <h2>TinyTUYA Plugin v.1.1.4</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -146,7 +146,7 @@ class BasePlugin:
             elif Command == 'Set Level':
                 if scalemode == 'v2':
                     # Set new level
-                    SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness_v2(Level))
+                    SendCommandCloud(DeviceID, 'bright_value_v2', pct_to_brightness_v2(Level))
                 else:
                     # Set new level
                     SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness(Level))
@@ -158,8 +158,8 @@ class BasePlugin:
                 if Color['m'] == 2:
                     if scalemode == 'v2':
                         # Set new level
-                        SendCommandCloud(DeviceID, 'temp_value', inv_val_v2(Color['t']))
-                        SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness_v2(Level))
+                        SendCommandCloud(DeviceID, 'temp_value_v2', inv_val_v2(Color['t']))
+                        SendCommandCloud(DeviceID, 'bright_value_v2', pct_to_brightness_v2(Level))
                     else:
                         # Set new level
                         SendCommandCloud(DeviceID, 'temp_value', inv_val(Color['t']))
@@ -232,7 +232,7 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'switch', True)
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 1, 'On', 1, 0)
-            elif Command == 'Set Level' and Unit == 3:
+            elif Command == 'Set Level' and Unit  == 3:
                 # Set new level
                 SendCommandCloud(DeviceID, 'temp_set', Level * 10)
                 # Update status of Domoticz device
@@ -337,6 +337,7 @@ def onHandleThread(startup):
                 Domoticz.Debug('Create devices')
                 deviceinfo = tinytuya.find_device(dev['id'])
                 if dev['id'] not in Devices:
+                    Domoticz.Unit(Name='Test', DeviceID='625415489844152', Unit=1, Type=241, Subtype=4, Switchtype=7,  Used=1).Create()
                     if dev_type == 'light':
                         # for localcontol: and deviceinfo['ip'] != None
 
@@ -460,7 +461,7 @@ def onHandleThread(startup):
                         # workmode = StatusDeviceTuya(dev['id'], 'work_mode')
                         if 'bright_value' in str(result):
                             if scalemode == 'v2':
-                                dimtuya = brightness_to_pct_v2(str(StatusDeviceTuya(dev['id'], 'bright_value')))
+                                dimtuya = brightness_to_pct_v2(str(StatusDeviceTuya(dev['id'], 'bright_value_v2')))
                             else:
                                 dimtuya = brightness_to_pct(str(StatusDeviceTuya(dev['id'], 'bright_value')))
                         '''
@@ -567,7 +568,7 @@ def onHandleThread(startup):
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if currenttemp != currentdomo.split(';')[0] * 10 or currenthumi != currentdomo.split(';')[1]: # Temporary as test
                                 # Set new sValue
-                                UpdateDevice(dev['id'], 3, str(currenttemp / 10) & ";" & str(currenthumi) & ';0', 0, 0)
+                                UpdateDevice(dev['id'], 3, str(currenttemp / 10) + ";" + str(currenthumi), 0, 0)
                     Domoticz
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
