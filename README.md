@@ -35,11 +35,11 @@ In the web UI, navigate to the Hardware page. In the hardware dropdown there wil
 
 ## Test device
 
-I had only a RGBWW light to fully test the script, if there is missing a fuction in the plugin and it is not noted on the TODO list you can provide the data from you device by edit and running the debug_discovery.py in the tools dirictory.
+I had only a RGBWW light to fully test the script, if there is a fuction missing in the plugin and it is not noted on the TODO list you can provide the jsom data from you device by edit and running the debug_discovery.py in the tools directory and posted in issues.
 
 ## Change log
 
 | Version | Information|
 | ----- | ---------- |
 | 1.0.0 | Initial upload version |
-| 1.1.0 | Add Heater (Power, read and set temperature) |
+| 1.0.1 | Change heart beat to reduce API calls |
