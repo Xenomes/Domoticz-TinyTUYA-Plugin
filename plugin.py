@@ -329,7 +329,6 @@ def onHandleThread(startup):
                 if dev['id'] not in Devices:
                     if dev_type == 'light':
                         # for localcontol: and deviceinfo['ip'] != None
-
                         #if 'colour' in [item['values'] for item in functions if item['code'] == 'work_mode'][0]:
                         if 'switch_led' in str(functions) and 'colour' in str(functions) and 'white' in str(functions) and 'temp_value' in str(functions) and 'bright_value' in str(functions):
                             # Light Color and White temperature contol (RGBWW)
@@ -378,7 +377,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Used=1).Create()
                     elif dev_type == 'thermostat':
                         options = {}
-                        options['LevelOffHidden'] = 'false'
+                        options['LevelOffHidden'] = 'true'
                         options['LevelActions'] = ''
                         options['LevelNames'] = '|'.join(['Auto', 'Hot', 'Eco', 'Cold'])
                         options['SelectorStyle'] = '0'
