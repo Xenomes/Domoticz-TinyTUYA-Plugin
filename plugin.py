@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.1.5</h2><br/>
+        <h2>TinyTUYA Plugin v.1.1.6</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -333,6 +333,9 @@ def onHandleThread(startup):
                         if 'switch_led' in str(functions) and 'colour' in str(functions) and 'white' in str(functions) and 'temp_value' in str(functions) and 'bright_value' in str(functions):
                             # Light Color and White temperature contol (RGBWW)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7,  Used=1).Create()
+                        elif 'switch_led' in str(functions) and 'dc' in str(functions) and 'colour' in str(functions) and 'white' in str(functions):
+                            # Light Color and White temperature contol (RGBWW) (StringLights)
+                            Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7,  Used=1).Create()
                         elif 'switch_led' in str(functions) and 'colour' in str(functions) and 'white' in str(functions) and 'temp_value' not in str(functions) and 'bright_value' in str(functions):
                             # Light Color control (RGBW)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=1, Switchtype=7,  Used=1).Create()
@@ -351,6 +354,7 @@ def onHandleThread(startup):
                         else:
                             # Error
                             Domoticz.Error('No controls found for your light device!')
+
                     elif dev_type == 'cover':
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=3, Used=1).Create()
                     elif dev_type == 'switch':
@@ -594,7 +598,7 @@ def DeviceType(category):
         result = 'switch'
     elif category in {'tgq', 'tgkg'}:
         result = 'dimmer'
-    elif category in {'dj', 'dd', 'fwl', 'dc', 'xdd', 'fsd', 'fwd', 'gyd', 'jsq', 'tyndj', 'ykq'}:
+    elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fsd', 'fwd', 'gyd', 'jsq', 'tyndj', 'ykq'}:
         result = 'light'
     elif category in {'cl', 'clkg', 'jdcljqr'}:
         result = 'cover'
