@@ -94,22 +94,12 @@ class BasePlugin:
         Domoticz.Debug("onCommand called for Device " + str(DeviceID) + " Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level)+ "', Color: " + str(Color))
 
         # device for the Domoticz
-        for DeviceID in Devices:
-            dev = Devices[DeviceID].Units[Unit]
-            Domoticz.Debug('Device ID: ' + str(DeviceID))
+        dev = Devices[DeviceID].Units[Unit]
+        Domoticz.Debug('Device ID: ' + str(DeviceID))
 
-        # If we didn't find it, leave (probably disconnected at this time)
-        if dev == None:
-            Domoticz.Debug('Command for DeviceID=' + str(DeviceID) + ' but device is not available.')
-            return
-
-        if Devices[DeviceID].TimedOut:
-            Domoticz.Debug('Command for DeviceID=' + str(DeviceID) + ' but device is offline.')
-            return
-
-        Domoticz.Log('nValue: ' + str(dev.nValue))
-        Domoticz.Log('sValue: ' + str(dev.sValue))
-        Domoticz.Log('LastLevel: ' + str(dev.LastLevel))
+        Domoticz.Debug('nValue: ' + str(dev.nValue))
+        Domoticz.Debug('sValue: ' + str(dev.sValue) + ' Type ' + str(type(dev.sValue)))
+        Domoticz.Debug('LastLevel: ' + str(dev.LastLevel))
 
         # Control device and update status in Domoticz
         dev_type = getConfigItem(DeviceID, 'category')
@@ -234,7 +224,7 @@ class BasePlugin:
                 UpdateDevice(DeviceID, 1, 'On', 1, 0)
             elif Command == 'Set Level' and Unit  == 3:
                 # Set new level
-                SendCommandCloud(DeviceID, 'temp_set', Level * 10)
+                SendCommandCloud(DeviceID, 'temp_set', int(Level * 10))
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 3, Level, 1, 0)
             elif Command == 'Set Level' and Unit == 4:
@@ -389,6 +379,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Used=1).Create()
                     elif dev_type == 'thermostat':
                         options = {}
+                        options['LevelOffHidden'] = 'false'
                         options['LevelActions'] = ''
                         options['LevelNames'] = '|'.join(['Auto', 'Hot', 'Eco', 'Cold'])
                         options['SelectorStyle'] = '0'
@@ -561,14 +552,14 @@ def onHandleThread(startup):
                             currenthumi = StatusDeviceTuya(dev['id'], 'va_humidity')
                             if currenthumi != Devices[dev['id']].Units[2].sValue:
                                 # Set new sValue
-                                UpdateDevice(dev['id'], 2, 0, str(currenthumi), 0)
+                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
                         if 'va_temperature' in str(result) and 'va_humidity' in str(result):
                             currenttemp = StatusDeviceTuya(dev['id'], 'va_temperature')
                             currenthumi = StatusDeviceTuya(dev['id'], 'va_humidity')
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if currenttemp != currentdomo.split(';')[0] * 10 or currenthumi != currentdomo.split(';')[1]: # Temporary as test
                                 # Set new sValue
-                                UpdateDevice(dev['id'], 3, str(currenttemp / 10) + ";" + str(currenthumi), 0, 0)
+                                UpdateDevice(dev['id'], 3, str(currenttemp / 10) + ';' + str(currenthumi) + ';0', 0, 0)
                     Domoticz
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
