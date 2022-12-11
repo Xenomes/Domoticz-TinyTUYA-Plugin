@@ -78,7 +78,7 @@ class BasePlugin:
             DumpConfigToLog()
         else:
             Domoticz.Log('onStart called')
-        # Domoticz.Heartbeat(1)
+        Domoticz.Heartbeat(60)
         onHandleThread(True)
 
     def onStop(self):
