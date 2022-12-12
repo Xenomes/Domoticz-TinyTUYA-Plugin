@@ -351,9 +351,6 @@ def onHandleThread(startup):
                         elif 'switch_led' in str(functions) and 'colour' not in str(functions) and 'white' not in str(functions) and 'temp_value' not in str(functions) and 'bright_value' not in str(functions):
                             # Light On/Off control
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7,  Used=1).Create()
-                        else:
-                            # Error
-                            Domoticz.Error('No controls found for your light device!')
 
                     elif dev_type == 'cover':
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=3, Used=1).Create()
@@ -400,7 +397,7 @@ def onHandleThread(startup):
                     # elif dev_type == 'lock':
                     #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
                     else:
-                        Domoticz.Error('No controls found for device: ' + str(dev['name']))
+                        Domoticz.Log('No controls found for device: ' + str(dev['name']))
                         Domoticz.Unit(Name=dev['name'] + ' (Unknown Device)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
                         UpdateDevice(dev['id'], 1, 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.', 0, 0)
 
