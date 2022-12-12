@@ -333,7 +333,7 @@ def onHandleThread(startup):
                         if 'switch_led' in str(functions) and 'colour' in str(functions) and 'white' in str(functions) and 'temp_value' in str(functions) and 'bright_value' in str(functions):
                             # Light Color and White temperature contol (RGBWW)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7,  Used=1).Create()
-                        elif 'switch_led' in str(functions) and 'dc' in str(functions) and 'colour' in str(functions) and 'white' in str(functions):
+                        elif 'switch_led' in str(functions) and 'dc' in str(result['category']) and 'colour' in str(functions) and 'white' in str(functions):
                             # Light Color and White temperature contol (RGBWW) (StringLights)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7,  Used=1).Create()
                         elif 'switch_led' in str(functions) and 'colour' in str(functions) and 'white' in str(functions) and 'temp_value' not in str(functions) and 'bright_value' in str(functions):
