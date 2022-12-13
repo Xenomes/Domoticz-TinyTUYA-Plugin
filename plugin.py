@@ -301,13 +301,13 @@ def onHandleThread(startup):
         if startup == True:
             global tuya
             global devs
-            global result
+            global results
             tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
             devs = tuya.getdevices(verbose=False)
             token = tuya.token
-            result = {}
+            results = {}
             for dev in devs:
-                result[dev['id']] = tuya.getfunctions(dev['id'])['result']
+                results[dev['id']] = tuya.getfunctions(dev['id'])['result']
 
             # Check credentials
             if 'sign invalid' in str(token) or token == None:
@@ -322,11 +322,11 @@ def onHandleThread(startup):
 
         for dev in devs:
             Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'])))
-            # functions = tuya.getfunctions(dev['id'])['result']['functions'] changed to Global to reduce calls
+            # functions = tuya.getfunctions(dev['id'])['results']['functions'] changed to Global to reduce calls
             online = tuya.getconnectstatus(dev['id'])
-            functions = result[dev['id']]['functions']
-            dev_type = DeviceType(result[dev['id']]['category'])
-            scalemode = 'v2' if '_v2' in str(result) else 'v1'
+            functions = results[dev['id']]['functions']
+            dev_type = DeviceType(results[dev['id']]['category'])
+            scalemode = 'v2' if '_v2' in str(functions) else 'v1'
 
             # Create devices
             if startup == True:
@@ -339,7 +339,7 @@ def onHandleThread(startup):
                         if 'switch_led' in str(functions) and 'colour' in str(functions) and 'white' in str(functions) and 'temp_value' in str(functions) and 'bright_value' in str(functions):
                             # Light Color and White temperature contol (RGBWW)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7,  Used=1).Create()
-                        elif 'switch_led' in str(functions) and 'dc' == str(result[dev['id']]['category']) and 'colour' in str(functions) and 'white' in str(functions):
+                        elif 'switch_led' in str(functions) and 'dc' == str(results[dev['id']]['category']) and 'colour' in str(functions) and 'white' in str(functions):
                             # Light Color and White temperature contol (RGBWW) (StringLights)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7,  Used=1).Create()
                         elif 'switch_led' in str(functions) and 'colour' in str(functions) and 'white' in str(functions) and 'temp_value' not in str(functions) and 'bright_value' in str(functions):
@@ -372,11 +372,11 @@ def onHandleThread(startup):
                         #     Domoticz.Unit(Name=dev['name'] + ' (Switch 4)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         # if 'switch_5' in str(functions):
                         #     Domoticz.Unit(Name=dev['name'] + ' (Switch 5)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        # if 'cur_current'in str(result):
+                        # if 'cur_current'in str(functions):
                         #     Domoticz.Unit(Name=dev['name'] + '(A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
-                        # if 'cur_power'in str(result):
+                        # if 'cur_power'in str(functions):
                         #     Domoticz.Unit(Name=dev['name'] + '(kWh)', DeviceID=dev['id'], Unit=12, Type=243, Subtype=29, Used=1).Create()
-                        # if 'cur_voltage'in str(result):
+                        # if 'cur_voltage'in str(functions):
                         #     Domoticz.Unit(Name=dev['name'] + '(V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
                     elif dev_type == 'heater':
                         Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=15, Used=1).Create()
@@ -426,11 +426,11 @@ def onHandleThread(startup):
             elif online == True and Devices[dev['id']].TimedOut == 0:
                 try:
                     # Status Tuya
-                    if 'switch_led' in str(result):
+                    if 'switch_led' in str(functions):
                         currentstatus = StatusDeviceTuya(dev['id'], 'switch_led')
-                    elif 'switch_1' in str(result):
+                    elif 'switch_1' in str(functions):
                         currentstatus = StatusDeviceTuya(dev['id'], 'switch_1')
-                    elif 'switch' in str(result):
+                    elif 'switch' in str(functions):
                         currentstatus = StatusDeviceTuya(dev['id'], 'switch')
 
                     # status Domoticz
@@ -455,7 +455,7 @@ def onHandleThread(startup):
 
                     if dev_type == ('light'):
                         # workmode = StatusDeviceTuya(dev['id'], 'work_mode')
-                        if 'bright_value' in str(result):
+                        if 'bright_value' in str(functions):
                             if scalemode == 'v2':
                                 dimtuya = brightness_to_pct_v2(str(StatusDeviceTuya(dev['id'], 'bright_value_v2')))
                             else:
@@ -465,9 +465,9 @@ def onHandleThread(startup):
                         dimlevel = Devices[dev['id']].Units[1].sValue if type(Devices[dev['id']].Units[1].sValue) == int else dimtuya
                         color = Devices[dev['id']].Units[1].Color
 
-                        if 'temp_value' in str(result):
+                        if 'temp_value' in str(functions):
                             temptuya = {'m': 2, 't': int(inv_val(round(StatusDeviceTuya(dev['id'], 'temp_value'))))}
-                        if 'colour_data' in str(result):
+                        if 'colour_data' in str(functions):
                             colortuya = ast.literal_eval(StatusDeviceTuya(dev['id'], 'colour_data'))
                             rtuya, gtuya, btuya = hsv_to_rgb(colortuya['h'],colortuya['s'],colortuya['v'])
                             colorupdate = {'m': 3, 'r': rtuya, 'g': gtuya, 'b': btuya}
@@ -505,12 +505,12 @@ def onHandleThread(startup):
                         elif currentstatus == True:
                             # Set new state
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                        if 'temp_current' in str(result):
+                        if 'temp_current' in str(functions):
                             currenttemp = StatusDeviceTuya(dev['id'], 'temp_current')
                             if currenttemp != Devices[dev['id']].Units[2].sValue:
                                 # Set new sValue
                                 UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
-                        if 'temp_set' in str(result):
+                        if 'temp_set' in str(functions):
                             currenttemp_set = StatusDeviceTuya(dev['id'], 'temp_set')
                             if currenttemp != Devices[dev['id']].Units[3].sValue:
                                 # Set new sValue
@@ -523,17 +523,17 @@ def onHandleThread(startup):
                         elif currentstatus == True:
                             # Set new state
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                        if 'temp_current' in str(result):
+                        if 'temp_current' in str(functions):
                             currenttemp = StatusDeviceTuya(dev['id'], 'temp_current')
                             if currenttemp != Devices[dev['id']].Units[2].sValue * 10:
                                 # Set new sValue
                                 UpdateDevice(dev['id'], 2, currenttemp / 10, 1, 0)
-                        if 'temp_set' in str(result):
+                        if 'temp_set' in str(functions):
                             currenttemp_set = StatusDeviceTuya(dev['id'], 'temp_set')
                             if currenttemp_set != Devices[dev['id']].Units[3].sValue * 10:
                                 # Set new sValue
                                 UpdateDevice(dev['id'], 3, currenttemp_set / 10, 1, 0)
-                        if 'mode' in str(result):
+                        if 'mode' in str(functions):
                             currentmode = StatusDeviceTuya(dev['id'], 'mode')
                             if currentmode == 'auto':
                                 currentmodeval = 10
@@ -548,17 +548,17 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 4, currentmodeval, 1, 0)
 
                     if dev_type == 'temperaturehumiditysensor':
-                        if 'va_temperature' in str(result):
+                        if 'va_temperature' in str(functions):
                             currenttemp = StatusDeviceTuya(dev['id'], 'va_temperature')
                             if currenttemp != Devices[dev['id']].Units[1].sValue * 10:
                                 # Set new sValue
                                 UpdateDevice(dev['id'], 1, currenttemp / 10, 0, 0)
-                        if 'va_humidity' in str(result):
+                        if 'va_humidity' in str(functions):
                             currenthumi = StatusDeviceTuya(dev['id'], 'va_humidity')
                             if currenthumi != Devices[dev['id']].Units[2].sValue:
                                 # Set new sValue
                                 UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                        if 'va_temperature' in str(result) and 'va_humidity' in str(result):
+                        if 'va_temperature' in str(functions) and 'va_humidity' in str(functions):
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if currenttemp != currentdomo.split(';')[0] * 10 or currenthumi != currentdomo.split(';')[1]: # Temporary as test
                                 # Set new sValue
