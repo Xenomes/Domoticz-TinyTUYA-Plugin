@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.1.7</h2><br/>
+        <h2>TinyTUYA Plugin v.1.1.8</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -301,13 +301,14 @@ def onHandleThread(startup):
         if startup == True:
             global tuya
             global devs
-            global results
+            global result
+            global functions
             tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
             devs = tuya.getdevices(verbose=False)
             token = tuya.token
-            results = {}
+            functions = {}
             for dev in devs:
-                results[dev['id']] = tuya.getfunctions(dev['id'])['result']
+                functions[dev['id']] = tuya.getfunctions(dev['id'])['result']
 
             # Check credentials
             if 'sign invalid' in str(token) or token == None:
@@ -324,9 +325,10 @@ def onHandleThread(startup):
             Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'])))
             # functions = tuya.getfunctions(dev['id'])['results']['functions'] changed to Global to reduce calls
             online = tuya.getconnectstatus(dev['id'])
-            functions = results[dev['id']]['functions']
-            dev_type = DeviceType(results[dev['id']]['category'])
-            scalemode = 'v2' if '_v2' in str(functions) else 'v1'
+            function = functions[dev['id']]['functions']
+            dev_type = DeviceType(functions[dev['id']]['category'])
+            result = tuya.getstatus(dev['id'])['result']
+            scalemode = 'v2' if '_v2' in str(function) else 'v1'
 
             # Create devices
             if startup == True:
@@ -336,47 +338,47 @@ def onHandleThread(startup):
                     if dev_type == 'light':
                         # for localcontol: and deviceinfo['ip'] != None
                         #if 'colour' in [item['values'] for item in functions if item['code'] == 'work_mode'][0]:
-                        if 'switch_led' in str(functions) and 'colour' in str(functions) and 'white' in str(functions) and 'temp_value' in str(functions) and 'bright_value' in str(functions):
+                        if 'switch_led' in str(function) and 'colour' in str(function) and 'white' in str(function) and 'temp_value' in str(function) and 'bright_value' in str(function):
                             # Light Color and White temperature contol (RGBWW)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7,  Used=1).Create()
-                        elif 'switch_led' in str(functions) and 'dc' == str(results[dev['id']]['category']) and 'colour' in str(functions) and 'white' in str(functions):
+                        elif 'switch_led' in str(function) and 'dc' == str(results[dev['id']]['category']) and 'colour' in str(function) and 'white' in str(function):
                             # Light Color and White temperature contol (RGBWW) (StringLights)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7,  Used=1).Create()
-                        elif 'switch_led' in str(functions) and 'colour' in str(functions) and 'white' in str(functions) and 'temp_value' not in str(functions) and 'bright_value' in str(functions):
+                        elif 'switch_led' in str(function) and 'colour' in str(function) and 'white' in str(function) and 'temp_value' not in str(function) and 'bright_value' in str(function):
                             # Light Color control (RGBW)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=1, Switchtype=7,  Used=1).Create()
-                        elif 'switch_led' in str(functions) and 'colour' in str(functions) and not 'white' in str(functions) and 'temp_value' not in str(functions) and 'bright_value' in str(functions):
+                        elif 'switch_led' in str(function) and 'colour' in str(function) and not 'white' in str(function) and 'temp_value' not in str(function) and 'bright_value' in str(function):
                             # Light Color control (RGB)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7,  Used=1).Create()
-                        elif 'switch_led' in str(functions) and 'colour' not in str(functions) and not 'white' in str(functions) and 'temp_value' in str(functions) and 'bright_value' in str(functions):
+                        elif 'switch_led' in str(function) and 'colour' not in str(function) and not 'white' in str(function) and 'temp_value' in str(function) and 'bright_value' in str(function):
                             # Light White temperature control
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=8, Switchtype=7,  Used=1).Create()
-                        elif 'switch_led' in str(functions) and 'colour' not in str(functions) and not 'white' in str(functions) and 'temp_value' not in str(functions) and 'bright_value' in str(functions):
+                        elif 'switch_led' in str(function) and 'colour' not in str(function) and not 'white' in str(function) and 'temp_value' not in str(function) and 'bright_value' in str(function):
                             # Light Brightness control
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=3, Switchtype=7,  Used=1).Create()
-                        elif 'switch_led' in str(functions) and 'colour' not in str(functions) and 'white' not in str(functions) and 'temp_value' not in str(functions) and 'bright_value' not in str(functions):
+                        elif 'switch_led' in str(function) and 'colour' not in str(function) and 'white' not in str(function) and 'temp_value' not in str(function) and 'bright_value' not in str(function):
                             # Light On/Off control
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7,  Used=1).Create()
 
                     elif dev_type == 'cover':
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=3, Used=1).Create()
                     elif dev_type == 'switch':
-                        if 'switch_1' in str(functions) and 'switch_2' not in str(functions):
+                        if 'switch_1' in str(function) and 'switch_2' not in str(function):
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        # if 'switch_2' in str(functions):
+                        # if 'switch_2' in str(function):
                         #     Domoticz.Unit(Name=dev['name'] + ' (Switch 1)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         #     Domoticz.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        # if 'switch_3' in str(functions):
+                        # if 'switch_3' in str(function):
                         #     Domoticz.Unit(Name=dev['name'] + ' (Switch 3)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        # if 'switch_4' in str(functions):
+                        # if 'switch_4' in str(function):
                         #     Domoticz.Unit(Name=dev['name'] + ' (Switch 4)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        # if 'switch_5' in str(functions):
+                        # if 'switch_5' in str(function):
                         #     Domoticz.Unit(Name=dev['name'] + ' (Switch 5)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        # if 'cur_current'in str(functions):
+                        # if 'cur_current'in str(function):
                         #     Domoticz.Unit(Name=dev['name'] + '(A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
-                        # if 'cur_power'in str(functions):
+                        # if 'cur_power'in str(function):
                         #     Domoticz.Unit(Name=dev['name'] + '(kWh)', DeviceID=dev['id'], Unit=12, Type=243, Subtype=29, Used=1).Create()
-                        # if 'cur_voltage'in str(functions):
+                        # if 'cur_voltage'in str(function):
                         #     Domoticz.Unit(Name=dev['name'] + '(V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
                     elif dev_type == 'heater':
                         Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=15, Used=1).Create()
@@ -426,11 +428,11 @@ def onHandleThread(startup):
             elif online == True and Devices[dev['id']].TimedOut == 0:
                 try:
                     # Status Tuya
-                    if 'switch_led' in str(functions):
+                    if 'switch_led' in str(function):
                         currentstatus = StatusDeviceTuya(dev['id'], 'switch_led')
-                    elif 'switch_1' in str(functions):
+                    elif 'switch_1' in str(function):
                         currentstatus = StatusDeviceTuya(dev['id'], 'switch_1')
-                    elif 'switch' in str(functions):
+                    elif 'switch' in str(function):
                         currentstatus = StatusDeviceTuya(dev['id'], 'switch')
 
                     # status Domoticz
@@ -455,7 +457,7 @@ def onHandleThread(startup):
 
                     if dev_type == ('light'):
                         # workmode = StatusDeviceTuya(dev['id'], 'work_mode')
-                        if 'bright_value' in str(functions):
+                        if 'bright_value' in str(function):
                             if scalemode == 'v2':
                                 dimtuya = brightness_to_pct_v2(str(StatusDeviceTuya(dev['id'], 'bright_value_v2')))
                             else:
@@ -465,9 +467,9 @@ def onHandleThread(startup):
                         dimlevel = Devices[dev['id']].Units[1].sValue if type(Devices[dev['id']].Units[1].sValue) == int else dimtuya
                         color = Devices[dev['id']].Units[1].Color
 
-                        if 'temp_value' in str(functions):
+                        if 'temp_value' in str(function):
                             temptuya = {'m': 2, 't': int(inv_val(round(StatusDeviceTuya(dev['id'], 'temp_value'))))}
-                        if 'colour_data' in str(functions):
+                        if 'colour_data' in str(function):
                             colortuya = ast.literal_eval(StatusDeviceTuya(dev['id'], 'colour_data'))
                             rtuya, gtuya, btuya = hsv_to_rgb(colortuya['h'],colortuya['s'],colortuya['v'])
                             colorupdate = {'m': 3, 'r': rtuya, 'g': gtuya, 'b': btuya}
@@ -505,12 +507,12 @@ def onHandleThread(startup):
                         elif currentstatus == True:
                             # Set new state
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                        if 'temp_current' in str(functions):
+                        if 'temp_current' in str(function):
                             currenttemp = StatusDeviceTuya(dev['id'], 'temp_current')
                             if currenttemp != Devices[dev['id']].Units[2].sValue:
                                 # Set new sValue
                                 UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
-                        if 'temp_set' in str(functions):
+                        if 'temp_set' in str(function):
                             currenttemp_set = StatusDeviceTuya(dev['id'], 'temp_set')
                             if currenttemp != Devices[dev['id']].Units[3].sValue:
                                 # Set new sValue
@@ -523,17 +525,17 @@ def onHandleThread(startup):
                         elif currentstatus == True:
                             # Set new state
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                        if 'temp_current' in str(functions):
+                        if 'temp_current' in str(function):
                             currenttemp = StatusDeviceTuya(dev['id'], 'temp_current')
                             if currenttemp != Devices[dev['id']].Units[2].sValue * 10:
                                 # Set new sValue
                                 UpdateDevice(dev['id'], 2, currenttemp / 10, 1, 0)
-                        if 'temp_set' in str(functions):
+                        if 'temp_set' in str(function):
                             currenttemp_set = StatusDeviceTuya(dev['id'], 'temp_set')
                             if currenttemp_set != Devices[dev['id']].Units[3].sValue * 10:
                                 # Set new sValue
                                 UpdateDevice(dev['id'], 3, currenttemp_set / 10, 1, 0)
-                        if 'mode' in str(functions):
+                        if 'mode' in str(function):
                             currentmode = StatusDeviceTuya(dev['id'], 'mode')
                             if currentmode == 'auto':
                                 currentmodeval = 10
@@ -548,17 +550,17 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 4, currentmodeval, 1, 0)
 
                     if dev_type == 'temperaturehumiditysensor':
-                        if 'va_temperature' in str(functions):
+                        if 'va_temperature' in str(function):
                             currenttemp = StatusDeviceTuya(dev['id'], 'va_temperature')
                             if currenttemp != Devices[dev['id']].Units[1].sValue * 10:
                                 # Set new sValue
                                 UpdateDevice(dev['id'], 1, currenttemp / 10, 0, 0)
-                        if 'va_humidity' in str(functions):
+                        if 'va_humidity' in str(function):
                             currenthumi = StatusDeviceTuya(dev['id'], 'va_humidity')
                             if currenthumi != Devices[dev['id']].Units[2].sValue:
                                 # Set new sValue
                                 UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                        if 'va_temperature' in str(functions) and 'va_humidity' in str(functions):
+                        if 'va_temperature' in str(function) and 'va_humidity' in str(function):
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if currenttemp != currentdomo.split(';')[0] * 10 or currenthumi != currentdomo.split(';')[1]: # Temporary as test
                                 # Set new sValue
@@ -630,8 +632,8 @@ def UpdateDevice(ID, Unit, sValue, nValue, TimedOut):
     return
 
 def StatusDeviceTuya(ID, Function):
-    if Function in str(tuya.getstatus(ID)['result']):
-        valueT = [item['value'] for item in tuya.getstatus(ID)['result'] if item['code'] == Function][0]
+    if Function in str(result):
+        valueT = [item['value'] for item in result if item['code'] == Function][0]
     else:
         valueT = None
         Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
