@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.1.8</h2><br/>
+        <h2>TinyTUYA Plugin v.1.1.9</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -308,7 +308,9 @@ def onHandleThread(startup):
             token = tuya.token
             functions = {}
             for dev in devs:
-                functions[dev['id']] = tuya.getfunctions(dev['id'])['result']
+                # functions[dev['id']] = tuya.getfunctions(dev['id'])['result']
+                functions[dev['id']] = tuya.getproperties(dev['id'])['result']
+                # functions[dev['id']] = tuya.getdps(dev['id'])['result']
 
             # Check credentials
             if 'sign invalid' in str(token) or token == None:
@@ -323,12 +325,14 @@ def onHandleThread(startup):
 
         for dev in devs:
             Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'])))
-            # functions = tuya.getfunctions(dev['id'])['results']['functions'] changed to Global to reduce calls
             online = tuya.getconnectstatus(dev['id'])
             function = functions[dev['id']]['functions']
             dev_type = DeviceType(functions[dev['id']]['category'])
             result = tuya.getstatus(dev['id'])['result']
             scalemode = 'v2' if '_v2' in str(function) else 'v1'
+            # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' function= ' + str(function))
+            Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(result))
+            Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' functions= ' + str(functions[dev['id']]))
 
             # Create devices
             if startup == True:
@@ -341,7 +345,7 @@ def onHandleThread(startup):
                         if 'switch_led' in str(function) and 'colour' in str(function) and 'white' in str(function) and 'temp_value' in str(function) and 'bright_value' in str(function):
                             # Light Color and White temperature contol (RGBWW)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7,  Used=1).Create()
-                        elif 'switch_led' in str(function) and 'dc' == str(results[dev['id']]['category']) and 'colour' in str(function) and 'white' in str(function):
+                        elif 'switch_led' in str(function) and 'dc' == str(functions[dev['id']]['category']) and 'colour' in str(function) and 'white' in str(function):
                             # Light Color and White temperature contol (RGBWW) (StringLights)
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7,  Used=1).Create()
                         elif 'switch_led' in str(function) and 'colour' in str(function) and 'white' in str(function) and 'temp_value' not in str(function) and 'bright_value' in str(function):
