@@ -331,8 +331,8 @@ def onHandleThread(startup):
             result = tuya.getstatus(dev['id'])['result']
             scalemode = 'v2' if '_v2' in str(function) else 'v1'
             # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' function= ' + str(function))
-            Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(result))
-            Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' functions= ' + str(functions[dev['id']]))
+            # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(result))
+            # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' functions= ' + str(functions[dev['id']]))
 
             # Create devices
             if startup == True:
@@ -402,6 +402,9 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
+                    elif dev_type == "infrared_id":
+                        unit = nextUnit(dev['id'])
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=unit, Type=244, Subtype=73, Image=9, Used=1).Create()
                     # elif dev_type == 'climate':
                     #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
                     # elif dev_type == 'fan':
@@ -615,6 +618,8 @@ def DeviceType(category):
         result = 'thermostat'
     elif category in {'wsdcg'}:
         result = 'temperaturehumiditysensor'
+    elif 'infrared_' in category: # keep it last
+        result = 'infrared_id'
     else:
         result = 'unknown'
     return result
@@ -711,6 +716,13 @@ def temp_cw_ww(t):
     cw = t
     ww = 255 - t
     return cw, ww
+
+# Find the smallest unit number available to add a device in domoticz
+def nextUnit(ID):
+    unit = 1
+    while unit in Devices[ID] and unit < 255:
+        unit = unit + 1
+    return unit
 
 # Configuration Helpers
 def getConfigItem(Key=None, Values=None):
