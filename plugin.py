@@ -391,7 +391,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=15, Used=1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Used=1).Create()
-                    elif dev_type == 'Thermostat':
+                    elif dev_type == 'thermostat':
+                        Domoticz.Log('Create device Thermostat')
                         options = {}
                         options['LevelOffHidden'] = 'true'
                         options['LevelActions'] = ''
