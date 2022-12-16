@@ -549,7 +549,7 @@ def DeviceType(category):
         result = 'cover'
     elif category in {'qn'}:
         result = 'heater'
-    elif category in {'wk'}:
+    elif category in {'wk', 'wkf'}:
         result = 'thermostat'
     elif category in {'wsdcg'}:
         result = 'temperaturehumiditysensor'
