@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.10" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.11" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.1.10</h2><br/>
+        <h2>TinyTUYA Plugin v.1.1.11</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -104,6 +104,7 @@ class BasePlugin:
         # Control device and update status in Domoticz
         dev_type = getConfigItem(DeviceID, 'category')
         scalemode = getConfigItem(DeviceID, 'scalemode')
+        if len(Color) != 0: Color = ast.literal_eval(Color)
 
         if dev_type == 'switch':
             if Command == 'Off':
@@ -132,6 +133,7 @@ class BasePlugin:
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
             elif Command == 'Set Color':
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
+                Domoticz.Debug(str(Color['m']))
                 if Color['m'] == 2:
                     # if scalemode == 'v2':
                     #     SendCommandCloud(DeviceID, 'temp_value_v2', inv_val_v2(Color['t']))
@@ -139,8 +141,8 @@ class BasePlugin:
                     # else:
                     #     SendCommandCloud(DeviceID, 'temp_value', inv_val(Color['t']))
                     #     SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness(Level))
-                    SendCommandCloud(DeviceID, 'temp_value', Color['t'])
                     SendCommandCloud(DeviceID, 'bright_value', Level)
+                    SendCommandCloud(DeviceID, 'temp_value', int(Color['t']))
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
                     UpdateDevice(DeviceID, 1, Color, 1, 0)
                 elif Color['m'] == 3:
@@ -417,10 +419,7 @@ def onHandleThread(startup):
                     if dev_type == ('light'):
                         # workmode = StatusDeviceTuya('work_mode')
                         if 'bright_value' in str(function):
-                            if scalemode == 'v2':
-                                dimtuya = brightness_to_pct_v2(str(StatusDeviceTuya('bright_value_v2')))
-                            else:
-                                dimtuya = brightness_to_pct(str(StatusDeviceTuya('bright_value')))
+                            dimtuya = brightness_to_pct(function, 'bright_value', str(StatusDeviceTuya('bright_value')))
                         '''
                         Finding other way to detect
                         dimlevel = Devices[dev['id']].Units[1].sValue if type(Devices[dev['id']].Units[1].sValue) == int else dimtuya
@@ -584,10 +583,6 @@ def StatusDeviceTuya(Function):
         Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
     return valueT
 
-def SendCommandCloud_old(ID, Name, Status):
-    tuya.sendcommand(ID, {'commands': [{'code': Name, 'value': Status}]})
-    Domoticz.Debug('Command send to tuya :' + str({'commands': [{'code': Name, 'value': Status}]}))
-
 def SendCommandCloud(ID, CommandName, Status):
     Domoticz.Debug("device_functions:" + str(function))
     Domoticz.Debug("CommandName:" + str(CommandName))
@@ -597,19 +592,16 @@ def SendCommandCloud(ID, CommandName, Status):
     for item in function:
         if CommandName in str(item['code']):
             actual_function_name = str(item['code'])
-    if "bright_value" in CommandName:
+    if 'bright_value' in CommandName:
         actual_status = pct_to_brightness(function, actual_function_name, Status)
-    if "temp_value" in CommandName:
-        actual_status = inv_val(function, actual_function_name, Status)
+    if 'temp_value' in CommandName:
+        actual_status = temp_value_scale(function, actual_function_name, Status)
+    if 'temp_set' in CommandName:
+        actual_status = set_temp_scale(function, actual_function_name, Status)
     Domoticz.Debug("actual_function_name:" + str(actual_function_name))
     Domoticz.Debug("actual_status:" + str(actual_status))
     tuya.sendcommand(ID, {'commands': [{'code': actual_function_name, 'value': actual_status}]})
     Domoticz.Debug('Command send to tuya :' + str(ID) + "," + str({'commands': [{'code': actual_function_name, 'value': actual_status}]}))
-
-def pct_to_brightness_old(p):
-    # Convert a percentage to a raw value 1% = 25 => 100% = 255
-    result = round(22.68 + (int(p) * ((255 - 22.68) / 100)))
-    return result
 
 def pct_to_brightness(device_functions, actual_function_name, pct):
     if device_functions and actual_function_name:
@@ -622,20 +614,37 @@ def pct_to_brightness(device_functions, actual_function_name, pct):
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round(22.68 + (int(pct) * ((255 - 22.68) / 100)))
 
-def pct_to_brightness_v2_old(p):
+def brightness_to_pct(device_functions, actual_function_name, raw):
+    if device_functions and actual_function_name:
+        for item in device_functions:
+            if item['code'] == actual_function_name:
+                the_values = json.loads(item['values'])
+                min_value = int(the_values.get('min',0))
+                max_value = int(the_values.get('max',1000))
+                return round((100 / (max_value - min_value) * (int(raw) - min_value)))
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
-    result = round(int(p) * 10)
-    return result
+    return round((100 / (255 - 22.68) * (int(raw) - 22.68)))
 
-def brightness_to_pct(v):
-    # Convert a raw to a percentage value 25 = 1% => 255 = 100%
-    result = round((100 / (255 - 22.68) * (int(v) - 22.68)))
-    return result
+def set_temp_scale(device_functions, actual_function_name, raw):
+    if device_functions and actual_function_name:
+        for item in device_functions:
+            if item['code'] == actual_function_name:
+                the_values = json.loads(item['values'])
+                scale = int(the_values.get('scale',0))
+                return raw / 10 if scale == 1 else raw
+    # Convert a percentage to a raw value 1% = 25 => 100% = 255
+    return raw
 
-def brightness_to_pct_v2(v):
-    # Convert a raw to a percentage value 10 = 1% => 1000 = 100%
-    result = round(int(v) / 10)
-    return result
+def temp_value_scale(device_functions, actual_function_name, raw):
+    if device_functions and actual_function_name:
+        for item in device_functions:
+            if item['code'] == actual_function_name:
+                the_values = json.loads(item['values'])
+                min_value = int(the_values.get('min',0))
+                max_value = int(the_values.get('max',1000))
+                return round((255 / (max_value - min_value) * (int((max_value - raw)) - min_value)))
+    # Convert a percentage to a raw value 1% = 25 => 100% = 255
+    return round((int(max_value - raw)))
 
 def rgb_to_hsv(r, g, b):
     h,s,v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
@@ -667,14 +676,6 @@ def hsv_to_rgb_v2(h, s, v):
 
 def inv_pct(v):
     result = 100 - v
-    return result
-
-def inv_val(v):
-    result = 255 - v
-    return result
-
-def inv_val_v2(v):
-    result = 1000 - v
     return result
 
 def temp_cw_ww(t):
