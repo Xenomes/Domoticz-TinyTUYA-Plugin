@@ -78,7 +78,15 @@ class BasePlugin:
             # rpdb.set_trace()
             DumpConfigToLog()
 
-        Domoticz.Heartbeat(60)
+        global testData
+        if os.path.isfile(Parameters['HomeFolder'] + '/debug_devices.json'):
+            testData = True
+            Domoticz.Heartbeat(5)
+            Domoticz.Error('!! Warning Plugin overruled by local json files !!')
+        else:
+            testData = False
+            Domoticz.Heartbeat(60)
+
         onHandleThread(True)
 
     def onStop(self):
@@ -168,7 +176,7 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'switch', True)
                 UpdateDevice(DeviceID, 1, 'On', 1, 0)
             elif Command == 'Set Level' and Unit  == 3:
-                SendCommandCloud(DeviceID, 'temp_set', int(Level))
+                SendCommandCloud(DeviceID, 'temp_set', Level)
                 UpdateDevice(DeviceID, 3, Level, 1, 0)
             elif Command == 'Set Level' and Unit == 4:
                 if Level == 10:
@@ -239,12 +247,23 @@ def onHandleThread(startup):
             global result
             global functions
             global function
-            tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
-            devs = tuya.getdevices(verbose=False)
-            token = tuya.token
-            functions = {}
-            for dev in devs:
-                functions[dev['id']] = tuya.getfunctions(dev['id'])['result']
+            global scalemode
+            if testData == True:
+                tuya = Domoticz.Log
+                with open(Parameters['HomeFolder'] + '/debug_devices.json') as dFile:
+                    devs = json.load(dFile)
+                token = 'Fake'
+                functions = {}
+                with open(Parameters['HomeFolder'] + '/debug_functions.json') as fFile:
+                    for dev in devs:
+                        functions[dev['id']] = json.load(fFile)['result']
+            else:
+                tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
+                devs = tuya.getdevices(verbose=False)
+                token = tuya.token
+                functions = {}
+                for dev in devs:
+                    functions[dev['id']] = tuya.getfunctions(dev['id'])['result']
 
             # Check credentials
             if 'sign invalid' in str(token) or token == None:
@@ -257,11 +276,18 @@ def onHandleThread(startup):
         # Initialize/Update devices from TUYA API
         for dev in devs:
             Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'])))
-            online = tuya.getconnectstatus(dev['id'])
+            if testData == True:
+                online = True
+            else:
+                online = tuya.getconnectstatus(dev['id'])
             function = functions[dev['id']]['functions'] if not functions[dev['id']]['functions'] == '[]' else None
             dev_type = DeviceType(functions[dev['id']]['category'])
-            result = tuya.getstatus(dev['id'])['result']
-            scalemode = 'v2' if '_v2' in str(function) else 'v1'
+            if testData == True:
+                with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
+                    result = json.load(rFile)['result']
+            else:
+                result = tuya.getstatus(dev['id'])['result']
+            scalemode = 'v2' if '\"scale\":1' in str(function) else 'v1'
             # Domoticz.Debug( 'functions= ' + str(functions))
             # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(result))
             # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' function= ' + str(functions[dev['id']]))
@@ -355,7 +381,7 @@ def onHandleThread(startup):
 
             # Check device is removed
             if dev['id'] not in str(Devices):
-                raise Exception('Device not found in Domoticz! Device is removed or Accept New Hardware not enabled? ')
+                raise Exception('Device not found in Domoticz! Device is removed or Accept New Hardware not enabled?')
 
             #update devices in Domoticz
             Domoticz.Debug('Update devices in Domoticz')
@@ -429,11 +455,11 @@ def onHandleThread(startup):
                         if 'temp_current' in str(result):
                             currenttemp = StatusDeviceTuya('temp_current')
                             if currenttemp != Devices[dev['id']].Units[2].sValue:
-                                UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
+                                UpdateDevice(dev['id'], 2, int(currenttemp), 0, 0)
                         if 'temp_set' in str(result):
                             currenttemp_set = StatusDeviceTuya('temp_set')
                             if currenttemp_set != Devices[dev['id']].Units[3].sValue:
-                                UpdateDevice(dev['id'], 3, currenttemp_set, 1, 0)
+                                UpdateDevice(dev['id'], 3, int(currenttemp_set), 0, 0)
                         if 'mode' in str(result):
                             currentmode = StatusDeviceTuya('mode')
                             if currentmode == 'auto':
@@ -531,13 +557,8 @@ def UpdateDevice(ID, Unit, sValue, nValue, TimedOut):
             if type(sValue) == str:
                     Devices[ID].Units[Unit].sValue = str(sValue)
             if type(sValue) == int:
-                if getConfigItem(ID, 'scalemode') == 'v2':
-                    Devices[ID].Units[Unit].sValue = str(sValue / 10)
-                    Devices[ID].Units[Unit].LastLevel = sValue / 10
-                else:
-                    Devices[ID].Units[Unit].sValue = str(sValue)
-                    Devices[ID].Units[Unit].LastLevel = sValue
-
+                Devices[ID].Units[Unit].sValue = str(sValue)
+                Devices[ID].Units[Unit].LastLevel = sValue
             elif type(sValue) == dict:
                 Devices[ID].Units[Unit].Color = json.dumps(sValue)
             Devices[ID].Units[Unit].nValue = nValue
@@ -556,20 +577,16 @@ def StatusDeviceTuya_org(Function):
     return valueT
 
 def StatusDeviceTuya(Function):
-    for item in function:
-        if item['code'] == Function:
-            the_values = json.loads(item['values'])
-            scale = int(the_values.get('scale',0))
     if Function in str(result):
         valueRaw = [item['value'] for item in result if Function in item['code']][0]
     else:
         Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
         return None
 
-    if type(valueRaw) == int and scale == 1:
+    if scalemode == 'v2':
         valueT = valueRaw / 10
     else:
-         valueT = valueRaw
+        valueT = valueRaw
 
     return valueT
 
