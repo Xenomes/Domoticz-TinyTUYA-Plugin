@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.12" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.13" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.1.12</h2><br/>
+        <h2>TinyTUYA Plugin v.1.1.13</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -125,21 +125,11 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'switch_led', True)
                 UpdateDevice(DeviceID, 1, 'On', 1, 0)
             elif Command == 'Set Level':
-                # if scalemode == 'v2':
-                #     SendCommandCloud(DeviceID, 'bright_value_v2', pct_to_brightness_v2(Level))
-                # else:
-                #     SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness(Level))
                 SendCommandCloud(DeviceID, 'bright_value', Level)
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
             elif Command == 'Set Color':
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
                 if Color['m'] == 2:
-                    # if scalemode == 'v2':
-                    #     SendCommandCloud(DeviceID, 'temp_value_v2', inv_val_v2(Color['t']))
-                    #     SendCommandCloud(DeviceID, 'bright_value_v2', pct_to_brightness_v2(Level))
-                    # else:
-                    #     SendCommandCloud(DeviceID, 'temp_value', inv_val(Color['t']))
-                    #     SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness(Level))
                     SendCommandCloud(DeviceID, 'bright_value', Level)
                     SendCommandCloud(DeviceID, 'temp_value', int(Color['t']))
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
@@ -438,12 +428,12 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
                         if 'temp_current' in str(result):
                             currenttemp = StatusDeviceTuya('temp_current')
-                            if currenttemp != Devices[dev['id']].Units[2].sValue * 10:
-                                UpdateDevice(dev['id'], 2, currenttemp / 10, 1, 0)
+                            if currenttemp != Devices[dev['id']].Units[2].sValue:
+                                UpdateDevice(dev['id'], 2, currenttemp, 1, 0)
                         if 'temp_set' in str(result):
                             currenttemp_set = StatusDeviceTuya('temp_set')
-                            if currenttemp_set != Devices[dev['id']].Units[3].sValue * 10:
-                                UpdateDevice(dev['id'], 3, currenttemp_set / 10, 1, 0)
+                            if currenttemp_set != Devices[dev['id']].Units[3].sValue:
+                                UpdateDevice(dev['id'], 3, currenttemp_set, 1, 0)
                         if 'mode' in str(result):
                             currentmode = StatusDeviceTuya('mode')
                             if currentmode == 'auto':
@@ -460,16 +450,16 @@ def onHandleThread(startup):
                     if dev_type == 'temperaturehumiditysensor':
                         if 'va_temperature' in str(result):
                             currenttemp = StatusDeviceTuya('va_temperature')
-                            if currenttemp != Devices[dev['id']].Units[1].sValue * 10:
-                                UpdateDevice(dev['id'], 1, currenttemp / 10, 0, 0)
+                            if currenttemp != Devices[dev['id']].Units[1].sValue:
+                                UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
                         if 'va_humidity' in str(result):
                             currenthumi = StatusDeviceTuya('va_humidity')
                             if currenthumi != Devices[dev['id']].Units[2].sValue:
                                 UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
                         if 'va_temperature' in str(result) and 'va_humidity' in str(result):
                             currentdomo = Devices[dev['id']].Units[3].sValue
-                            if currenttemp != currentdomo.split(';')[0] * 10 or currenthumi != currentdomo.split(';')[1]: # Temporary as test
-                                UpdateDevice(dev['id'], 3, str(currenttemp / 10) + ';' + str(currenthumi) + ';0', 0, 0)
+                            if currenttemp != currentdomo.split(';')[0] or currenthumi != currentdomo.split(';')[1]: # Temporary as test
+                                UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
                     Domoticz
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
@@ -518,13 +508,36 @@ def DeviceType(category):
         result = 'unknown'
     return result
 
-def UpdateDevice(ID, Unit, sValue, nValue, TimedOut):
+def UpdateDevice_org(ID, Unit, sValue, nValue, TimedOut):
     # Make sure that the Domoticz device still exists (they can be deleted) before updating it
     if ID in Devices:
         if Devices[ID].Units[Unit].sValue != sValue or Devices[ID].Units[Unit].nValue != nValue or Devices[ID].TimedOut != TimedOut:
             Devices[ID].Units[Unit].sValue = str(sValue)
             if type(sValue) == int:
                 Devices[ID].Units[Unit].LastLevel = sValue
+            elif type(sValue) == dict:
+                Devices[ID].Units[Unit].Color = json.dumps(sValue)
+            Devices[ID].Units[Unit].nValue = nValue
+            Devices[ID].TimedOut = TimedOut
+            Devices[ID].Units[Unit].Update()
+
+    Domoticz.Debug('Update device value:' + str(ID) + ' Unit: ' + str(Unit) + ' sValue: ' +  str(sValue) + ' nValue: ' + str(nValue) + ' TimedOut=' + str(TimedOut))
+    return
+
+def UpdateDevice(ID, Unit, sValue, nValue, TimedOut):
+    # Make sure that the Domoticz device still exists (they can be deleted) before updating it
+    if ID in Devices:
+        if Devices[ID].Units[Unit].sValue != sValue or Devices[ID].Units[Unit].nValue != nValue or Devices[ID].TimedOut != TimedOut:
+            if type(sValue) == str:
+                    Devices[ID].Units[Unit].sValue = str(sValue)
+            if type(sValue) == int:
+                if getConfigItem(ID, 'scalemode') == 'v2':
+                    Devices[ID].Units[Unit].sValue = str(sValue / 10)
+                    Devices[ID].Units[Unit].LastLevel = sValue / 10
+                else:
+                    Devices[ID].Units[Unit].sValue = str(sValue)
+                    Devices[ID].Units[Unit].LastLevel = sValue
+
             elif type(sValue) == dict:
                 Devices[ID].Units[Unit].Color = json.dumps(sValue)
             Devices[ID].Units[Unit].nValue = nValue
