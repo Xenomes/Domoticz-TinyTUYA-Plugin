@@ -534,7 +534,7 @@ def DeviceType(category):
         result = 'unknown'
     return result
 
-def UpdateDevice_org(ID, Unit, sValue, nValue, TimedOut):
+def UpdateDevice(ID, Unit, sValue, nValue, TimedOut):
     # Make sure that the Domoticz device still exists (they can be deleted) before updating it
     if ID in Devices:
         if Devices[ID].Units[Unit].sValue != sValue or Devices[ID].Units[Unit].nValue != nValue or Devices[ID].TimedOut != TimedOut:
@@ -550,44 +550,16 @@ def UpdateDevice_org(ID, Unit, sValue, nValue, TimedOut):
     Domoticz.Debug('Update device value:' + str(ID) + ' Unit: ' + str(Unit) + ' sValue: ' +  str(sValue) + ' nValue: ' + str(nValue) + ' TimedOut=' + str(TimedOut))
     return
 
-def UpdateDevice(ID, Unit, sValue, nValue, TimedOut):
-    # Make sure that the Domoticz device still exists (they can be deleted) before updating it
-    if ID in Devices:
-        if Devices[ID].Units[Unit].sValue != sValue or Devices[ID].Units[Unit].nValue != nValue or Devices[ID].TimedOut != TimedOut:
-            if type(sValue) == str:
-                    Devices[ID].Units[Unit].sValue = str(sValue)
-            if type(sValue) == int:
-                Devices[ID].Units[Unit].sValue = str(sValue)
-                Devices[ID].Units[Unit].LastLevel = sValue
-            elif type(sValue) == dict:
-                Devices[ID].Units[Unit].Color = json.dumps(sValue)
-            Devices[ID].Units[Unit].nValue = nValue
-            Devices[ID].TimedOut = TimedOut
-            Devices[ID].Units[Unit].Update()
-
-    Domoticz.Debug('Update device value:' + str(ID) + ' Unit: ' + str(Unit) + ' sValue: ' +  str(sValue) + ' nValue: ' + str(nValue) + ' TimedOut=' + str(TimedOut))
-    return
-
-def StatusDeviceTuya_org(Function):
-    if Function in str(result):
-        valueT = [item['value'] for item in result if Function in item['code']][0]
-    else:
-        valueT = None
-        Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
-    return valueT
-
 def StatusDeviceTuya(Function):
     if Function in str(result):
         valueRaw = [item['value'] for item in result if Function in item['code']][0]
     else:
         Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
         return None
-
     if scalemode == 'v2':
         valueT = valueRaw / 10
     else:
         valueT = valueRaw
-
     return valueT
 
 def SendCommandCloud(ID, CommandName, Status):
@@ -632,17 +604,6 @@ def brightness_to_pct(device_functions, actual_function_name, raw):
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round((100 / (255 - 22.68) * (int(raw) - 22.68)))
 
-def set_temp_scale(device_functions, actual_function_name, raw):
-    if device_functions and actual_function_name:
-        for item in device_functions:
-            if item['code'] == actual_function_name:
-                the_values = json.loads(item['values'])
-                scale = int(the_values.get('scale',0))
-                # step = int(the_values.get('step',1))
-                return raw * 10 if scale == 1 else round(raw)
-    # Convert a percentage to a raw value 1% = 25 => 100% = 255
-    return raw
-
 def temp_value_scale(device_functions, actual_function_name, raw):
     if device_functions and actual_function_name:
         for item in device_functions:
@@ -653,6 +614,13 @@ def temp_value_scale(device_functions, actual_function_name, raw):
                 return round((255 / (max_value - min_value) * (int((max_value - raw)) - min_value)))
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round((int(max_value - raw)))
+
+def set_temp_scale(raw):
+    if scalemode == 'v2':
+        value = raw * 10
+    else:
+        value = raw
+    return value
 
 def rgb_to_hsv(r, g, b):
     h,s,v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
@@ -690,13 +658,6 @@ def temp_cw_ww(t):
     cw = t
     ww = 255 - t
     return cw, ww
-
-# Find the smallest unit number available to add a device in domoticz
-def nextUnit(ID):
-    unit = 1
-    while unit in Devices[ID] and unit < 255:
-        unit = unit + 1
-    return unit
 
 # Configuration Helpers
 def getConfigItem(Key=None, Values=None):
