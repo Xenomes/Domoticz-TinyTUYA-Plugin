@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.11" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.12" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.1.11</h2><br/>
+        <h2>TinyTUYA Plugin v.1.1.12</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -179,7 +179,7 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'switch', True)
                 UpdateDevice(DeviceID, 1, 'On', 1, 0)
             elif Command == 'Set Level':
-                SendCommandCloud(DeviceID, 'temp_set', Level)
+                SendCommandCloud(DeviceID, 'temp_set', int(Level))
                 UpdateDevice(DeviceID, 3, Level, 1, 0)
 
         elif dev_type == 'thermostat':
@@ -190,7 +190,7 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'switch', True)
                 UpdateDevice(DeviceID, 1, 'On', 1, 0)
             elif Command == 'Set Level' and Unit  == 3:
-                SendCommandCloud(DeviceID, 'temp_set', int(Level * 10))
+                SendCommandCloud(DeviceID, 'temp_set', int(Level))
                 UpdateDevice(DeviceID, 3, Level, 1, 0)
             elif Command == 'Set Level' and Unit == 4:
                 if Level == 10:
@@ -575,12 +575,30 @@ def UpdateDevice(ID, Unit, sValue, nValue, TimedOut):
     Domoticz.Debug('Update device value:' + str(ID) + ' Unit: ' + str(Unit) + ' sValue: ' +  str(sValue) + ' nValue: ' + str(nValue) + ' TimedOut=' + str(TimedOut))
     return
 
-def StatusDeviceTuya(Function):
+def StatusDeviceTuya_org(Function):
     if Function in str(result):
         valueT = [item['value'] for item in result if Function in item['code']][0]
     else:
         valueT = None
         Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
+    return valueT
+
+def StatusDeviceTuya(Function):
+    for item in function:
+        if item['code'] == Function:
+            the_values = json.loads(item['values'])
+            scale = int(the_values.get('scale',0))
+    if Function in str(result):
+        valueRaw = [item['value'] for item in result if Function in item['code']][0]
+    else:
+        Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
+        return None
+
+    if type(valueRaw) == int and scale == 1:
+        valueT = valueRaw / 10
+    else:
+         valueT = valueRaw
+
     return valueT
 
 def SendCommandCloud(ID, CommandName, Status):
@@ -631,7 +649,8 @@ def set_temp_scale(device_functions, actual_function_name, raw):
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = int(the_values.get('scale',0))
-                return raw / 10 if scale == 1 else raw
+                # step = int(the_values.get('step',1))
+                return raw * 10 if scale == 1 else round(raw)
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return raw
 
