@@ -156,16 +156,16 @@ class BasePlugin:
 
         if dev_type == ('cover'):
             if Command == 'Open':
-                SendCommandCloud(DeviceID, 'switch_1', False)
+                SendCommandCloud(DeviceID, 'mach_operate', 'FZ')
                 UpdateDevice(DeviceID, 1, 'Open', 0, 0)
             elif Command == 'Close':
-                SendCommandCloud(DeviceID, 'switch_1', True)
+                SendCommandCloud(DeviceID, 'mach_operate', 'ZZ')
                 UpdateDevice(DeviceID, 1, 'Close', 1, 0)
             elif Command == 'Stop':
-                SendCommandCloud(DeviceID, 'switch_1', True)
+                SendCommandCloud(DeviceID, 'mach_operate', 'STOP')
                 UpdateDevice(DeviceID, 1, 'Stop', 1, 0)
             elif Command == 'Set Level':
-                SendCommandCloud(DeviceID, 'switch_1', True)
+                SendCommandCloud(DeviceID, 'position', Level)
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
 
         elif dev_type == 'thermostat':
@@ -327,7 +327,7 @@ def onHandleThread(startup):
 
                     elif dev_type == 'cover':
                         Domoticz.Log('Create device Cover')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=3, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
 
                     elif dev_type == 'switch':
                         if 'switch_1' in str(function) and 'switch_2' not in str(function):
@@ -446,10 +446,13 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, colorupdate, 1, 0)
                         '''
                     if dev_type == 'cover':
-                        if bool(currentstatus) == False:
-                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif bool(currentstatus) == True:
-                            UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        currentposition = StatusDeviceTuya('position')
+                        if str(currentposition) == '0':
+                            UpdateDevice(dev['id'], 1, currentposition, 1, 0)
+                        if str(currentposition) == '100':
+                            UpdateDevice(dev['id'], 1, currentposition, 0, 0)
+                        if str(currentposition) != str(Devices[dev['id']].Units[1].sValue):
+                            UpdateDevice(dev['id'], 1, currentposition, 2, 0)
 
                     if dev_type == 'thermostat':
                         if bool(currentstatus) == False:
