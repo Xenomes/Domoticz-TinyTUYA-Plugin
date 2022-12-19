@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.15" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.16" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.1.15</h2><br/>
+        <h2>TinyTUYA Plugin v.1.1.16</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -580,7 +580,7 @@ def SendCommandCloud(ID, CommandName, Status):
     if 'temp_value' in CommandName:
         actual_status = temp_value_scale(function, actual_function_name, Status)
     if 'temp_set' in CommandName:
-        actual_status = set_temp_scale(function, actual_function_name, Status)
+        actual_status = set_temp_scale(Status)
     Domoticz.Debug("actual_function_name:" + str(actual_function_name))
     Domoticz.Debug("actual_status:" + str(actual_status))
     if testData != True:
@@ -622,9 +622,9 @@ def temp_value_scale(device_functions, actual_function_name, raw):
 
 def set_temp_scale(raw):
     if scalemode == 'v2':
-        value = raw * 10
+        value = int(raw * 10)
     else:
-        value = raw
+        value = int(raw)
     return value
 
 def rgb_to_hsv(r, g, b):
