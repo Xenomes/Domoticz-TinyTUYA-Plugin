@@ -84,9 +84,14 @@ class BasePlugin:
             Domoticz.Heartbeat(5)
             Domoticz.Error('!! Warning Plugin overruled by local json files !!')
         else:
+<<<<<<< HEAD
             testData = False
             Domoticz.Heartbeat(60)
 
+=======
+            Domoticz.Log('onStart called')
+        # Domoticz.Heartbeat(1)
+>>>>>>> Master
         onHandleThread(True)
 
     def onStop(self):
@@ -137,6 +142,10 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'bright_value', Level)
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
             elif Command == 'Set Color':
+<<<<<<< HEAD
+=======
+                # Update status of Domoticz device
+>>>>>>> Master
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
                 if Color['m'] == 2:
                     SendCommandCloud(DeviceID, 'bright_value', Level)
@@ -196,6 +205,12 @@ class BasePlugin:
 
     def onDeviceRemoved(self, DeviceID, Unit):
         Domoticz.Log('onDeviceDeleted called')
+<<<<<<< HEAD
+=======
+        # device for the Domoticz
+        Devices[DeviceID].Units[Unit].Delete
+        Domoticz.Debug('Device ID: ' + str(DeviceID) + ' delete')
+>>>>>>> Master
 
     def onDisconnect(self, Connection):
         Domoticz.Log('onDisconnect called')
@@ -276,6 +291,7 @@ def onHandleThread(startup):
 
         # Initialize/Update devices from TUYA API
         for dev in devs:
+<<<<<<< HEAD
             Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'])))
             if testData == True:
                 online = True
@@ -296,11 +312,22 @@ def onHandleThread(startup):
             # Domoticz.Debug( 'functions= ' + str(functions))
             # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(result))
             # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' function= ' + str(functions[dev['id']]))
+=======
+            Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']))
+            functions = tuya.getfunctions(dev['id'])['result']['functions']
+            online = tuya.getconnectstatus(dev['id'])
+            result = tuya.getstatus(dev['id'])['result']
+            dev_type = DeviceType(tuya.getfunctions(dev['id'])['result']['category'])
+>>>>>>> Master
 
             # Create devices
             if startup == True:
                 Domoticz.Debug('Run Startup script')
                 deviceinfo = tinytuya.find_device(dev['id'])
+<<<<<<< HEAD
+=======
+
+>>>>>>> Master
                 if dev['id'] not in Devices:
                     if dev_type == 'light':
                         # for localcontol: and deviceinfo['ip'] != None
@@ -390,17 +417,46 @@ def onHandleThread(startup):
 
             #update devices in Domoticz
             Domoticz.Debug('Update devices in Domoticz')
+<<<<<<< HEAD
             if bool(online) == False and Devices[dev['id']].TimedOut == 0:
                 UpdateDevice(dev['id'], 1, 'Off', 0, 1)
             elif bool(online) == True and Devices[dev['id']].TimedOut == 1:
                 UpdateDevice(dev['id'], 1, 'Off' if bool(StatusDeviceTuya('switch_led')) == False else 'On', 0, 0)
             elif bool(online) == True and Devices[dev['id']].TimedOut == 0:
                 try:
+=======
+            # Domoticz.Debug('Test script:' + str(getConfigItem(dev['id'])))
+
+            if online == False and Devices[dev['id']].TimedOut == 0:
+                UpdateDevice(dev['id'], 1, 'Off', 0, 1)
+            elif online == True and Devices[dev['id']].TimedOut == 1:
+                UpdateDevice(dev['id'], 1, 'Off' if StatusDeviceTuya(dev['id'], 'switch_led') == False else 'On', 0, 0)
+            elif online == True and Devices[dev['id']].TimedOut == 0:
+                try:
+                    # Status Tuya
+                    # Domoticz.Debug(StatusDeviceTuya(dev['id'], 'temp_value') / 2.55)
+                    currentstatusswitch = StatusDeviceTuya(dev['id'], 'switch_1')
+                    currentstatuslight = StatusDeviceTuya(dev['id'], 'switch_led')
+
+                    workmode = StatusDeviceTuya(dev['id'], 'work_mode')
+                    if 'bright_value' in str(result):
+                        dimtuya = brightness_to_pct(str(StatusDeviceTuya(dev['id'], 'bright_value')))
+                    '''
+                    Finding other way to detect
+                    if 'temp_value' in str(result):
+                        temptuya = {'m': 2, 't': int(inv_val(round(StatusDeviceTuya(dev['id'], 'temp_value'))))}
+                    if 'colour_data' in str(result):
+                        colortuya = ast.literal_eval(StatusDeviceTuya(dev['id'], 'colour_data'))
+                        rtuya, gtuya, btuya = hsv_to_rgb(colortuya['h'],colortuya['s'],colortuya['v'])
+                        colorupdate = {'m': 3, 'r': rtuya, 'g': gtuya, 'b': btuya}
+                    '''
+>>>>>>> Master
                     # status Domoticz
                     sValue = Devices[dev['id']].Units[1].sValue
                     nValue = Devices[dev['id']].Units[1].nValue
 
                     if dev_type == 'switch':
+<<<<<<< HEAD
                         if 'switch_1' in str(function):
                             currentstatus = StatusDeviceTuya('switch_1')
                             if bool(currentstatus) == False:
@@ -463,6 +519,18 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                         elif (bool(currentstatus) == True and bool(nValue) != True) or (str(dimtuya) != str(sValue) and bool(nValue) != False):
                             UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
+=======
+                        if currentstatusswitch == False:
+                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                        elif currentstatusswitch == True:
+                            UpdateDevice(dev['id'], 1, 'On', 1, 0)
+
+                    if dev_type in ('light', 'dimmer'):
+                        if (currentstatuslight == False and bool(nValue) != False) or (int(dimtuya) == 0 and bool(nValue) != False):
+                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                        elif (currentstatuslight == True and bool(nValue) != True) or (str(dimtuya) != str(sValue) and bool(nValue) != False):
+                                UpdateDevice(dev['id'], 1, int(dimtuya), 1, 0)
+>>>>>>> Master
                         '''
                         elif currentstatus == True and workmode == 'white':
                             Domoticz.Debug(temptuya['t'])
@@ -630,6 +698,7 @@ def pct_to_brightness(device_functions, actual_function_name, pct):
                 max_value = int(the_values.get('max',1000))
                 return round(min_value + (pct*(max_value - min_value)) / 100)
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
+<<<<<<< HEAD
     return round(22.68 + (int(pct) * ((255 - 22.68) / 100)))
 
 def brightness_to_pct(device_functions, actual_function_name, raw):
@@ -660,6 +729,15 @@ def set_temp_scale(raw):
     else:
         value = int(raw)
     return value
+=======
+    result = round(22.68 + (int(p) * ((255 - 22.68) / 100)))
+    return result
+
+def brightness_to_pct(v):
+    # Convert a raw to a percentage value 25 = 1% => 255 = 100%
+    result = round((100 / (255 - 22.68) * (int(v) - 22.68)))
+    return result
+>>>>>>> Master
 
 def rgb_to_hsv(r, g, b):
     h,s,v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)

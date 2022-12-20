@@ -42,6 +42,10 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | Version | Information|
 | ----- | ---------- |
 | 1.0.0 | Initial upload version |
+<<<<<<< HEAD
 | 1.0.1 | Change heart beat to reduce API calls |
 | 1.1.0 | Add Heater (Power, read and set temperature) |
 | 1.2.0 | Add Thermostats, T&H devices, Covers/Blinds, multi switchs and optimization code (Thanks for the testers!) |
+=======
+| 1.1.0 | Add Heater (Power, read and set temperature) |
+>>>>>>> Master

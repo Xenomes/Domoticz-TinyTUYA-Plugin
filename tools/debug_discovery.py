@@ -60,4 +60,8 @@ try:
         f.close()
 
 except Exception as err:
+<<<<<<< HEAD
         print('debug_discovery: ' + str(err) + ' line ' + format(sys.exc_info()[-1].tb_lineno))
+=======
+        print('debug_discovery: ' + str(err) + ' line ' + format(sys.exc_info()[-1].tb_lineno))
+>>>>>>> Master
