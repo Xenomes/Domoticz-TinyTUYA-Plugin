@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.1.17" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.2.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.1.17</h2><br/>
+        <h2>TinyTUYA Plugin v.1.2.0</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -115,15 +115,16 @@ class BasePlugin:
         if len(Color) != 0: Color = ast.literal_eval(Color)
 
         if dev_type == 'switch':
+            unit = Unit
             if Command == 'Off':
-                SendCommandCloud(DeviceID, 'switch_1', False)
-                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                SendCommandCloud(DeviceID, 'switch_' + str(unit), False)
+                UpdateDevice(DeviceID, unit, 'Off', 0, 0)
             elif Command == 'On':
-                SendCommandCloud(DeviceID, 'switch_1', True)
-                UpdateDevice(DeviceID, 1, 'On', 1, 0)
+                SendCommandCloud(DeviceID, 'switch_' + str(unit), True)
+                UpdateDevice(DeviceID, unit, 'On', 1, 0)
             elif Command == 'Set Level':
-                SendCommandCloud(DeviceID, 'switch_1', True)
-                UpdateDevice(DeviceID, 1, Level, 1, 0)
+                SendCommandCloud(DeviceID, 'switch_' + str(unit), True)
+                UpdateDevice(DeviceID, unit, Level, 1, 0)
 
         elif dev_type in ('light'):
             if Command == 'Off':
@@ -333,15 +334,15 @@ def onHandleThread(startup):
                         if 'switch_1' in str(function) and 'switch_2' not in str(function):
                             Domoticz.Log('Create device Switch')
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        # if 'switch_2' in str(function):
-                        #     Domoticz.Unit(Name=dev['name'] + ' (Switch 1)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        #     Domoticz.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        # if 'switch_3' in str(function):
-                        #     Domoticz.Unit(Name=dev['name'] + ' (Switch 3)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        # if 'switch_4' in str(function):
-                        #     Domoticz.Unit(Name=dev['name'] + ' (Switch 4)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        # if 'switch_5' in str(function):
-                        #     Domoticz.Unit(Name=dev['name'] + ' (Switch 5)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if 'switch_2' in str(function):
+                            Domoticz.Unit(Name=dev['name'] + ' (Switch 1)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            Domoticz.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if 'switch_3' in str(function):
+                            Domoticz.Unit(Name=dev['name'] + ' (Switch 3)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if 'switch_4' in str(function):
+                            Domoticz.Unit(Name=dev['name'] + ' (Switch 4)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if 'switch_5' in str(function):
+                            Domoticz.Unit(Name=dev['name'] + ' (Switch 5)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         # if 'cur_current'in str(function):
                         #     Domoticz.Unit(Name=dev['name'] + '(A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
                         # if 'cur_power'in str(function):
@@ -395,26 +396,55 @@ def onHandleThread(startup):
                 UpdateDevice(dev['id'], 1, 'Off' if bool(StatusDeviceTuya('switch_led')) == False else 'On', 0, 0)
             elif bool(online) == True and Devices[dev['id']].TimedOut == 0:
                 try:
-                    # Status Tuya
-                    if 'switch_led' in str(function):
-                        currentstatus = StatusDeviceTuya('switch_led')
-                    elif 'switch_1' in str(function):
-                        currentstatus = StatusDeviceTuya('switch_1')
-                    elif 'switch' in str(function):
-                        currentstatus = StatusDeviceTuya('switch')
-
                     # status Domoticz
                     sValue = Devices[dev['id']].Units[1].sValue
                     nValue = Devices[dev['id']].Units[1].nValue
 
                     if dev_type == 'switch':
-                        if bool(currentstatus) == False:
-                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif bool(currentstatus) == True:
-                            UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        if 'switch_1' in str(function):
+                            currentstatus = StatusDeviceTuya('switch_1')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        elif 'switch' in str(function):
+                            currentstatus = StatusDeviceTuya('switch')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+
+                        if 'switch_2' in str(function):
+                            currentstatus = StatusDeviceTuya('switch_2')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 2, 'On', 1, 0)
+
+                        if 'switch_3' in str(function):
+                            currentstatus = StatusDeviceTuya('switch_3')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 3, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 3, 'On', 1, 0)
+
+                        if 'switch_4' in str(function):
+                            currentstatus = StatusDeviceTuya('switch_4')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 4, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 4, 'On', 1, 0)
+
+                        if 'switch_5' in str(function):
+                            currentstatus = StatusDeviceTuya('switch_5')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 5, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 5, 'On', 1, 0)
 
                     if dev_type == ('light'):
                         # workmode = StatusDeviceTuya('work_mode')
+                        currentstatus = StatusDeviceTuya('switch_led')
                         if 'bright_value' in str(function):
                             dimtuya = brightness_to_pct(function, 'bright_value', str(StatusDeviceTuya('bright_value')))
                         '''
@@ -455,6 +485,7 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, currentposition, 2, 0)
 
                     if dev_type == 'thermostat':
+                        currentstatus = StatusDeviceTuya('switch')
                         if bool(currentstatus) == False:
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                         elif bool(currentstatus) == True:
