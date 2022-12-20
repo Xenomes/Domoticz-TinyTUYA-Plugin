@@ -1,13 +1,13 @@
 # Domoticz-TinyTUYA-Plugin
 TUYA Plugin for Domoticz home automation
 
-Controls TUYA devices your network mainly on/off switches and Lights and in the future maybe more devices. 
+Controls TUYA devices your network mainly on/off switches and Lights and in the future maybe more devices.
 
 ## Installation
 
 The plugin make use of the project Tinytuya there for is a IoT Cloud Platform account needed, for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
 
-Python version 3.6 or higher required & Domoticz version 2022.2 or greater.
+Python version 3.8 or higher required & Domoticz version 2022.2 or greater.
 
 To install:
 * Go in your Domoticz directory using a command line and open the plugins directory.
@@ -31,7 +31,7 @@ To update:
 
 ## Usage
 
-In the web UI, navigate to the Hardware page. In the hardware dropdown there will be an entry called "TinyTUYA" -- configure and add the hardware there. 
+In the web UI, navigate to the Hardware page. In the hardware dropdown there will be an entry called "TinyTUYA" configure and add the hardware there.
 
 ## Test device
 
@@ -43,3 +43,5 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | ----- | ---------- |
 | 1.0.0 | Initial upload version |
 | 1.0.1 | Change heart beat to reduce API calls |
+| 1.1.0 | Add Heater (Power, read and set temperature) |
+| 1.2.0 | Add Thermostats, T&H devices, Covers/Blinds, multi switches and optimization code (Thanks for the testers!) |
