@@ -62,6 +62,7 @@ import sys
 import ast
 import json
 import colorsys
+import json
 
 class BasePlugin:
     enabled = False
@@ -115,7 +116,7 @@ class BasePlugin:
         dev_type = getConfigItem(DeviceID, 'category')
         if len(Color) != 0: Color = ast.literal_eval(Color)
         Domoticz.Log(dev_type)
-        if dev_type in ('switch', 'dimmer', 'unknown'):
+        if dev_type in ('switch', 'unknown'):
             if Command == 'Off':
                 # Set new state
                 SendCommandCloud(DeviceID, 'switch_1', False)
@@ -132,7 +133,7 @@ class BasePlugin:
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
 
-        elif dev_type == 'light':
+        elif dev_type in ('light', 'dimmer'):
             if Command == 'Off':
                 # Set new level
                 SendCommandCloud(DeviceID, 'switch_led', False)
@@ -144,8 +145,9 @@ class BasePlugin:
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 1, 'On', 1, 0)
             elif Command == 'Set Level':
-                # Set new level
-                SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness(Level))
+                # Set new level also light on
+                SendCommandCloud(DeviceID, 'switch_led', True)
+                SendCommandCloud(DeviceID, 'bright_value', Level)
                 # Update status of Domoticz device
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
             elif Command == 'Set Color':
@@ -155,7 +157,7 @@ class BasePlugin:
                     Domoticz.Debug(Color)
                     # Set new level
                     SendCommandCloud(DeviceID, 'temp_value', inv_val(Color['t']))
-                    SendCommandCloud(DeviceID, 'bright_value', pct_to_brightness(Level))
+                    SendCommandCloud(DeviceID, 'bright_value', Level)
                     # Update status of Domoticz device
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
                     UpdateDevice(DeviceID, 1, Color, 1, 0)
@@ -275,7 +277,7 @@ def onHandleThread(startup):
                 deviceinfo = tinytuya.find_device(dev['id'])
 
                 if dev['id'] not in Devices:
-                    if dev_type == 'light': # for localcontol: and deviceinfo['ip'] != None
+                    if dev_type == 'light' or dev_type == 'dimmer': # for localcontol: and deviceinfo['ip'] != None
                         #if 'colour' in [item['values'] for item in functions if item['code'] == 'work_mode'][0]:
                         if 'switch_led' in str(functions) and 'colour' in str(functions) and 'white' in str(functions) and 'temp_value' in str(functions) and 'bright_value' in str(functions):
                             # Light Color and White temperature contol (RGBWW)
@@ -295,6 +297,9 @@ def onHandleThread(startup):
                         elif 'switch_led' in str(functions) and 'colour' not in str(functions) and 'white' not in str(functions) and 'temp_value' not in str(functions) and 'bright_value' not in str(functions):
                             # Light On/Off control
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7,  Used = 1).Create()
+                        elif 'switch_led' in str(functions) and 'colour' not in str(functions) and 'temp_value' not in str(functions) and 'bright_value' in str(functions):
+                            # Light Brightness control
+                            Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=3, Switchtype=7,  Used = 1).Create()
                         else:
                             # Error
                             Domoticz.Error('No controls found for your light device!')
@@ -335,7 +340,8 @@ def onHandleThread(startup):
 
                     workmode = StatusDeviceTuya(dev['id'], 'work_mode')
                     if 'bright_value' in str(result):
-                        dimtuya = brightness_to_pct(str(StatusDeviceTuya(dev['id'], 'bright_value')))
+                        device_functions = tuya.getfunctions(dev['id'])['result']['functions']
+                        dimtuya = brightness_to_pct(device_functions, 'bright_value', str(StatusDeviceTuya(dev['id'], 'bright_value')))
                     '''
                     Finding other way to detect
                     if 'temp_value' in str(result):
@@ -443,25 +449,50 @@ def UpdateDevice(ID, Unit, sValue, nValue, TimedOut):
 
 def StatusDeviceTuya(ID, Function):
     if Function in str(tuya.getstatus(ID)['result']):
-        valueT = [item['value'] for item in tuya.getstatus(ID)['result'] if item['code'] == Function][0]
+        valueT = [item['value'] for item in tuya.getstatus(ID)['result'] if Function in item['code']][0]
     else:
         valueT = None
-        Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
+        Domoticz.Debug('StatusDeviceTuya called ' + Function + ' not found ')
     return valueT
 
-def SendCommandCloud(ID, Name, Status):
-    tuya.sendcommand(ID, {'commands': [{'code': Name, 'value': Status}]})
-    Domoticz.Debug('Command send to tuya :' + str({'commands': [{'code': Name, 'value': Status}]}))
+def SendCommandCloud(ID, CommandName, Status):
+    device_functions = tuya.getfunctions(ID)['result']['functions']
+    Domoticz.Debug("device_functions:"+str(device_functions))
+    Domoticz.Debug("CommandName:"+str(CommandName))
+    Domoticz.Debug("Status:"+str(Status))
+    actual_function_name = CommandName
+    actual_status = Status
+    for item in device_functions:
+        if CommandName in str(item['code']):
+            actual_function_name = str(item['code'])
+    if "bright_value" in CommandName:
+        actual_status = pct_to_brightness(device_functions, actual_function_name, Status)
+    Domoticz.Debug("actual_function_name:"+str(actual_function_name))
+    Domoticz.Debug("actual_status:"+str(actual_status))
+    tuya.sendcommand(ID, {'commands': [{'code': actual_function_name, 'value': actual_status}]})
+    Domoticz.Debug('Command send to tuya :' + str(ID) +","+ str({'commands': [{'code': actual_function_name, 'value': actual_status}]}))
 
-def pct_to_brightness(p):
+def pct_to_brightness(device_functions, actual_function_name, pct):
+    if device_functions and actual_function_name:
+        for item in device_functions:
+            if item['code'] == actual_function_name:
+                the_values = json.loads(item['values'])
+                min_value = int(the_values.get('min',0))
+                max_value = int(the_values.get('max',255))
+                return round(min_value+(pct*(max_value - min_value))/100)
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
-    result = round(22.68 + (int(p) * ((255 - 22.68) / 100)))
-    return result
+    return round(22.68 + (int(pct) * ((255 - 22.68) / 100)))
 
-def brightness_to_pct(v):
+def brightness_to_pct(device_functions, actual_function_name, level):
+    if device_functions and actual_function_name:
+        for item in device_functions:
+            if item['code'] == actual_function_name:
+                the_values = json.loads(item['values'])
+                min_value = int(the_values.get('min',0))
+                max_value = int(the_values.get('max',255))
+                return round((level-min_value)*100/(max_value-min_value))
     # Convert a raw to a percentage value 25 = 1% => 255 = 100%
-    result = round((100 / (255 - 22.68) * (int(v) - 22.68)))
-    return result
+    return round((100 / (255 - 22.68) * (int(level) - 22.68)))
 
 def rgb_to_hsv(r, g, b):
     h,s,v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
