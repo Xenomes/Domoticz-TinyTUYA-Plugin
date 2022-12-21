@@ -656,6 +656,7 @@ def temp_value_scale(device_functions, actual_function_name, raw):
     return round((int(max_value - raw)))
 
 def set_temp_scale(device_functions, actual_function_name, raw):
+    scale = 0
     if device_functions and actual_function_name:
         for item in device_functions:
             if item['code'] == actual_function_name:
