@@ -657,24 +657,12 @@ def temp_value_scale(device_functions, actual_function_name, raw):
 
 def set_temp_scale(device_functions, actual_function_name, raw):
     scale = 0
-    Domoticz.Debug('device_functions:' + str(device_functions) + ' actual_function_name:' + str(actual_function_name))
     if device_functions and actual_function_name:
-        Domoticz.Debug('Run')
         for item in device_functions:
-            Domoticz.Debug('device_functions:' + str(item))
             if item['code'] == actual_function_name:
-                Domoticz.Debug('code:' + str(item['code']))
                 the_values = json.loads(item['values'])
-                Domoticz.Debug('code:' + str(the_values))
                 scale = int(the_values.get('scale',0))
-                Domoticz.Debug('code:' + str(scale))
-    if scale == 1:
-        Domoticz.Debug('calc:' + str(int(raw * 10)))
-        value = int(raw * 10)
-    else:
-        Domoticz.Debug('calc:' + str(int(raw)))
-        value = int(raw)
-    return value
+    return int(raw * 10) if scale == 1 else int(raw)
 
 def rgb_to_hsv(r, g, b):
     h,s,v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
