@@ -607,6 +607,7 @@ def SendCommandCloud(ID, CommandName, Status):
     # Domoticz.Debug("Status:" + str(Status))
     actual_function_name = CommandName
     actual_status = Status
+    function = functions[ID]['functions']
     for item in function:
         if CommandName in str(item['code']):
             actual_function_name = str(item['code'])
