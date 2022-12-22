@@ -48,4 +48,5 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.2.1 | Fixed value scaling problem and mode detection and some other stuff |
 | 1.2.2 | Add Doorbel |
 | 1.2.3 | Fix for incorrect 'temp_set' selection |
-| 1.2.3 | Fix Heater function |
+| 1.2.4 | Fix Heater function |
+| 1.2.5 | Add 'Window check' and Heater function |
