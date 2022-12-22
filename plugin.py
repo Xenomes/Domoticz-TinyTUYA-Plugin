@@ -171,7 +171,7 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'position', Level)
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
 
-        elif dev_type == 'thermostat':
+        elif dev_type == 'thermostat' or dev_type == 'heater':
             if Command == 'Off':
                 SendCommandCloud(DeviceID, 'switch', False)
                 UpdateDevice(DeviceID, 1, 'Off', 0, 0)
