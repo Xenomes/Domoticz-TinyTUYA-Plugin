@@ -49,4 +49,4 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.2.2 | Add Doorbel |
 | 1.2.3 | Fix for incorrect 'temp_set' selection |
 | 1.2.4 | Fix Heater function |
-| 1.2.5 | Add 'Window check' and Heater function |
+| 1.2.5 | Add 'Window check' and 'child lock' to Heater function |

@@ -171,19 +171,31 @@ class BasePlugin:
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
 
         elif dev_type == 'thermostat' or dev_type == 'heater':
-            if Command == 'Off':
+            if Command == 'Off' and Unit == 1:
                 SendCommandCloud(DeviceID, 'switch', False)
-                UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
-            elif Command == 'On':
+                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+            elif Command == 'On' and Unit == 1:
                 SendCommandCloud(DeviceID, 'switch', True)
-                UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+                UpdateDevice(DeviceID, 1, 'On', 1, 0)
             elif Command == 'Set Level' and Unit  == 3:
                 SendCommandCloud(DeviceID, 'temp_set', Level)
-                UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                UpdateDevice(DeviceID, 3, Level, 1, 0)
             elif Command == 'Set Level' and Unit == 4:
                 mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                 SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
-                UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                UpdateDevice(DeviceID, 4, Level, 1, 0)
+            if Command == 'Off' and Unit == 5:
+                SendCommandCloud(DeviceID, 'window_check', False)
+                UpdateDevice(DeviceID, 5, 'Off', 0, 0)
+            elif Command == 'On' and Unit == 5:
+                SendCommandCloud(DeviceID, 'window_check', True)
+                UpdateDevice(DeviceID, 5, 'On', 1, 0)
+            if Command == 'Off' and Unit == 6:
+                SendCommandCloud(DeviceID, 'child_lock', False)
+                UpdateDevice(DeviceID, 6, 'Off', 0, 0)
+            elif Command == 'On' and Unit == 6:
+                SendCommandCloud(DeviceID, 'child_lock', True)
+                UpdateDevice(DeviceID, 6, 'On', 1, 0)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
