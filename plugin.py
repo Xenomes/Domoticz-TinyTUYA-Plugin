@@ -63,7 +63,6 @@ import sys
 import ast
 import json
 import colorsys
-import collections
 import time
 
 class BasePlugin:
@@ -146,6 +145,7 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'switch_led', True)
                 UpdateDevice(DeviceID, 1, 'On', 1, 0)
             elif Command == 'Set Level':
+                SendCommandCloud(DeviceID, 'switch_led', True)
                 SendCommandCloud(DeviceID, 'bright_value', Level)
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
             elif Command == 'Set Color':
@@ -714,9 +714,9 @@ def UpdateDevice(ID, Unit, sValue, nValue, TimedOut):
 
 def StatusDeviceTuya(Function):
     if searchCode(Function, result):
-        valueRaw = [item['value'] for item in result if Function in item['code']][0]
+        valueRaw = searchValue(Function, result)
     else:
-        Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
+        Domoticz.Debug('StatusDeviceTuya called ' + Function + ' not found ')
         return None
     if scalemode == 'v2' and type(valueRaw) == int:
         valueT = valueRaw / 10
@@ -726,15 +726,12 @@ def StatusDeviceTuya(Function):
 
 def SendCommandCloud(ID, CommandName, Status):
     sendfunction = functions[ID]['functions']
-    actual_function_name = CommandName
+    actual_function_name = searchCodeActualFunction(CommandName, sendfunction)
     CommandName = list([CommandName])
     actual_status = Status
     # Domoticz.Debug("device_functions:" + str(sendfunction))
     # Domoticz.Debug("CommandName:" + str(CommandName))
     # Domoticz.Debug("Status:" + str(Status))
-    for item in sendfunction:
-        if str(CommandName) in str(item['code']):
-            actual_function_name = str(item['code'])
     if 'bright_value' in CommandName or 'bright_value_v2' in CommandName or 'bright_value_1' in CommandName or 'bright_value_2' in CommandName:
         actual_status = pct_to_brightness(sendfunction, actual_function_name, Status)
     if 'temp_value' in CommandName or 'temp_value_v2' in CommandName:
@@ -758,7 +755,8 @@ def pct_to_brightness(device_functions, actual_function_name, pct):
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round(22.68 + (int(pct) * ((255 - 22.68) / 100)))
 
-def brightness_to_pct(device_functions, actual_function_name, raw):
+def brightness_to_pct(device_functions, function_name, raw):
+    actual_function_name = searchCodeActualFunction(function_name, device_functions)
     if device_functions and actual_function_name:
         for item in device_functions:
             if item['code'] == actual_function_name:
@@ -832,18 +830,25 @@ def nextUnit(ID):
         unit = unit + 1
     return unit
 
+def searchCodeActualFunction(Item, Function):
+    for OneItem in Function:
+        if str(Item) in str(OneItem['code']):
+            return str(OneItem['code'])
+    # Domoticz.Debug("searchCodeActualFunction unable to find "+str(Item)+" in "+str(Function))
+    return None
+
 def searchCode(Item, Function):
-    flag = False
-    for Elem in Function:
-        if collections.Counter(Elem['code']) == collections.Counter(Item):
-            flag = True
-    return flag
+    if searchCodeActualFunction(Item, Function) is None:
+        return False
+    return True
 
 def searchValue(Item, Function):
     flag = 0
-    for Elem in Function:
-        if collections.Counter(Elem['code']) == collections.Counter(Item):
-            flag = Elem['value']
+    ActualItem = searchCodeActualFunction(Item, Function)
+    if ActualItem:
+        for Elem in Function:
+            if str(ActualItem) == str(Elem['code']):
+                flag = Elem['value']
     return flag
 
 def createDevice(ID, Unit):
