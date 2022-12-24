@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.2.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.2.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.2.6</h2><br/>
+        <h2>TinyTUYA Plugin v.1.2.7</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -619,6 +619,12 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 6, 'Off', 0, 0)
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 6, 'On', 1, 0)
+                        if searchCode('battery_percentage', result):
+                            currentbattery = StatusDeviceTuya('battery_percentage')
+                            for unit in Devices[dev['id']].Units:
+                                if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
+                                    Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
+                                    Devices[dev['id']].Units[unit].Update()
 
                     if dev_type == 'temperaturehumiditysensor':
                         if searchCode('va_temperature', result):
@@ -633,6 +639,17 @@ def onHandleThread(startup):
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
+                        if searchCode('battery_state', result):
+                            if StatusDeviceTuya('battery_state') == 'high':
+                                currentbattery = 100
+                            if StatusDeviceTuya('battery_state') == 'middle':
+                                currentbattery = 50
+                            if StatusDeviceTuya('battery_state') == 'low':
+                                currentbattery = 5
+                            for unit in Devices[dev['id']].Units:
+                                if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
+                                    Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
+                                    Devices[dev['id']].Units[unit].Update()
 
                     if dev_type == 'doorbell':
                         if searchCode('basic_indicator', result):
@@ -642,7 +659,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'On', 1, 0)
                             elif str(Devices[dev['id']].Units[1].sValue) == 'On':
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                    Domoticz
+
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -718,7 +735,7 @@ def StatusDeviceTuya(Function):
     else:
         Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
         return None
-    if scalemode == 'v2' and type(valueRaw) == int:
+    if scalemode == 'v2' and type(valueRaw) == int and Function != 'battery_percentage':
         valueT = valueRaw / 10
     else:
         valueT = valueRaw
