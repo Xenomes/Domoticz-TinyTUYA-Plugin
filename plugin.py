@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.2.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.2.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.2.5</h2><br/>
+        <h2>TinyTUYA Plugin v.1.2.6</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -127,6 +127,17 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
                 UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
+        elif dev_type in ('dimmer'):
+            if Command == 'Off':
+                SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), False)
+                UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+            elif Command == 'On':
+                SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), True)
+                UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+            elif Command == 'Set Level':
+                SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
+                UpdateDevice(DeviceID, Unit, Level, 1, 0)
+
         elif dev_type in ('light'):
             if Command == 'Off':
                 SendCommandCloud(DeviceID, 'switch_led', False)
@@ -146,12 +157,12 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 1, Color, 1, 0)
                 elif Color['m'] == 3:
                     if scalemode == 'v2':
-                        h,s,v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
-                        hvs = {'h':h,'s':s,'v':Level * 10}
+                        h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
+                        hvs = {'h':h, 's':s, 'v':Level * 10}
                         SendCommandCloud(DeviceID, 'colour_data', hvs)
                     else:
-                        h,s,v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
-                        hvs = {'h':h,'s':s,'v':Level * 2.55}
+                        h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
+                        hvs = {'h':h, 's':s, 'v':Level * 2.55}
                         SendCommandCloud(DeviceID, 'colour_data', hvs)
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
                     UpdateDevice(DeviceID, 1, Color, 1, 0)
@@ -308,7 +319,7 @@ def onHandleThread(startup):
                 Domoticz.Debug('Run Startup script')
                 deviceinfo = tinytuya.find_device(dev['id'])
                 # if dev['id'] not in Devices: # Disabled for create item when device exists
-                if dev_type == 'light':
+                if dev_type == 'light' and createDevice(dev['id'], 1):
                     # for localcontol: and deviceinfo['ip'] != None
                     if searchCode('switch_led', function) and searchCode('work_mode', function) and searchCode('colour_data', function) and (searchCode('temp_value', function) or searchCode('temp_value_v2', function)) and (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
                         Domoticz.Log('Create device Light RGBWW')
@@ -332,40 +343,55 @@ def onHandleThread(startup):
                         Domoticz.Log('Create device Light On/Off')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
 
-                elif dev_type == 'cover':
-                    Domoticz.Log('Create device Cover')
-                    Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
+                elif dev_type == 'dimmer':
+                    if  createDevice(dev['id'], 1) and searchCode('switch_led_1', function) and not searchCode('switch_led_2', function):
+                        Domoticz.Log('Create device Dimmer')
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
+                    if searchCode('switch_led_2', function):
+                        if createDevice(dev['id'], 1):
+                            Domoticz.Unit(Name=dev['name'] + ' (Dimmer 1)', DeviceID=dev['id'], Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
+                        if createDevice(dev['id'], 2):
+                            Domoticz.Unit(Name=dev['name'] + ' (Dimmer 2)', DeviceID=dev['id'], Unit=2, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
 
                 elif dev_type == 'switch':
-                    if searchCode('switch_1', function) and not searchCode('switch_2', function):
+                    if  createDevice(dev['id'], 1) and searchCode('switch_1', function) and not searchCode('switch_2', function):
                         Domoticz.Log('Create device Switch')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if searchCode('switch_2', function):
-                        Domoticz.Unit(Name=dev['name'] + ' (Switch 1)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        Domoticz.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    if searchCode('switch_3', function):
+                        if createDevice(dev['id'], 1):
+                            Domoticz.Unit(Name=dev['name'] + ' (Switch 1)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], 2):
+                            Domoticz.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('switch_3', function):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 3)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    if searchCode('switch_4', function):
+                    if createDevice(dev['id'], 4) and searchCode('switch_4', function):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 4)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    if searchCode('switch_5', function):
+                    if createDevice(dev['id'], 5) and searchCode('switch_5', function):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 5)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    # if searchCode('cur_current', function):
-                    #     Domoticz.Unit(Name=dev['name'] + '(A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
-                    # if searchCode('cur_power', function)':
-                    #     Domoticz.Unit(Name=dev['name'] + '(kWh)', DeviceID=dev['id'], Unit=12, Type=243, Subtype=29, Used=1).Create()
-                    # if searchCode('cur_voltage', function):
-                    #     Domoticz.Unit(Name=dev['name'] + '(V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
+                    if createDevice(dev['id'], 11) and searchCode('cur_current', result):
+                        Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
+                    if createDevice(dev['id'], 12) and searchCode('cur_power', result):
+                        Domoticz.Unit(Name=dev['name'] + ' (W)', DeviceID=dev['id'], Unit=12, Type=248, Subtype=1, Used=1).Create()
+                    if createDevice(dev['id'], 13) and searchCode('cur_voltage', result):
+                        Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
+
+                elif dev_type == 'cover' and createDevice(dev['id'], 1):
+                    Domoticz.Log('Create device Cover')
+                    Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
 
                 elif dev_type == 'thermostat' or dev_type == 'heater':
                     Domoticz.Log('Create device Thermostat')
-                    if searchCode('switch', function):
-                        Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    else:
-                        Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=0).Create()
+                    if createDevice(dev['id'], 1):
+                        if searchCode('switch', function):
+                            Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        else:
+                            Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=0).Create()
                     if searchCode('set_temp', function):
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=1).Create()
-                        Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Used=1).Create()
-                    if searchCode('mode', function):
+                        if createDevice(dev['id'], 2):
+                            Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=1).Create()
+                        if createDevice(dev['id'], 3):
+                            Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('mode', function):
                         if dev_type == 'thermostat':
                             image = 16
                         elif dev_type == 'heater':
@@ -383,18 +409,21 @@ def onHandleThread(startup):
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
                                 Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=image, Used=1).Create()
-                    if searchCode('window_check', function):
+                    if createDevice(dev['id'], 5) and searchCode('window_check', function):
                         Domoticz.Unit(Name=dev['name'] + ' (Window check)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    if searchCode('child_lock', function):
+                    if createDevice(dev['id'], 6) and searchCode('child_lock', function):
                         Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
                 elif dev_type == 'temperaturehumiditysensor':
                     Domoticz.Log('Create device T&H Sensor')
-                    Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0).Create()
-                    Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
-                    Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0).Create()
+                    if createDevice(dev['id'], 2):
+                        Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
+                    if createDevice(dev['id'], 3):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
 
-                elif dev_type == 'doorbell':
+                elif createDevice(dev['id'], 1) and dev_type == 'doorbell':
                     if searchCode('basic_indicator', function):
                         Domoticz.Log('Create device Doorbell')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
@@ -408,7 +437,8 @@ def onHandleThread(startup):
 
                 else:
                     Domoticz.Log('No controls found for device: ' + str(dev['name']))
-                    Domoticz.Unit(Name=dev['name'] + ' (Unknown Device)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Unit(Name=dev['name'] + ' (Unknown Device)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
                     UpdateDevice(dev['id'], 1, 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.', 0, 0)
 
                 # Set extra info
@@ -473,6 +503,42 @@ def onHandleThread(startup):
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 5, 'On', 1, 0)
 
+                        if searchCode('cur_current', result):
+                            currentcurrent = int(StatusDeviceTuya('cur_current'))
+                            currentpower = int(StatusDeviceTuya('cur_power'))
+                            currentvoltage = int(StatusDeviceTuya('cur_voltage'))
+                            if currentcurrent != 0:
+                                UpdateDevice(dev['id'], 11, str(currentcurrent / 1000), 0, 0)
+                            else:
+                                UpdateDevice(dev['id'], 11, str(0), 0, 0)
+
+                            if currentpower != 0:
+                                UpdateDevice(dev['id'], 12, str(currentpower / 10), 0, 0)
+                            else:
+                                UpdateDevice(dev['id'], 12, str(0), 0, 0)
+
+                            if currentvoltage != 0:
+                                UpdateDevice(dev['id'], 13, str(currentvoltage / 10), 0, 0)
+                            else:
+                                UpdateDevice(dev['id'], 13, str(0), 0, 0)
+
+                    if dev_type == 'dimmer':
+                        if searchCode('switch_led_1', function):
+                            currentstatus = StatusDeviceTuya('switch_led_1')
+                            currentdim = brightness_to_pct(function, 'bright_value_1', str(StatusDeviceTuya('bright_value_1')))
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 1, currentdim, 1, 0)
+
+                        if searchCode('switch_led_2', function):
+                            currentstatus = StatusDeviceTuya('switch_led_2')
+                            currentdim = brightness_to_pct(function, 'bright_value_2', str(StatusDeviceTuya('bright_value_2')))
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 2, currentdim, 1, 0)
+
                     if dev_type == ('light'):
                         # workmode = StatusDeviceTuya('work_mode')
                         currentstatus = StatusDeviceTuya('switch_led')
@@ -487,7 +553,7 @@ def onHandleThread(startup):
                             temptuya = {'m': 2, 't': int(inv_val(round(StatusDeviceTuya('temp_value'))))}
                         if searchCode('colour_data', function):
                             colortuya = ast.literal_eval(StatusDeviceTuya('colour_data'))
-                            rtuya, gtuya, btuya = hsv_to_rgb(colortuya['h'],colortuya['s'],colortuya['v'])
+                            rtuya, gtuya, btuya = hsv_to_rgb(colortuya['h'], colortuya['s'], colortuya['v'])
                             colorupdate = {'m': 3, 'r': rtuya, 'g': gtuya, 'b': btuya}
                         '''
                         if (bool(currentstatus) == False and bool(nValue) != False) or (int(dimtuya) == 0 and bool(nValue) != False):
@@ -606,10 +672,12 @@ def DumpConfigToLog():
 def DeviceType(category):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
-    if category in {'kg', 'cz', 'pc', 'dlq', 'bh','tdq'}:
+    if category in {'kg', 'cz', 'pc', 'dlq', 'bh', 'tdq'}:
         result = 'switch'
-    elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fsd', 'fwd', 'gyd', 'jsq', 'tyndj', 'ykq', 'tgq', 'tgkg'}:
+    elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fsd', 'fwd', 'gyd', 'jsq', 'tyndj'}:
         result = 'light'
+    elif category in {'tgq', 'tgkg'}:
+        result = 'dimmer'
     elif category in {'cl', 'clkg', 'jdcljqr'}:
         result = 'cover'
     elif category in {'qn'}:
@@ -665,7 +733,7 @@ def SendCommandCloud(ID, CommandName, Status):
     for item in sendfunction:
         if str(CommandName) in str(item['code']):
             actual_function_name = str(item['code'])
-    if 'bright_value' in CommandName or 'bright_value_v2' in CommandName:
+    if 'bright_value' in CommandName or 'bright_value_v2' in CommandName or 'bright_value_1' in CommandName or 'bright_value_2' in CommandName:
         actual_status = pct_to_brightness(sendfunction, actual_function_name, Status)
     if 'temp_value' in CommandName or 'temp_value_v2' in CommandName:
         actual_status = temp_value_scale(sendfunction, actual_function_name, Status)
@@ -682,8 +750,8 @@ def pct_to_brightness(device_functions, actual_function_name, pct):
         for item in device_functions:
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
-                min_value = int(the_values.get('min',0))
-                max_value = int(the_values.get('max',1000))
+                min_value = int(the_values.get('min', 0))
+                max_value = int(the_values.get('max', 1000))
                 return round(min_value + (pct*(max_value - min_value)) / 100)
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round(22.68 + (int(pct) * ((255 - 22.68) / 100)))
@@ -693,8 +761,8 @@ def brightness_to_pct(device_functions, actual_function_name, raw):
         for item in device_functions:
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
-                min_value = int(the_values.get('min',0))
-                max_value = int(the_values.get('max',1000))
+                min_value = int(the_values.get('min', 0))
+                max_value = int(the_values.get('max', 255))
                 return round((100 / (max_value - min_value) * (int(raw) - min_value)))
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round((100 / (255 - 22.68) * (int(raw) - 22.68)))
@@ -704,8 +772,8 @@ def temp_value_scale(device_functions, actual_function_name, raw):
         for item in device_functions:
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
-                min_value = int(the_values.get('min',0))
-                max_value = int(the_values.get('max',1000))
+                min_value = int(the_values.get('min', 0))
+                max_value = int(the_values.get('max', 255))
                 return round((255 / (max_value - min_value) * (int((max_value - raw)) - min_value)))
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round((int(max_value - raw)))
@@ -716,18 +784,18 @@ def set_temp_scale(device_functions, actual_function_name, raw):
         for item in device_functions:
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
-                scale = int(the_values.get('scale',0))
+                scale = int(the_values.get('scale', 0))
     return int(raw * 10) if scale == 1 else int(raw)
 
 def rgb_to_hsv(r, g, b):
-    h,s,v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+    h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
     h = int(h * 360)
     s = int(s * 255)
     v = int(v * 255)
     return h, s, v
 
 def rgb_to_hsv_v2(r, g, b):
-    h,s,v = colorsys.rgb_to_hsv(r / 1000, g / 1000, b / 1000)
+    h, s, v = colorsys.rgb_to_hsv(r / 1000, g / 1000, b / 1000)
     h = int(h * 360)
     s = int(s * 1000)
     v = int(v * 1000)
@@ -775,6 +843,16 @@ def searchValue(Item, Function):
         if collections.Counter(Elem['code']) == collections.Counter(Item):
             flag = Elem['value']
     return flag
+
+def createDevice(ID, Unit):
+    if ID in Devices:
+        if Unit in Devices[ID].Units:
+            value = False
+        else:
+            value = True
+    else:
+        value = True
+    return value
 
 # Configuration Helpers
 def getConfigItem(Key=None, Values=None):
