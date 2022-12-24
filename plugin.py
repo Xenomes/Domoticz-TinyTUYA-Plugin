@@ -321,25 +321,25 @@ def onHandleThread(startup):
                 # if dev['id'] not in Devices: # Disabled for create item when device exists
                 if dev_type == 'light' and createDevice(dev['id'], 1):
                     # for localcontol: and deviceinfo['ip'] != None
-                    if searchCode('switch_led', function) and searchCode('work_mode', function) and searchCode('colour_data', function) and (searchCode('temp_value', function) or searchCode('temp_value_v2', function)) and (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
+                    if searchCode('switch_led', function) and searchCode('work_mode', function) and (searchCode('colour_data', function) or searchCode('colour_data_v2', function)) and (searchCode('temp_value', function) or searchCode('temp_value_v2', function)) and (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
                         Domoticz.Log('Create device Light RGBWW')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7, Used=1).Create()
-                    elif searchCode('switch_led', function) and 'dc' == str(functions[dev['id']]['category']) and searchCode('work_mode', function) and searchCode('colour_data', function):
+                    elif searchCode('switch_led', function) and 'dc' == str(functions[dev['id']]['category']) and searchCode('work_mode', function) and (searchCode('colour_data', function) or searchCode('colour_data_v2', function)):
                         Domoticz.Log('Create device Light Stringlight')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7, Used=1).Create()
-                    elif searchCode('switch_led', function) and searchCode('work_mode', function) and searchCode('colour_data', function) and (not searchCode('temp_value', function) or not searchCode('temp_value_v2', function)) and (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
+                    elif searchCode('switch_led', function) and searchCode('work_mode', function) and (searchCode('colour_data', function) or searchCode('colour_data_v2', function)) and (not searchCode('temp_value', function) or not searchCode('temp_value_v2', function)) and (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
                         Domoticz.Log('Create device Light RGBW')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=1, Switchtype=7, Used=1).Create()
-                    elif searchCode('switch_led', function) and not searchCode('work_mode', function) and searchCode('colour_data', function) and (not searchCode('temp_value', function) or not searchCode('temp_value_v2', function)) and (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
+                    elif searchCode('switch_led', function) and not searchCode('work_mode', function) and (searchCode('colour_data', function) or searchCode('colour_data_v2', function)) and (not searchCode('temp_value', function) or not searchCode('temp_value_v2', function)) and (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
                         Domoticz.Log('Create device Light RGB')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
-                    elif searchCode('switch_led', function) and not searchCode('work_mode', function) and not searchCode('colour_data', function) and (searchCode('temp_value', function) or searchCode('temp_value_v2', function)) and (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
+                    elif searchCode('switch_led', function) and not searchCode('work_mode', function) and not (searchCode('colour_data', function) or searchCode('colour_data_v2', function)) and (searchCode('temp_value', function) or searchCode('temp_value_v2', function)) and (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
                         Domoticz.Log('Create device Light WWCW')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=8, Switchtype=7, Used=1).Create()
-                    elif searchCode('switch_led', function) and not searchCode('work_mode', function) and not searchCode('colour_data', function) and (not searchCode('temp_value', function) or not searchCode('temp_value_v2', function)) and (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
+                    elif searchCode('switch_led', function) and not searchCode('work_mode', function) and not (searchCode('colour_data', function) or searchCode('colour_data_v2', function)) and (not searchCode('temp_value', function) or not searchCode('temp_value_v2', function)) and (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
                         Domoticz.Log('Create device Light Dimmer')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
-                    elif searchCode('switch_led', function) and not searchCode('work_mode', function) and not searchCode('colour_data', function) and (not searchCode('temp_value', function) or not searchCode('temp_value_v2', function)) and (not searchCode('bright_value', function) or not searchCode('bright_value_v2', function)):
+                    elif searchCode('switch_led', function) and not searchCode('work_mode', function) and not (searchCode('colour_data', function) or searchCode('colour_data_v2', function)) and (not searchCode('temp_value', function) or not searchCode('temp_value_v2', function)) and (not searchCode('bright_value', function) or not searchCode('bright_value_v2', function)):
                         Domoticz.Log('Create device Light On/Off')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
 
@@ -542,8 +542,10 @@ def onHandleThread(startup):
                     if dev_type == ('light'):
                         # workmode = StatusDeviceTuya('work_mode')
                         currentstatus = StatusDeviceTuya('switch_led')
-                        if (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
+                        if searchCode('bright_value', function):
                             dimtuya = brightness_to_pct(function, 'bright_value', str(StatusDeviceTuya('bright_value')))
+                        elif searchCode('bright_value_v2', function):
+                            dimtuya = brightness_to_pct(function, 'bright_value_v2', str(StatusDeviceTuya('bright_value_v2')))
                         '''
                         Finding other way to detect
                         dimlevel = Devices[dev['id']].Units[1].sValue if type(Devices[dev['id']].Units[1].sValue) == int else dimtuya
@@ -551,7 +553,7 @@ def onHandleThread(startup):
 
                         if searchCode('temp_value', function):
                             temptuya = {'m': 2, 't': int(inv_val(round(StatusDeviceTuya('temp_value'))))}
-                        if searchCode('colour_data', function):
+                        if (searchCode('colour_data', function) or searchCode('colour_data_v2', function)):
                             colortuya = ast.literal_eval(StatusDeviceTuya('colour_data'))
                             rtuya, gtuya, btuya = hsv_to_rgb(colortuya['h'], colortuya['s'], colortuya['v'])
                             colorupdate = {'m': 3, 'r': rtuya, 'g': gtuya, 'b': btuya}
