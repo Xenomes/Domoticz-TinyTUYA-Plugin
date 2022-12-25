@@ -146,13 +146,20 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'switch_led', True)
                 UpdateDevice(DeviceID, 1, 'On', 1, 0)
             elif Command == 'Set Level':
-                SendCommandCloud(DeviceID, 'bright_value', Level)
+                if scalemode == 'v2':
+                    SendCommandCloud(DeviceID, 'bright_value_v2', Level)
+                else:
+                    SendCommandCloud(DeviceID, 'bright_value', Level)
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
             elif Command == 'Set Color':
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
                 if Color['m'] == 2:
-                    SendCommandCloud(DeviceID, 'bright_value', Level)
-                    SendCommandCloud(DeviceID, 'temp_value', int(Color['t']))
+                    if scalemode == 'v2':
+                        SendCommandCloud(DeviceID, 'bright_value_v2', Level)
+                        SendCommandCloud(DeviceID, 'temp_value_v2', int(Color['t']))
+                    else:
+                        SendCommandCloud(DeviceID, 'bright_value', Level)
+                        SendCommandCloud(DeviceID, 'temp_value', int(Color['t']))
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
                     UpdateDevice(DeviceID, 1, Color, 1, 0)
                 elif Color['m'] == 3:
@@ -735,7 +742,7 @@ def StatusDeviceTuya(Function):
     else:
         Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
         return None
-    if scalemode == 'v2' and type(valueRaw) == int and Function not in ('battery_percentage', 'bright_value', 'bright_value_v2'):
+    if scalemode == 'v2' and type(valueRaw) == int and Function not in ('battery_percentage', 'bright_value', 'bright_value_v2', 'temp_value', 'temp_value_v2'):
         valueT = valueRaw / 10
     else:
         valueT = valueRaw
