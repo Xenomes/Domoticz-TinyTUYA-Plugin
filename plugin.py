@@ -306,7 +306,7 @@ def onHandleThread(startup):
             else:
                 result = tuya.getstatus(dev['id'])['result']
             # Define scale mode
-            if '\"scale\":1' in str(function) or '_v2"' in str(function):
+            if '\"scale\":1' in str(function) or '_v2''' in str(function):
                 scalemode = 'v2'
             else:
                 scalemode = 'v1'
@@ -525,7 +525,7 @@ def onHandleThread(startup):
                     if dev_type == 'dimmer':
                         if searchCode('switch_led_1', function):
                             currentstatus = StatusDeviceTuya('switch_led_1')
-                            currentdim = brightness_to_pct(function, 'bright_value_1', str(StatusDeviceTuya('bright_value_1')))
+                            currentdim = brightness_to_pct(function, 'bright_value_1', int(StatusDeviceTuya('bright_value_1')))
                             if bool(currentstatus) == False:
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif bool(currentstatus) == True:
@@ -533,7 +533,7 @@ def onHandleThread(startup):
 
                         if searchCode('switch_led_2', function):
                             currentstatus = StatusDeviceTuya('switch_led_2')
-                            currentdim = brightness_to_pct(function, 'bright_value_2', str(StatusDeviceTuya('bright_value_2')))
+                            currentdim = brightness_to_pct(function, 'bright_value_2', int(StatusDeviceTuya('bright_value_2')))
                             if bool(currentstatus) == False:
                                 UpdateDevice(dev['id'], 2, 'Off', 0, 0)
                             elif bool(currentstatus) == True:
@@ -543,9 +543,9 @@ def onHandleThread(startup):
                         # workmode = StatusDeviceTuya('work_mode')
                         currentstatus = StatusDeviceTuya('switch_led')
                         if searchCode('bright_value', function):
-                            dimtuya = brightness_to_pct(function, 'bright_value', str(StatusDeviceTuya('bright_value')))
+                            dimtuya = brightness_to_pct(function, 'bright_value', int(StatusDeviceTuya('bright_value')))
                         elif searchCode('bright_value_v2', function):
-                            dimtuya = brightness_to_pct(function, 'bright_value_v2', str(StatusDeviceTuya('bright_value_v2')))
+                            dimtuya = brightness_to_pct(function, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
                         '''
                         Finding other way to detect
                         dimlevel = Devices[dev['id']].Units[1].sValue if type(Devices[dev['id']].Units[1].sValue) == int else dimtuya
@@ -735,7 +735,7 @@ def StatusDeviceTuya(Function):
     else:
         Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
         return None
-    if scalemode == 'v2' and type(valueRaw) == int and Function != 'battery_percentage':
+    if scalemode == 'v2' and type(valueRaw) == int and Function not in ('battery_percentage', 'bright_value', 'bright_value_v2'):
         valueT = valueRaw / 10
     else:
         valueT = valueRaw
