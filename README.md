@@ -52,3 +52,4 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.2.5 | Add 'Window check' and 'child lock' to Heater function |
 | 1.2.6 | Add Power readings to Switch, repair Dimmer devices and Light detection v2 fixed |
 | 1.2.7 | Add 'battery percentage' and 'battery_state' to battery power devices |
+| 1.2.8 | Fix for filament lamps |
