@@ -54,3 +54,4 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.2.7 | Add 'battery percentage' and 'battery_state' to battery power devices |
 | 1.2.8 | Fix for filament lamps |
 | 1.2.9 | Fix bug in video doorbell |
+| 1.3.0 | Change temperature scaling get value from tuya defined from function |
