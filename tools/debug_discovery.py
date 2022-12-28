@@ -14,7 +14,7 @@ REGION = "eu" # cn, eu, us
 APIKEY = "xxxxxxxxxxxxxxxxxxxx"
 APISECRET = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 # Select a Device ID to Test
-DEVICEID = "xxxxxxxxxxxxxxxxxxID"
+DEVICEID = "xxxxxxxxxxxxxxxxxxxx"
 # CHANGE THIS - END
 
 # NO NEED TO CHANGE ANYTHING BELOW
