@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.2.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.2.9</h2><br/>
+        <h2>TinyTUYA Plugin v.1.3.0</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -215,6 +215,14 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'child_lock', True)
                 UpdateDevice(DeviceID, 6, 'On', 1, 0)
 
+        if dev_type == 'fan':
+            if Command == 'Off':
+                SendCommandCloud(DeviceID, 'switch', False)
+                UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+            elif Command == 'On':
+                SendCommandCloud(DeviceID, 'switch', True)
+                UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
 
@@ -313,7 +321,7 @@ def onHandleThread(startup):
             else:
                 result = tuya.getstatus(dev['id'])['result']
             # Define scale mode
-            if '\"scale\":1' in str(function) or '_v2''' in str(function):
+            if '\"scale\":1' in str(function) or '_v2' in str(function):
                 scalemode = 'v2'
             else:
                 scalemode = 'v1'
@@ -435,10 +443,11 @@ def onHandleThread(startup):
                         Domoticz.Log('Create device Doorbell')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
 
+                elif dev_type == 'fan':
+                    Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+
                 # elif dev_type == 'climate':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
-                # elif dev_type == 'fan':
-                #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
                 # elif dev_type == 'lock':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
@@ -666,6 +675,14 @@ def onHandleThread(startup):
                             else:
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
 
+                    if dev_type == 'fan':
+                        if searchCode('switch', function):
+                            currentstatus = StatusDeviceTuya('switch')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -713,6 +730,8 @@ def DeviceType(category):
         result = 'temperaturehumiditysensor'
     elif category in {'sp'}:
         result = 'doorbell'
+    elif category in {'fs'}:
+        result = 'fan'
     # elif 'infrared_' in category: # keep it last
     #     result = 'infrared_id'
     else:
