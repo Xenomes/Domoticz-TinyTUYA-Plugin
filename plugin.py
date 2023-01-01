@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.3.0</h2><br/>
+        <h2>TinyTUYA Plugin v.1.3.1</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -113,7 +113,7 @@ class BasePlugin:
 
         # Control device and update status in Domoticz
         dev_type = getConfigItem(DeviceID, 'category')
-        scalemode = getConfigItem(DeviceID, 'scalemode')
+        # scalemode = getConfigItem(DeviceID, 'scalemode')
         if len(Color) != 0: Color = ast.literal_eval(Color)
 
         if dev_type == 'switch':
@@ -214,6 +214,14 @@ class BasePlugin:
             elif Command == 'On' and Unit == 6:
                 SendCommandCloud(DeviceID, 'child_lock', True)
                 UpdateDevice(DeviceID, 6, 'On', 1, 0)
+
+        if dev_type == 'fan':
+            if Command == 'Off':
+                SendCommandCloud(DeviceID, 'switch', False)
+                UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+            elif Command == 'On':
+                SendCommandCloud(DeviceID, 'switch', True)
+                UpdateDevice(DeviceID, Unit, 'On', 1, 0)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
@@ -435,6 +443,9 @@ def onHandleThread(startup):
                         Domoticz.Log('Create device Doorbell')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
 
+                elif dev_type == 'fan':
+                    Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+
                 # elif dev_type == 'climate':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
                 # elif dev_type == 'fan':
@@ -448,7 +459,7 @@ def onHandleThread(startup):
                     UpdateDevice(dev['id'], 1, 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.', 0, 0)
 
                 # Set extra info
-                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'ip': deviceinfo['ip'], 'version': deviceinfo['version']}) # , 'scalemode': scalemode})
+                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'ip': deviceinfo['ip'], 'version': deviceinfo['version']}) # , 'scalemode': scalemode
                 Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
@@ -672,6 +683,14 @@ def onHandleThread(startup):
                             else:
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
 
+                    if dev_type == 'fan':
+                        if searchCode('switch', function):
+                            currentstatus = StatusDeviceTuya('switch')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -719,6 +738,8 @@ def DeviceType(category):
         result = 'temperaturehumiditysensor'
     elif category in {'sp'}:
         result = 'doorbell'
+    elif category in {'fs'}:
+        result = 'fan'
     # elif 'infrared_' in category: # keep it last
     #     result = 'infrared_id'
     else:
@@ -820,6 +841,7 @@ def set_scale(device_functions, actual_function_name, raw):
 
 def get_scale(device_functions, actual_function_name, raw):
     scale = 0
+    if actual_function_name == 'temp_current': actual_function_name = 'temp_set'
     if device_functions and actual_function_name:
         for item in device_functions:
             Domoticz.Debug(item['code'])
