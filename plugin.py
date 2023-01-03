@@ -392,7 +392,7 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 13) and searchCode('cur_voltage', result):
                         Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 14) and searchCode('cur_power', result):
-                        Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Options={"EnergyMeterMode":"1"}, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Used=1).Create()
 
                 elif dev_type == 'cover' and createDevice(dev['id'], 1):
                     Domoticz.Log('Create device Cover')
