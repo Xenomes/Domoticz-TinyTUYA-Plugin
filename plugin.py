@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.3.0</h2><br/>
+        <h2>TinyTUYA Plugin v.1.3.1</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -113,7 +113,7 @@ class BasePlugin:
 
         # Control device and update status in Domoticz
         dev_type = getConfigItem(DeviceID, 'category')
-        scalemode = getConfigItem(DeviceID, 'scalemode')
+        # scalemode = getConfigItem(DeviceID, 'scalemode')
         if len(Color) != 0: Color = ast.literal_eval(Color)
 
         if dev_type == 'switch':
@@ -280,7 +280,7 @@ def onHandleThread(startup):
             global result
             global functions
             global function
-            global scalemode
+            global login
             if testData == True:
                 tuya = Domoticz.Log
                 with open(Parameters['HomeFolder'] + '/debug_devices.json') as dFile:
@@ -292,19 +292,21 @@ def onHandleThread(startup):
                         functions[dev['id']] = json.load(fFile)['result']
             else:
                 tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
-                devs = tuya.getdevices(verbose=False)
+                devs = tuya.getdevices()
                 token = tuya.token
+                # Check credentials
+                if 'sign invalid' in str(devs) or token == None:
+                    login = False
+                    raise Exception('Credentials are incorrect!')
+
+                # Check ID search device is valid
+                if 'permission deny' in str(devs):
+                    login = False
+                    raise Exception('ID search device not found!')
+
                 functions = {}
                 for dev in devs:
                     functions[dev['id']] = tuya.getfunctions(dev['id'])['result']
-
-            # Check credentials
-            if 'sign invalid' in str(token) or token == None:
-                raise Exception('Credentials are incorrect!')
-
-            # Check ID search device is valid
-            if 'permission deny' in str(devs):
-                raise Exception('ID search device not found!')
 
         # Initialize/Update devices from TUYA API
         for dev in devs:
@@ -321,10 +323,10 @@ def onHandleThread(startup):
             else:
                 result = tuya.getstatus(dev['id'])['result']
             # Define scale mode
-            if '\"scale\":1' in str(function) or '_v2' in str(function):
-                scalemode = 'v2'
-            else:
-                scalemode = 'v1'
+            # if '\"scale\":1' in str(function) or '_v2''' in str(function):
+            #     scalemode = 'v2'
+            # else:
+            #     scalemode = 'v1'
             # Domoticz.Debug( 'functions= ' + str(functions))
             # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + result)
             # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' function= ' + str(functions[dev['id']]))
@@ -389,6 +391,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (W)', DeviceID=dev['id'], Unit=12, Type=248, Subtype=1, Used=1).Create()
                     if createDevice(dev['id'], 13) and searchCode('cur_voltage', result):
                         Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
+                    if createDevice(dev['id'], 14) and searchCode('cur_power', result):
+                        Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Options={"EnergyMeterMode":"1"}, Used=1).Create()
 
                 elif dev_type == 'cover' and createDevice(dev['id'], 1):
                     Domoticz.Log('Create device Cover')
@@ -457,7 +461,7 @@ def onHandleThread(startup):
                     UpdateDevice(dev['id'], 1, 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.', 0, 0)
 
                 # Set extra info
-                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'ip': deviceinfo['ip'], 'version': deviceinfo['version'] , 'scalemode': scalemode})
+                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'ip': deviceinfo['ip'], 'version': deviceinfo['version']}) # , 'scalemode': scalemode
                 Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
@@ -529,8 +533,13 @@ def onHandleThread(startup):
 
                             if currentpower != 0:
                                 UpdateDevice(dev['id'], 12, str(currentpower / 10), 0, 0)
+                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                lastvalue = Devices[dev['id']].Units[14].sValue
+                                UpdateDevice(dev['id'], 14, str(currentpower / 10) + ';' + str(round(float(lastvalue.split(';')[1]) + ((currentpower / 10) * (lastupdate / 3600)))) , 0, 0, 1)
+                                #UpdateDevice(dev['id'], 14, str(currentpower / 10) + ';0' , 0, 0, 1)
                             else:
                                 UpdateDevice(dev['id'], 12, str(0), 0, 0)
+                                UpdateDevice(dev['id'], 14, str(0) + ';0', 0, 0, 1)
 
                             if currentvoltage != 0:
                                 UpdateDevice(dev['id'], 13, str(currentvoltage / 10), 0, 0)
@@ -634,8 +643,11 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 6, 'Off', 0, 0)
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 6, 'On', 1, 0)
-                        if searchCode('battery_percentage', result):
-                            currentbattery = StatusDeviceTuya('battery_percentage')
+                        if searchCode('battery_percentage', result) or searchCode('va_battery', result):
+                            if searchCode('battery_percentage', result):
+                                currentbattery = StatusDeviceTuya('battery_percentage')
+                            elif searchCode('va_battery', result):
+                                currentbattery = StatusDeviceTuya('va_battery')
                             for unit in Devices[dev['id']].Units:
                                 if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
@@ -643,7 +655,7 @@ def onHandleThread(startup):
 
                     if dev_type == 'temperaturehumiditysensor':
                         if searchCode('va_temperature', result):
-                            currenttemp = StatusDeviceTuya('va_temperature') / 10
+                            currenttemp = StatusDeviceTuya('va_temperature')
                             if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
                         if  searchCode('va_humidity', result):
@@ -654,13 +666,16 @@ def onHandleThread(startup):
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('battery_state', result):
-                            if StatusDeviceTuya('battery_state') == 'high':
-                                currentbattery = 100
-                            if StatusDeviceTuya('battery_state') == 'middle':
-                                currentbattery = 50
-                            if StatusDeviceTuya('battery_state') == 'low':
-                                currentbattery = 5
+                        if searchCode('battery_state', result) or searchCode('va_battery', result):
+                            if searchCode('battery_state', result):
+                                if StatusDeviceTuya('battery_state') == 'high':
+                                    currentbattery = 100
+                                if StatusDeviceTuya('battery_state') == 'middle':
+                                    currentbattery = 50
+                                if StatusDeviceTuya('battery_state') == 'low':
+                                    currentbattery = 5
+                            if searchCode('va_battery', result):
+                                currentbattery = StatusDeviceTuya('va_battery')
                             for unit in Devices[dev['id']].Units:
                                 if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
@@ -738,10 +753,10 @@ def DeviceType(category):
         result = 'unknown'
     return result
 
-def UpdateDevice(ID, Unit, sValue, nValue, TimedOut):
+def UpdateDevice(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate = 0):
     # Make sure that the Domoticz device still exists (they can be deleted) before updating it
     if ID in Devices:
-        if str(Devices[ID].Units[Unit].sValue) != str(sValue) or str(Devices[ID].Units[Unit].nValue) != str(nValue) or str(Devices[ID].TimedOut) != str(TimedOut):
+        if str(Devices[ID].Units[Unit].sValue) != str(sValue) or str(Devices[ID].Units[Unit].nValue) != str(nValue) or str(Devices[ID].TimedOut) != str(TimedOut) or AlwaysUpdate == 1:
             Devices[ID].Units[Unit].sValue = str(sValue)
             if type(sValue) == int or type(sValue) == float:
                 Devices[ID].Units[Unit].LastLevel = sValue
@@ -758,10 +773,10 @@ def StatusDeviceTuya(Function):
     if searchCode(Function, result):
         valueRaw = [item['value'] for item in result if Function in item['code']][0]
     else:
-        Domoticz.Debug('StatusDeviceTuya caled ' + Function + ' not found ')
+        Domoticz.Debug('StatusDeviceTuya called ' + Function + ' not found ')
         return None
-    if scalemode == 'v2' and type(valueRaw) == int and Function not in ('battery_percentage', 'bright_value', 'bright_value_v2', 'temp_value', 'temp_value_v2'):
-        valueT = valueRaw / 10
+    if type(valueRaw) == int and Function not in ('battery_percentage', 'bright_value', 'bright_value_v2', 'temp_value', 'temp_value_v2'):
+        valueT = get_scale(function, Function, valueRaw)
     else:
         valueT = valueRaw
     return valueT
@@ -782,7 +797,7 @@ def SendCommandCloud(ID, CommandName, Status):
     if 'temp_value' in CommandName or 'temp_value_v2' in CommandName:
         actual_status = temp_value_scale(sendfunction, actual_function_name, Status)
     if 'temp_set' in CommandName:
-        actual_status = set_temp_scale(sendfunction, actual_function_name, Status)
+        actual_status = set_scale(sendfunction, actual_function_name, Status)
     # Domoticz.Debug("actual_function_name:" + str(actual_function_name))
     # Domoticz.Debug("actual_status:" + str(actual_status))
     if testData != True:
@@ -822,14 +837,24 @@ def temp_value_scale(device_functions, actual_function_name, raw):
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round((int(max_value - raw)))
 
-def set_temp_scale(device_functions, actual_function_name, raw):
+def set_scale(device_functions, actual_function_name, raw):
     scale = 0
     if device_functions and actual_function_name:
         for item in device_functions:
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = int(the_values.get('scale', 0))
-    return int(raw * 10) if scale == 1 else int(raw)
+    return int(raw * 10) if scale == 1 else raw
+
+def get_scale(device_functions, actual_function_name, raw):
+    scale = 0
+    if actual_function_name == 'temp_current': actual_function_name = 'temp_set'
+    if device_functions and actual_function_name:
+        for item in device_functions:
+            if item['code'] == actual_function_name:
+                the_values = json.loads(item['values'])
+                scale = the_values.get('scale', 0)
+    return float(raw / 10) if scale == 1 else raw
 
 def rgb_to_hsv(r, g, b):
     h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
