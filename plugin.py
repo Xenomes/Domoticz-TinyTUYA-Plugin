@@ -393,7 +393,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 14) and searchCode('cur_power', result):
                         Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Used=1).Create()
-                        UpdateDevice(dev['id'], 14, '0;0', 0, 0, 1)
+                        #UpdateDevice(dev['id'], 14, '0;0', 0, 0, 1)
 
                 elif dev_type == 'cover' and createDevice(dev['id'], 1):
                     Domoticz.Log('Create device Cover')
@@ -535,9 +535,8 @@ def onHandleThread(startup):
                             if currentpower != 0:
                                 UpdateDevice(dev['id'], 12, str(currentpower / 10), 0, 0)
                                 lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                                lastvalue = Devices[dev['id']].Units[14].sValue
-                                UpdateDevice(dev['id'], 14, str(currentpower / 10) + ';' + str(round(float(lastvalue.split(';')[1]) + ((currentpower / 10) * (lastupdate / 3600)))) , 0, 0, 1)
-                                #UpdateDevice(dev['id'], 14, str(currentpower / 10) + ';0' , 0, 0, 1)
+                                lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
+                                UpdateDevice(dev['id'], 14, str(currentpower / 10) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower / 10) * (lastupdate / 3600))) , 0, 0, 1)
                             else:
                                 UpdateDevice(dev['id'], 12, str(0), 0, 0)
                                 UpdateDevice(dev['id'], 14, str(0) + ';0', 0, 0, 1)
