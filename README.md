@@ -57,3 +57,4 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.3.0 | Add On/Off for Fan |
 | 1.3.1 | Change temperature scaling get value from tuya defined from function |
 | 1.3.2 | Add kWh logging for switch with powerreader, fix failed login detection |
+| 1.3.3 | Add on/off Siren |
