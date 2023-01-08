@@ -230,6 +230,14 @@ class BasePlugin:
             elif Command == 'On':
                 SendCommandCloud(DeviceID, 'AlarmSwitch', True)
                 UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+            elif Command == 'Set Level' and Unit == 2:
+                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
+                UpdateDevice(DeviceID, 2, Level, 1, 0)
+            elif Command == 'Set Level' and Unit == 3:
+                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
+                UpdateDevice(DeviceID, 3, Level, 1, 0)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
@@ -460,7 +468,32 @@ def onHandleThread(startup):
                     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
 
                 elif dev_type == 'siren':
-                    Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=13, Used=1).Create()
+                    if searchCode('AlarmSwitch', function):
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=13, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('Alarmtype', function):
+                        for item in function:
+                            if item['code'] == 'Alarmtype':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '1'
+                                Domoticz.Unit(Name=dev['name'] + ' (Alarmtype)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=8, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('AlarmPeriod', function):
+                        for item in function:
+                            if item['code'] == 'AlarmPeriod':
+                                the_values = json.loads(item['values'])
+                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    mode.extend([str(num)])
+                                options = {}
+                                options['LevelOffHidden'] = 'false'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '1'
+                                Domoticz.Unit(Name=dev['name'] + ' (AlarmPeriod)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                 # elif dev_type == 'climate':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
@@ -716,7 +749,37 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 1, 'On', 1, 0)
-
+                        if searchCode('Alarmtype', result):
+                            currentmode = StatusDeviceTuya('Alarmtype')
+                            for item in function:
+                                if item['code'] == 'Alarmtype':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(currentmode) * 10) != str(Devices[dev['id']].Units[2].sValue):
+                                UpdateDevice(dev['id'], 2, int(mode.index(currentmode) * 10), 1, 0)
+                        if searchCode('AlarmPeriod', result):
+                            currentmode = StatusDeviceTuya('AlarmPeriod')
+                            for item in function:
+                                if item['code'] == 'AlarmPeriod':
+                                    the_values = json.loads(item['values'])
+                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                        mode.extend([str(num)])
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('BatteryStatus', result):
+                            if int(StatusDeviceTuya('BatteryStatus')) == 4:
+                                currentbattery = 255
+                            if int(StatusDeviceTuya('BatteryStatus')) == 3:
+                                currentbattery = 100
+                            if int(StatusDeviceTuya('BatteryStatus')) == 2:
+                                currentbattery = 50
+                            if int(StatusDeviceTuya('BatteryStatus')) == 1:
+                                currentbattery = 5
+                            for unit in Devices[dev['id']].Units:
+                                if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
+                                    Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
+                                    Devices[dev['id']].Units[unit].Update()
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
