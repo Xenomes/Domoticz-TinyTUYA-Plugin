@@ -764,7 +764,7 @@ def UpdateDevice(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate = 0):
                 Devices[ID].Units[Unit].Color = json.dumps(sValue)
             Devices[ID].Units[Unit].nValue = nValue
             Devices[ID].TimedOut = TimedOut
-            Devices[ID].Units[Unit].Update()
+            Devices[ID].Units[Unit].Update(log=True)
 
             Domoticz.Debug('Update device value:' + str(ID) + ' Unit: ' + str(Unit) + ' sValue: ' +  str(sValue) + ' nValue: ' + str(nValue) + ' TimedOut=' + str(TimedOut))
     return
@@ -844,7 +844,7 @@ def set_scale(device_functions, actual_function_name, raw):
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = int(the_values.get('scale', 0))
-    return int(raw * 10) if scale == 1 else raw
+    return int(raw * 10) if scale == 1 else int(raw)
 
 def get_scale(device_functions, actual_function_name, raw):
     scale = 0
@@ -854,7 +854,7 @@ def get_scale(device_functions, actual_function_name, raw):
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = the_values.get('scale', 0)
-    return float(raw / 10) if scale == 1 else raw
+    return float(raw / 10) if scale == 1 else int(raw)
 
 def rgb_to_hsv(r, g, b):
     h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
