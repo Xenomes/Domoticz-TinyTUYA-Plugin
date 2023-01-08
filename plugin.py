@@ -768,14 +768,14 @@ def onHandleThread(startup):
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('BatteryStatus', result):
-                            if int(StatusDeviceTuya('BatteryStatus')) == 4:
-                                currentbattery = 255
-                            if int(StatusDeviceTuya('BatteryStatus')) == 3:
-                                currentbattery = 100
-                            if int(StatusDeviceTuya('BatteryStatus')) == 2:
-                                currentbattery = 50
                             if int(StatusDeviceTuya('BatteryStatus')) == 1:
+                                currentbattery = 100
+                            elif int(StatusDeviceTuya('BatteryStatus')) == 2:
+                                currentbattery = 50
+                            elif int(StatusDeviceTuya('BatteryStatus')) == 3:
                                 currentbattery = 5
+                            else:
+                                currentbattery = 255
                             for unit in Devices[dev['id']].Units:
                                 if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
