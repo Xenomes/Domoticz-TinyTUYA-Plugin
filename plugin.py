@@ -764,7 +764,7 @@ def UpdateDevice(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate = 0):
                 Devices[ID].Units[Unit].Color = json.dumps(sValue)
             Devices[ID].Units[Unit].nValue = nValue
             Devices[ID].TimedOut = TimedOut
-            Devices[ID].Units[Unit].Update(log=True)
+            Devices[ID].Units[Unit].Update(Log=True)
 
             Domoticz.Debug('Update device value:' + str(ID) + ' Unit: ' + str(Unit) + ' sValue: ' +  str(sValue) + ' nValue: ' + str(nValue) + ' TimedOut=' + str(TimedOut))
     return
