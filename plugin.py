@@ -539,7 +539,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 14, str(currentpower / 10) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower / 10) * (lastupdate / 3600))) , 0, 0, 1)
                             else:
                                 UpdateDevice(dev['id'], 12, str(0), 0, 0)
-                                UpdateDevice(dev['id'], 14, str(0) + ';0', 0, 0, 1)
+                                UpdateDevice(dev['id'], 14, str(0) + ';' + str(float(lastvalue.split(';')[1])), 0, 0, 1)
 
                             if currentvoltage != 0:
                                 UpdateDevice(dev['id'], 13, str(currentvoltage / 10), 0, 0)
