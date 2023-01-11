@@ -571,24 +571,15 @@ def onHandleThread(startup):
                             currentcurrent = int(StatusDeviceTuya('cur_current'))
                             currentpower = int(StatusDeviceTuya('cur_power'))
                             currentvoltage = int(StatusDeviceTuya('cur_voltage'))
-                            if currentcurrent != 0:
-                                UpdateDevice(dev['id'], 11, str(currentcurrent / 1000), 0, 0)
-                            else:
-                                UpdateDevice(dev['id'], 11, str(0), 0, 0)
 
-                            if currentpower != 0:
-                                UpdateDevice(dev['id'], 12, str(currentpower / 10), 0, 0)
-                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                                lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
-                                UpdateDevice(dev['id'], 14, str(currentpower / 10) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower / 10) * (lastupdate / 3600))) , 0, 0, 1)
-                            else:
-                                UpdateDevice(dev['id'], 12, str(0), 0, 0)
-                                UpdateDevice(dev['id'], 14, str(0) + ';0', 0, 0, 1)
+                            UpdateDevice(dev['id'], 11, str(currentcurrent / 1000), 0, 0)
 
-                            if currentvoltage != 0:
-                                UpdateDevice(dev['id'], 13, str(currentvoltage / 10), 0, 0)
-                            else:
-                                UpdateDevice(dev['id'], 13, str(0), 0, 0)
+                            UpdateDevice(dev['id'], 12, str(currentpower / 10), 0, 0)
+                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                            lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
+                            UpdateDevice(dev['id'], 14, str(currentpower / 10) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower / 10) * (lastupdate / 3600))) , 0, 0, 1)
+
+                            UpdateDevice(dev['id'], 13, str(currentvoltage / 10), 0, 0)
 
                     if dev_type == 'dimmer':
                         if searchCode('switch_led_1', function):
@@ -928,7 +919,7 @@ def set_scale(device_functions, actual_function_name, raw):
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = int(the_values.get('scale', 0))
-    return int(raw * 10) if scale == 1 else float(raw)
+    return int(raw * 10) if scale == 1 else int(raw)
 
 def get_scale(device_functions, actual_function_name, raw):
     scale = 0
