@@ -251,8 +251,9 @@ class BasePlugin:
     def onHeartbeat(self):
         Domoticz.Log('onHeartbeat called')
         if time.time() - last_update < 59:
+            Domoticz.Log("onHeartbeat called skipped")
             return
-        Domoticz.Debug("onHeartbeat called time=" + str(time.time() - last_update))
+        Domoticz.Log("onHeartbeat called last run: " + str(time.time() - last_update))
         onHandleThread(False)
 
 global _plugin
@@ -526,7 +527,7 @@ def onHandleThread(startup):
                 raise Exception('Device not found in Domoticz! Device is removed or Accept New Hardware not enabled?')
 
             #update devices in Domoticz
-            Domoticz.Debug('Update devices in Domoticz')
+            Domoticz.Log('Update devices in Domoticz')
             if bool(online) == False and Devices[dev['id']].TimedOut == 0:
                 UpdateDevice(dev['id'], 1, 'Off', 0, 1)
             elif bool(online) == True and Devices[dev['id']].TimedOut == 1:
