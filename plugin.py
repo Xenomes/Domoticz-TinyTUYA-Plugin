@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.3.3</h2><br/>
+        <h2>TinyTUYA Plugin v.1.3.4</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -87,7 +87,7 @@ class BasePlugin:
             Domoticz.Error('!! Warning Plugin overruled by local json files !!')
         else:
             testData = False
-            Domoticz.Heartbeat(60)
+            Domoticz.Heartbeat(10)
 
         onHandleThread(True)
 
@@ -250,6 +250,9 @@ class BasePlugin:
 
     def onHeartbeat(self):
         Domoticz.Log('onHeartbeat called')
+        if time.time() - last_update < 59:
+            return
+        Domoticz.Debug("onHeartbeat called time=" + str(time.time() - last_update))
         onHandleThread(False)
 
 global _plugin
@@ -297,6 +300,8 @@ def onHandleThread(startup):
             global functions
             global function
             global login
+            global scan
+            global last_update
             if testData == True:
                 tuya = Domoticz.Log
                 with open(Parameters['HomeFolder'] + '/debug_devices.json') as dFile:
@@ -319,10 +324,11 @@ def onHandleThread(startup):
                 if 'permission deny' in str(devs):
                     login = False
                     raise Exception('ID search device not found!')
-
-                functions = {}
-                for dev in devs:
-                    functions[dev['id']] = tuya.getfunctions(dev['id'])['result']
+            Domoticz.Log('Scanning for tuya devices on network...')
+            scan = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
+            functions = {}
+            for dev in devs:
+                functions[dev['id']] = tuya.getfunctions(dev['id'])['result']
 
         # Initialize/Update devices from TUYA API
         for dev in devs:
@@ -333,13 +339,15 @@ def onHandleThread(startup):
                 online = tuya.getconnectstatus(dev['id'])
             function = functions[dev['id']]['functions'] if not functions[dev['id']]['functions'] == '[]' else None
             dev_type = DeviceType(functions[dev['id']]['category'])
+            # Set last update
+            last_update = time.time()
             if testData == True:
                 with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
                     result = json.load(rFile)['result']
             else:
                 result = tuya.getstatus(dev['id'])['result']
             # Define scale mode
-            # if '\"scale\":1' in str(function) or '_v2''' in str(function):
+            # if '\"scale\":1' in str(function) or '_v2' in str(function):
             #     scalemode = 'v2'
             # else:
             #     scalemode = 'v1'
@@ -350,7 +358,11 @@ def onHandleThread(startup):
             # Create devices
             if startup == True:
                 Domoticz.Debug('Run Startup script')
-                deviceinfo = tinytuya.find_device(dev['id'])
+                try:
+                    deviceinfo = scan[dev['id']]
+                except:
+                    deviceinfo = {'ip': None, 'version': 3.3}
+                #deviceinfo = tinytuya.find_device(dev['id'])
                 # if dev['id'] not in Devices: # Disabled for create item when device exists
                 if dev_type == 'light' and createDevice(dev['id'], 1):
                     # for localcontol: and deviceinfo['ip'] != None
@@ -507,7 +519,7 @@ def onHandleThread(startup):
 
                 # Set extra info
                 setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'ip': deviceinfo['ip'], 'version': deviceinfo['version']}) # , 'scalemode': scalemode
-                Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
+                # Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
             if dev['id'] not in str(Devices):
