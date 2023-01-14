@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.3.5</h2><br/>
+        <h2>TinyTUYA Plugin v.1.3.6</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -481,13 +481,13 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 6) and searchCode('child_lock', function):
                         Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
-                if dev_type == 'temperaturehumiditysensor':
+                if dev_type in ('temperaturehumiditysensor', 'smartir'):
                     Domoticz.Log('Create device T&H Sensor')
-                    if createDevice(dev['id'], 1):
+                    if createDevice(dev['id'], 1) and searchCode('va_temperature', result):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0).Create()
-                    if createDevice(dev['id'], 2):
+                    if createDevice(dev['id'], 2) and searchCode('va_humidity', result):
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
-                    if createDevice(dev['id'], 3):
+                    if createDevice(dev['id'], 3) and searchCode('va_temperature', result) and searchCode('va_humidity', result):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
 
                 if createDevice(dev['id'], 1) and dev_type == 'doorbell':
@@ -749,9 +749,10 @@ def onHandleThread(startup):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
                                     Devices[dev['id']].Units[unit].Update()
 
-                    if dev_type == 'temperaturehumiditysensor':
+                    if dev_type in ('temperaturehumiditysensor', 'smartir'):
                         if searchCode('va_temperature', result):
                             currenttemp = StatusDeviceTuya('va_temperature')
+                            if dev_type == 'smartir': currenttemp = currenttemp / 10 # Dirty fix
                             if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
                         if  searchCode('va_humidity', result):
@@ -912,6 +913,8 @@ def DeviceType(category):
         result = 'fanlight'
     elif category in {'sgbj'}:
         result = 'siren'
+    elif category in {'wnykq'}:
+        result = 'smartir'
     # elif 'infrared_' in category: # keep it last
     #     result = 'infrared_id'
     else:
@@ -940,7 +943,7 @@ def StatusDeviceTuya(Function):
     else:
         Domoticz.Debug('StatusDeviceTuya called ' + Function + ' not found ')
         return None
-    if type(valueRaw) == int and Function not in ('battery_percentage', 'bright_value', 'bright_value_v2', 'temp_value', 'temp_value_v2'):
+    if type(valueRaw) == int and Function not in ('battery_percentage', 'bright_value', 'bright_value_v2', 'temp_value', 'temp_value_v2') :
         valueT = get_scale(function, Function, valueRaw)
     else:
         valueT = valueRaw
