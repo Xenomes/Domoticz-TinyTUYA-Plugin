@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.3.4</h2><br/>
+        <h2>TinyTUYA Plugin v.1.3.5</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -223,6 +223,22 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'switch', True)
                 UpdateDevice(DeviceID, Unit, 'On', 1, 0)
 
+        if dev_type == 'fanlight':
+            if Command == 'Off':
+                SendCommandCloud(DeviceID, 'fan_switch', False)
+                UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+            elif Command == 'On':
+                SendCommandCloud(DeviceID, 'fan_switch', True)
+                UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+            elif Command == 'Set Level' and Unit == 3:
+                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                SendCommandCloud(DeviceID, 'fan_speed', mode[int(Level / 10)])
+                UpdateDevice(DeviceID, 3, Level, 1, 0)
+            elif Command == 'Set Level' and Unit == 4:
+                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                SendCommandCloud(DeviceID, 'fan_direction', mode[int(Level / 10)])
+                UpdateDevice(DeviceID, 4, Level, 1, 0)
+
         if dev_type == 'siren':
             if Command == 'Off':
                 SendCommandCloud(DeviceID, 'AlarmSwitch', False)
@@ -250,7 +266,7 @@ class BasePlugin:
 
     def onHeartbeat(self):
         Domoticz.Log('onHeartbeat called')
-        if time.time() - last_update < 59:
+        if time.time() - last_update < 60 and testData == False:
             Domoticz.Log("onHeartbeat called skipped")
             return
         Domoticz.Log("onHeartbeat called last run: " + str(time.time() - last_update))
@@ -325,11 +341,13 @@ def onHandleThread(startup):
                 if 'permission deny' in str(devs):
                     login = False
                     raise Exception('ID search device not found!')
+
+                functions = {}
+                for dev in devs:
+                    functions[dev['id']] = tuya.getfunctions(dev['id'])['result']
+
             Domoticz.Log('Scanning for tuya devices on network...')
             scan = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
-            functions = {}
-            for dev in devs:
-                functions[dev['id']] = tuya.getfunctions(dev['id'])['result']
 
         # Initialize/Update devices from TUYA API
         for dev in devs:
@@ -365,7 +383,7 @@ def onHandleThread(startup):
                     deviceinfo = {'ip': None, 'version': 3.3}
                 #deviceinfo = tinytuya.find_device(dev['id'])
                 # if dev['id'] not in Devices: # Disabled for create item when device exists
-                if dev_type == 'light' and createDevice(dev['id'], 1):
+                if dev_type in ('light', 'fanlight') and createDevice(dev['id'], 1):
                     # for localcontol: and deviceinfo['ip'] != None
                     if searchCode('switch_led', function) and searchCode('work_mode', function) and (searchCode('colour_data', function) or searchCode('colour_data_v2', function)) and (searchCode('temp_value', function) or searchCode('temp_value_v2', function)) and (searchCode('bright_value', function) or searchCode('bright_value_v2', function)):
                         Domoticz.Log('Create device Light RGBWW')
@@ -389,7 +407,7 @@ def onHandleThread(startup):
                         Domoticz.Log('Create device Light On/Off')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
 
-                elif dev_type == 'dimmer':
+                if dev_type == 'dimmer':
                     if  createDevice(dev['id'], 1) and searchCode('switch_led_1', function) and not searchCode('switch_led_2', function):
                         Domoticz.Log('Create device Dimmer')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
@@ -399,7 +417,7 @@ def onHandleThread(startup):
                         if createDevice(dev['id'], 2):
                             Domoticz.Unit(Name=dev['name'] + ' (Dimmer 2)', DeviceID=dev['id'], Unit=2, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
 
-                elif dev_type == 'switch':
+                if dev_type == 'switch':
                     if  createDevice(dev['id'], 1) and searchCode('switch_1', function) and not searchCode('switch_2', function):
                         Domoticz.Log('Create device Switch')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -424,11 +442,11 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Used=1).Create()
                         #UpdateDevice(dev['id'], 14, '0;0', 0, 0, 1)
 
-                elif dev_type == 'cover' and createDevice(dev['id'], 1):
+                if dev_type == 'cover' and createDevice(dev['id'], 1):
                     Domoticz.Log('Create device Cover')
                     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
 
-                elif dev_type == 'thermostat' or dev_type == 'heater':
+                if dev_type == 'thermostat' or dev_type == 'heater':
                     Domoticz.Log('Create device Thermostat')
                     if createDevice(dev['id'], 1):
                         if searchCode('switch', function):
@@ -463,7 +481,7 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 6) and searchCode('child_lock', function):
                         Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
-                elif dev_type == 'temperaturehumiditysensor':
+                if dev_type == 'temperaturehumiditysensor':
                     Domoticz.Log('Create device T&H Sensor')
                     if createDevice(dev['id'], 1):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0).Create()
@@ -472,15 +490,44 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 3):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
 
-                elif createDevice(dev['id'], 1) and dev_type == 'doorbell':
+                if createDevice(dev['id'], 1) and dev_type == 'doorbell':
                     if searchCode('basic_indicator', function):
                         Domoticz.Log('Create device Doorbell')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
 
-                elif dev_type == 'fan':
+                if dev_type == 'fan':
                     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
 
-                elif dev_type == 'siren':
+                if dev_type == 'fanlight':
+                    if createDevice(dev['id'], 2) and searchCode('fan_switch', function):
+                        Domoticz.Unit(Name=dev['name'] + ' (Fan Power)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('fan_speed', function):
+                        for item in function:
+                            if item['code'] == 'fan_speed':
+                                the_values = json.loads(item['values'])
+                                mode = ['0']
+                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    mode.extend([str(num)])
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '1'
+                                Domoticz.Unit(Name=dev['name'] + ' (Fan Speed)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('fan_direction', function):
+                        for item in function:
+                            if item['code'] == 'fan_direction':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Fan Direction)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+
+                if dev_type == 'siren':
                     if searchCode('AlarmSwitch', function):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=13, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('Alarmtype', function):
@@ -499,6 +546,7 @@ def onHandleThread(startup):
                         for item in function:
                             if item['code'] == 'AlarmPeriod':
                                 the_values = json.loads(item['values'])
+                                mode = []
                                 for num in range(the_values.get('min'),the_values.get('max') + 1):
                                     mode.extend([str(num)])
                                 options = {}
@@ -508,9 +556,9 @@ def onHandleThread(startup):
                                 options['SelectorStyle'] = '1'
                                 Domoticz.Unit(Name=dev['name'] + ' (AlarmPeriod)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
-                # elif dev_type == 'climate':
+                # if dev_type == 'climate':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
-                # elif dev_type == 'lock':
+                # if dev_type == 'lock':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                 if createDevice(dev['id'], 1):
@@ -746,6 +794,33 @@ def onHandleThread(startup):
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 1, 'On', 1, 0)
 
+                    if dev_type == 'fanlight':
+                        if searchCode('fan_switch', function):
+                            currentstatus = StatusDeviceTuya('fan_switch')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 2, 'On', 1, 0)
+                        if searchCode('fan_speed', result):
+                            currentmode = StatusDeviceTuya('fan_speed')
+                            for item in function:
+                                if item['code'] == 'fan_speed':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['0']
+                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                        mode.extend([str(num)])
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('fan_direction', result):
+                            currentmode = StatusDeviceTuya('fan_direction')
+                            for item in function:
+                                if item['code'] == 'fan_direction':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(currentmode) * 10) != str(Devices[dev['id']].Units[4].sValue):
+                                UpdateDevice(dev['id'], 4, int(mode.index(currentmode) * 10), 1, 0)
+
                     if dev_type == 'siren':
                         if searchCode('AlarmSwitch', function):
                             currentstatus = StatusDeviceTuya('AlarmSwitch')
@@ -817,7 +892,7 @@ def DeviceType(category):
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
     if category in {'kg', 'cz', 'pc', 'dlq', 'bh', 'tdq'}:
         result = 'switch'
-    elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fsd', 'fwd', 'gyd', 'jsq', 'tyndj'}:
+    elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'gyd', 'jsq', 'tyndj'}:
         result = 'light'
     elif category in {'tgq', 'tgkg'}:
         result = 'dimmer'
@@ -833,6 +908,8 @@ def DeviceType(category):
         result = 'doorbell'
     elif category in {'fs'}:
         result = 'fan'
+    elif category in {'fsd'}:
+        result = 'fanlight'
     elif category in {'sgbj'}:
         result = 'siren'
     # elif 'infrared_' in category: # keep it last
