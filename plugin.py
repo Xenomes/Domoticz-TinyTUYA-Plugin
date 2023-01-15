@@ -113,7 +113,7 @@ class BasePlugin:
 
         # Control device and update status in Domoticz
         dev_type = getConfigItem(DeviceID, 'category')
-        # scalemode = getConfigItem(DeviceID, 'scalemode')
+        scalemode = getConfigItem(DeviceID, 'scalemode')
         if len(Color) != 0: Color = ast.literal_eval(Color)
 
         if dev_type == 'switch':
@@ -366,10 +366,10 @@ def onHandleThread(startup):
             else:
                 result = tuya.getstatus(dev['id'])['result']
             # Define scale mode
-            # if '\"scale\":1' in str(function) or '_v2' in str(function):
-            #     scalemode = 'v2'
-            # else:
-            #     scalemode = 'v1'
+            if '_v2' in str(function):
+                scalemode = 'v2'
+            else:
+                scalemode = 'v1'
             # Domoticz.Debug( 'functions= ' + str(functions))
             # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + result)
             # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' function= ' + str(functions[dev['id']]))
@@ -567,7 +567,7 @@ def onHandleThread(startup):
                     UpdateDevice(dev['id'], 1, 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.', 0, 0)
 
                 # Set extra info
-                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'ip': deviceinfo['ip'], 'version': deviceinfo['version']}) # , 'scalemode': scalemode
+                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'ip': deviceinfo['ip'], 'version': deviceinfo['version'], 'scalemode': scalemode})
                 # Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
