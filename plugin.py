@@ -356,10 +356,13 @@ def onHandleThread(startup):
                 online = True
             else:
                 online = tuya.getconnectstatus(dev['id'])
-            function = functions[dev['id']]['functions'] if not functions[dev['id']]['functions'] == '[]' else None
-            dev_type = DeviceType(functions[dev['id']]['category'])
             # Set last update
             last_update = time.time()
+            try:
+                function = functions[dev['id']]['functions']
+            except:
+                return
+            dev_type = DeviceType(functions[dev['id']]['category'])
             if testData == True:
                 with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
                     result = json.load(rFile)['result']
