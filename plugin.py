@@ -224,12 +224,12 @@ class BasePlugin:
                 UpdateDevice(DeviceID, Unit, 'On', 1, 0)
 
         if dev_type == 'fanlight':
-            if Command == 'Off':
+            if Command == 'Off' and Unit == 2:
                 SendCommandCloud(DeviceID, 'fan_switch', False)
-                UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
-            elif Command == 'On':
+                UpdateDevice(DeviceID, 2, 'Off', 0, 0)
+            elif Command == 'On' and Unit == 2:
                 SendCommandCloud(DeviceID, 'fan_switch', True)
-                UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+                UpdateDevice(DeviceID, 2, 'On', 1, 0)
             elif Command == 'Set Level' and Unit == 3:
                 mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                 SendCommandCloud(DeviceID, 'fan_speed', mode[int(Level / 10)])
