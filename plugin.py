@@ -232,7 +232,7 @@ class BasePlugin:
                 UpdateDevice(DeviceID, 2, 'On', 1, 0)
             elif Command == 'Set Level' and Unit == 3:
                 mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                SendCommandCloud(DeviceID, 'fan_speed', int(mode[int(Level / 10))])
+                SendCommandCloud(DeviceID, 'fan_speed', int(mode[int(Level / 10)]))
                 UpdateDevice(DeviceID, 3, Level, 1, 0)
             elif Command == 'Set Level' and Unit == 4:
                 mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
