@@ -563,16 +563,12 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 1) and searchCode('Current', result):
                         Domoticz.Unit(Name=dev['name'] + ' (3P A)', DeviceID=dev['id'], Unit=1, Type=89, Subtype=1, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('Current', result):
-                        Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=2, Type=243, Subtype=23, Used=1).Create()
-                    if createDevice(dev['id'], 3) and searchCode('Frequency', result):
                         options = {}
                         options['Custom'] = '1;Hz'
                         Domoticz.Unit(Name=dev['name'] + ' (Hz)', DeviceID=dev['id'], Unit=3, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('Temperature', result):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=4, Type=80, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('ActivePowerA', result):
-                        Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=29, Used=1).Create()
-                    if createDevice(dev['id'], 11) and searchCode('VoltageA', result):
                         Domoticz.Unit(Name=dev['name'] + ' L1 (V)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 12) and searchCode('ActivePowerA', result):
                         Domoticz.Unit(Name=dev['name'] + ' L1 (kWh)', DeviceID=dev['id'], Unit=12, Type=243, Subtype=29, Used=1).Create()
@@ -898,14 +894,7 @@ def onHandleThread(startup):
                             currentTemperature = int(StatusDeviceTuya('Temperature'))
 
                             UpdateDevice(dev['id'], 2, str(currentpower / 10), 0, 0)
-
-                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[5].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalue = Devices[dev['id']].Units[5].sValue if len(Devices[dev['id']].Units[5].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 5, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
-
                             UpdateDevice(dev['id'], 3, str(currentFrequency), 0, 0)
-
-                            UpdateDevice(dev['id'], 4, str(currentTemperature / 10), 0, 0)
                         if searchCode('CurrentA', result):
                             currentcurrentA = int(StatusDeviceTuya('CurrentA'))
                             currentpowerA = int(StatusDeviceTuya('ActivePowerA'))
