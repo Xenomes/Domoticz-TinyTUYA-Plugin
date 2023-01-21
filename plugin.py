@@ -566,9 +566,9 @@ def onHandleThread(startup):
                         options = {}
                         options['Custom'] = '1;Hz'
                         Domoticz.Unit(Name=dev['name'] + ' (Hz)', DeviceID=dev['id'], Unit=2, Type=243, Subtype=31, Options=options, Used=1).Create()
-                    if createDevice(dev['id'], 4) and searchCode('Temperature', result):
+                    if createDevice(dev['id'], 3) and searchCode('Temperature', result):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=3, Type=80, Subtype=5, Used=1).Create()
-                    if createDevice(dev['id'], 5) and searchCode('ActivePowerA', result):
+                    if createDevice(dev['id'], 11) and searchCode('ActivePowerA', result):
                         Domoticz.Unit(Name=dev['name'] + ' L1 (V)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 12) and searchCode('ActivePowerA', result):
                         Domoticz.Unit(Name=dev['name'] + ' L1 (kWh)', DeviceID=dev['id'], Unit=12, Type=243, Subtype=29, Used=1).Create()
