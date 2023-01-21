@@ -565,9 +565,9 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 2) and searchCode('Current', result):
                         options = {}
                         options['Custom'] = '1;Hz'
-                        Domoticz.Unit(Name=dev['name'] + ' (Hz)', DeviceID=dev['id'], Unit=3, Type=243, Subtype=31, Options=options, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Hz)', DeviceID=dev['id'], Unit=2, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('Temperature', result):
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=4, Type=80, Subtype=5, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=3, Type=80, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('ActivePowerA', result):
                         Domoticz.Unit(Name=dev['name'] + ' L1 (V)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 12) and searchCode('ActivePowerA', result):
@@ -893,8 +893,9 @@ def onHandleThread(startup):
                             currentFrequency = int(StatusDeviceTuya('Frequency'))
                             currentTemperature = int(StatusDeviceTuya('Temperature'))
 
-                            UpdateDevice(dev['id'], 2, str(currentpower / 10), 0, 0)
-                            UpdateDevice(dev['id'], 3, str(currentFrequency), 0, 0)
+                            UpdateDevice(dev['id'], 2, str(currentFrequency), 0, 0)
+
+                            UpdateDevice(dev['id'], 3, str(currentTemperature / 10), 0, 0)
                         if searchCode('CurrentA', result):
                             currentcurrentA = int(StatusDeviceTuya('CurrentA'))
                             currentpowerA = int(StatusDeviceTuya('ActivePowerA'))
