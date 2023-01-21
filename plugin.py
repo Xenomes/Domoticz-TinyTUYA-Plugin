@@ -561,9 +561,9 @@ def onHandleThread(startup):
 
                 if dev_type == 'powermeter':
                     if createDevice(dev['id'], 1) and searchCode('Current', result):
-                        Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=23, Used=1).Create()
-                    if createDevice(dev['id'], 2) and searchCode('ActivePower', result):
-                        Domoticz.Unit(Name=dev['name'] + ' (W)', DeviceID=dev['id'], Unit=2, Type=248, Subtype=1, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (3P A)', DeviceID=dev['id'], Unit=1, Type=89, Subtype=1, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('Current', result):
+                        Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=2, Type=243, Subtype=23, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('Frequency', result):
                         options = {}
                         options['Custom'] = '1;Hz'
@@ -572,30 +572,18 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=4, Type=80, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('ActivePowerA', result):
                         Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=29, Used=1).Create()
-                    if createDevice(dev['id'], 11) and searchCode('CurrentA', result):
-                        Domoticz.Unit(Name=dev['name'] + ' L1 (A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
+                    if createDevice(dev['id'], 11) and searchCode('VoltageA', result):
+                        Domoticz.Unit(Name=dev['name'] + ' L1 (V)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 12) and searchCode('ActivePowerA', result):
-                        Domoticz.Unit(Name=dev['name'] + ' L1 (W)', DeviceID=dev['id'], Unit=12, Type=248, Subtype=1, Used=1).Create()
-                    if createDevice(dev['id'], 13) and searchCode('VoltageA', result):
-                        Domoticz.Unit(Name=dev['name'] + ' L1 (V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
-                    if createDevice(dev['id'], 14) and searchCode('ActivePowerA', result):
-                        Domoticz.Unit(Name=dev['name'] + ' L1 (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Used=1).Create()
-                    if createDevice(dev['id'], 21) and searchCode('CurrentB', result):
-                        Domoticz.Unit(Name=dev['name'] + ' L2 (A)', DeviceID=dev['id'], Unit=21, Type=243, Subtype=23, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' L1 (kWh)', DeviceID=dev['id'], Unit=12, Type=243, Subtype=29, Used=1).Create()
+                    if createDevice(dev['id'], 21) and searchCode('ActivePowerB', result):
+                        Domoticz.Unit(Name=dev['name'] + ' L2 (V)', DeviceID=dev['id'], Unit=21, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 22) and searchCode('ActivePowerB', result):
-                        Domoticz.Unit(Name=dev['name'] + ' L2 (W)', DeviceID=dev['id'], Unit=22, Type=248, Subtype=1, Used=1).Create()
-                    if createDevice(dev['id'], 23) and searchCode('VoltageB', result):
-                        Domoticz.Unit(Name=dev['name'] + ' L2 (V)', DeviceID=dev['id'], Unit=23, Type=243, Subtype=8, Used=1).Create()
-                    if createDevice(dev['id'], 24) and searchCode('ActivePowerB', result):
-                        Domoticz.Unit(Name=dev['name'] + ' L2 (kWh)', DeviceID=dev['id'], Unit=24, Type=243, Subtype=29, Used=1).Create()
-                    if createDevice(dev['id'], 31) and searchCode('CurrentC', result):
-                        Domoticz.Unit(Name=dev['name'] + ' L3 (A)', DeviceID=dev['id'], Unit=31, Type=243, Subtype=23, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' L2 (kWh)', DeviceID=dev['id'], Unit=22, Type=243, Subtype=29, Used=1).Create()
+                    if createDevice(dev['id'], 31) and searchCode('ActivePowerC', result):
+                        Domoticz.Unit(Name=dev['name'] + ' L3 (V)', DeviceID=dev['id'], Unit=31, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 32) and searchCode('ActivePowerC', result):
-                        Domoticz.Unit(Name=dev['name'] + ' L3 (W)', DeviceID=dev['id'], Unit=32, Type=248, Subtype=1, Used=1).Create()
-                    if createDevice(dev['id'], 33) and searchCode('VoltageC', result):
-                        Domoticz.Unit(Name=dev['name'] + ' L3 (V)', DeviceID=dev['id'], Unit=33, Type=243, Subtype=8, Used=1).Create()
-                    if createDevice(dev['id'], 34) and searchCode('ActivePowerC', result):
-                        Domoticz.Unit(Name=dev['name'] + ' L3 (kWh)', DeviceID=dev['id'], Unit=34, Type=243, Subtype=29, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' L3 (kWh)', DeviceID=dev['id'], Unit=32, Type=243, Subtype=29, Used=1).Create()
 
                 # if dev_type == 'climate':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
@@ -909,12 +897,11 @@ def onHandleThread(startup):
                             currentFrequency = int(StatusDeviceTuya('Frequency'))
                             currentTemperature = int(StatusDeviceTuya('Temperature'))
 
-                            UpdateDevice(dev['id'], 1, str(currentcurrent / 1000), 0, 0)
-
                             UpdateDevice(dev['id'], 2, str(currentpower / 10), 0, 0)
+
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[5].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev['id']].Units[5].sValue if len(Devices[dev['id']].Units[5].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 5, str(currentpower / 10) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower / 10) * (lastupdate / 3600))) , 0, 0, 1)
+                            UpdateDevice(dev['id'], 5, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
 
                             UpdateDevice(dev['id'], 3, str(currentFrequency), 0, 0)
 
@@ -924,40 +911,40 @@ def onHandleThread(startup):
                             currentpowerA = int(StatusDeviceTuya('ActivePowerA'))
                             currentvoltageA = int(StatusDeviceTuya('VoltageA'))
 
-                            UpdateDevice(dev['id'], 11, str(currentcurrentA / 1000), 0, 0)
+                            lastvalue3PA = Devices[dev['id']].Units[1].sValue if len(Devices[dev['id']].Units[1].sValue) > 0 else '0;0;0'
+                            UpdateDevice(dev['id'], 1, str(currentcurrentA / 1000) + ';' + str(float(lastvalue3PA.split(';')[1])) + ';' + str(float(lastvalue3PA.split(';')[2])) , 0, 0, 1)
 
-                            UpdateDevice(dev['id'], 12, str(currentpowerA / 10), 0, 0)
-                            lastupdateA = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalueA = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 14, str(currentpowerA / 10) + ';' + str(float(lastvalueA.split(';')[1]) + ((currentpowerA / 10) * (lastupdateA / 3600))) , 0, 0, 1)
+                            lastupdateA = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[12].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                            lastvalueA = Devices[dev['id']].Units[12].sValue if len(Devices[dev['id']].Units[12].sValue) > 0 else '0;0'
+                            UpdateDevice(dev['id'], 12, str(currentpowerA) + ';' + str(float(lastvalueA.split(';')[1]) + ((currentpowerA) * (lastupdateA / 3600))) , 0, 0, 1)
 
-                            UpdateDevice(dev['id'], 13, str(currentvoltageA / 10), 0, 0)
+                            UpdateDevice(dev['id'], 11, str(currentvoltageA / 10), 0, 0)
                         if searchCode('CurrentB', result):
                             currentcurrentB = int(StatusDeviceTuya('CurrentB'))
                             currentpowerB = int(StatusDeviceTuya('ActivePowerB'))
                             currentvoltageB = int(StatusDeviceTuya('VoltageB'))
 
-                            UpdateDevice(dev['id'], 21, str(currentcurrentB / 1000), 0, 0)
+                            lastvalue3PB = Devices[dev['id']].Units[1].sValue if len(Devices[dev['id']].Units[1].sValue) > 0 else '0;0;0'
+                            UpdateDevice(dev['id'], 1, str(float(lastvalue3PB.split(';')[0])) + ';' + str(currentcurrentB / 1000) + ';' + str(float(lastvalue3PB.split(';')[2])) , 0, 0, 1)
 
-                            UpdateDevice(dev['id'], 22, str(currentpowerB / 10), 0, 0)
-                            lastupdateB = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[24].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalueB = Devices[dev['id']].Units[24].sValue if len(Devices[dev['id']].Units[24].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 24, str(currentpowerB / 10) + ';' + str(float(lastvalueB.split(';')[1]) + ((currentpowerB / 10) * (lastupdateB / 3600))) , 0, 0, 1)
+                            lastupdateB = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[22].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                            lastvalueB = Devices[dev['id']].Units[22].sValue if len(Devices[dev['id']].Units[22].sValue) > 0 else '0;0'
+                            UpdateDevice(dev['id'], 22, str(currentpowerB) + ';' + str(float(lastvalueB.split(';')[1]) + ((currentpowerB) * (lastupdateB / 3600))) , 0, 0, 1)
 
-                            UpdateDevice(dev['id'], 23, str(currentvoltageB / 10), 0, 0)
+                            UpdateDevice(dev['id'], 21, str(currentvoltageB / 10), 0, 0)
                         if searchCode('CurrentC', result):
                             currentcurrentC = int(StatusDeviceTuya('CurrentC'))
                             currentpowerC = int(StatusDeviceTuya('ActivePowerC'))
                             currentvoltageC = int(StatusDeviceTuya('VoltageC'))
 
-                            UpdateDevice(dev['id'], 31, str(currentcurrentC / 1000), 0, 0)
+                            lastvalue3PC = Devices[dev['id']].Units[1].sValue if len(Devices[dev['id']].Units[1].sValue) > 0 else '0;0;0'
+                            UpdateDevice(dev['id'], 1, str(float(lastvalue3PC.split(';')[0])) + ';' + str(float(lastvalue3PC.split(';')[1])) + ';' + str(currentcurrentC / 1000) , 0, 0, 1)
 
-                            UpdateDevice(dev['id'], 32, str(currentpowerC / 10), 0, 0)
-                            lastupdateC = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[34].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalueC = Devices[dev['id']].Units[34].sValue if len(Devices[dev['id']].Units[34].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 34, str(currentpowerC / 10) + ';' + str(float(lastvalueC.split(';')[1]) + ((currentpowerC / 10) * (lastupdateC / 3600))) , 0, 0, 1)
+                            lastupdateC = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[32].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                            lastvalueC = Devices[dev['id']].Units[32].sValue if len(Devices[dev['id']].Units[32].sValue) > 0 else '0;0'
+                            UpdateDevice(dev['id'], 32, str(currentpowerC) + ';' + str(float(lastvalueC.split(';')[1]) + ((currentpowerC) * (lastupdateC / 3600))) , 0, 0, 1)
 
-                            UpdateDevice(dev['id'], 33, str(currentvoltageC / 10), 0, 0)
+                            UpdateDevice(dev['id'], 31, str(currentvoltageC / 10), 0, 0)
 
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
