@@ -47,10 +47,15 @@ try:
         f.write("List of devices: \n" + json.dumps(devices, indent=2))
 
         for d in devices:
-                # Display Properties of Device
+                # Display Functions of Device
                 result = c.getfunctions(d["id"])
                 print("\nFunctions of device: " + d["id"] + "\n", json.dumps(result, indent=2))
                 f.write("\nFunctions of device: " + d["id"] + "\n" + json.dumps(result, indent=2))
+
+                # Display Properties of Device
+                result = c.getproperties (d["id"])
+                print("\nProperties of device: " + d["id"] + "\n", json.dumps(result, indent=2))
+                f.write("\nProperties of device: " + d["id"] + "\n" + json.dumps(result, indent=2))
 
                 # Display Status of Device
                 result = c.getstatus(d["id"])
