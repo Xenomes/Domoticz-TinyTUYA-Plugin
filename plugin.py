@@ -65,6 +65,7 @@ import json
 import colorsys
 import collections
 import time
+import re
 
 class BasePlugin:
     enabled = False
@@ -1037,7 +1038,7 @@ def UpdateDevice(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate = 0):
 
 def StatusDeviceTuya(Function):
     if searchCode(Function, ResultValue):
-        valueRaw = [item['value'] for item in ResultValue if Function in item['code']][0]
+        valueRaw = [item['value'] for item in ResultValue if re.search(r'\b'+Function+r'\b', item['code']) != None][0]
     else:
         Domoticz.Debug('StatusDeviceTuya called ' + Function + ' not found ')
         return None
