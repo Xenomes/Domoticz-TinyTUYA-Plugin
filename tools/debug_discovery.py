@@ -54,8 +54,8 @@ try:
 
                 # Display Properties of Device
                 result = c.getproperties (d["id"])
-                print("\nFunctions of device: " + d["id"] + "\n", json.dumps(result, indent=2))
-                f.write("\nFunctions of device: " + d["id"] + "\n" + json.dumps(result, indent=2))
+                print("\nProperties of device: " + d["id"] + "\n", json.dumps(result, indent=2))
+                f.write("\nProperties of device: " + d["id"] + "\n" + json.dumps(result, indent=2))
 
                 # Display Status of Device
                 result = c.getstatus(d["id"])
