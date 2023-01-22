@@ -1049,7 +1049,7 @@ def StatusDeviceTuya(Function):
     return valueT
 
 def SendCommandCloud(ID, CommandName, Status):
-    sendfunction = FunctionProperties[ID]['status']
+    sendfunction = FunctionProperties[ID]['functions']
     actual_function_name = CommandName
     CommandName = list([CommandName])
     actual_status = Status
