@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.3.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.3.7</h2><br/>
+        <h2>TinyTUYA Plugin v.1.3.9</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -115,18 +115,30 @@ class BasePlugin:
         # Control device and update status in Domoticz
         dev_type = getConfigItem(DeviceID, 'category')
         scalemode = getConfigItem(DeviceID, 'scalemode')
+        function = properties[DeviceID]['functions']
         if len(Color) != 0: Color = ast.literal_eval(Color)
 
         if dev_type == 'switch':
-            if Command == 'Off':
-                SendCommandCloud(DeviceID, 'switch_' + str(Unit), False)
-                UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
-            elif Command == 'On':
-                SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
-                UpdateDevice(DeviceID, Unit, 'On', 1, 0)
-            elif Command == 'Set Level':
-                SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
-                UpdateDevice(DeviceID, Unit, Level, 1, 0)
+            if Command == 'Off' and searchCode('switch', function):
+                if Command == 'Off':
+                    SendCommandCloud(DeviceID, 'switch', False)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+                elif Command == 'On':
+                    SendCommandCloud(DeviceID, 'switch', True)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+                elif Command == 'Set Level':
+                    SendCommandCloud(DeviceID, 'switch', True)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+            if Command == 'Off' and not searchCode('switch', function):
+                if Command == 'Off':
+                    SendCommandCloud(DeviceID, 'switch_' + str(Unit), False)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+                elif Command == 'On':
+                    SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+                elif Command == 'Set Level':
+                    SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
         elif dev_type in ('dimmer'):
             if Command == 'Off':
@@ -435,7 +447,7 @@ def onHandleThread(startup):
                             Domoticz.Unit(Name=dev['name'] + ' (Dimmer 2)', DeviceID=dev['id'], Unit=2, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
 
                 if dev_type == 'switch':
-                    if  createDevice(dev['id'], 1) and searchCode('switch_1', FunctionProperties) and not searchCode('switch_2', FunctionProperties):
+                    if  createDevice(dev['id'], 1) and (searchCode('switch_1', function) or searchCode('switch', function)) and not searchCode('switch_2', function):
                         Domoticz.Log('Create device Switch')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if searchCode('switch_2', FunctionProperties):
@@ -598,6 +610,24 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' L3 (V)', DeviceID=dev['id'], Unit=31, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 32) and searchCode('ActivePowerC', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' L3 (kWh)', DeviceID=dev['id'], Unit=32, Type=243, Subtype=29, Used=1).Create()
+
+                if dev_type == 'gateway':
+                    Domoticz.Log('Create device gateway')
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
+
+                if dev_type == ('co2sensor'):
+                    Domoticz.Log('Create device co2 Sensor')
+                    if createDevice(dev['id'], 1) and searchCode('temp_current', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0).Create()
+                    if createDevice(dev['id'], 2) and searchCode('humidity_value', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
+                    if createDevice(dev['id'], 3) and searchCode('temp_current', ResultValue) and searchCode('humidity_value', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('co2_value', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;ppm'
+                        Domoticz.Unit(Name=dev['name'] + ' (CO2)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=31, Options=options, Used=1).Create()
 
                 # if dev_type == 'climate':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
@@ -957,6 +987,27 @@ def onHandleThread(startup):
 
                             UpdateDevice(dev['id'], 31, str(currentvoltageC), 0, 0)
 
+                    if dev_type == 'gateway':
+                        if searchCode('master_state', ResultValue):
+                            UpdateDevice(dev['id'], 1, StatusDeviceTuya('master_state'), 0, 0)
+
+                    if dev_type == ('co2sensor'):
+                        if searchCode('temp_current', ResultValue):
+                            currenttemp = StatusDeviceTuya('temp_current')
+                            if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
+                                UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
+                        if  searchCode('humidity_value', ResultValue):
+                            currenthumi = StatusDeviceTuya('humidity_value')
+                            if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
+                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
+                        if searchCode('temp_current', ResultValue) and searchCode('humidity_value', ResultValue):
+                            currentdomo = Devices[dev['id']].Units[3].sValue
+                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
+                                UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
+                        if  searchCode('co2_value', ResultValue):
+                            currentco2 = StatusDeviceTuya('co2_value')
+                            if str(currentco2) != str(Devices[dev['id']].Units[4].nValue):
+                                UpdateDevice(dev['id'], 4, str(currentco2), 0, 0)
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -1014,6 +1065,12 @@ def DeviceType(category):
         result = 'smartir'
     elif category in {'zndb'}:
         result = 'powermeter'
+    elif category in {'wg2'}:
+        result = 'gateway'
+    elif category in {'co2bj'}:
+        result = 'co2sensor'
+
+
     # elif 'infrared_' in category: # keep it last
     #     result = 'infrared_id'
     else:

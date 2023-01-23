@@ -62,3 +62,5 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.3.5 | Add Fan's with lights |
 | 1.3.6 | Add Smart IR T&H readouts not IR Devices to complex to recreate |
 | 1.3.7 | Add 3 phase Power meter |
+| 1.3.8 | Changed scaling for result |
+| 1.3.9 | Add Gateway and CO2 Sensor |
