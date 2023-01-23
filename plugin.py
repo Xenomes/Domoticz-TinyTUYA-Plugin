@@ -114,18 +114,30 @@ class BasePlugin:
         # Control device and update status in Domoticz
         dev_type = getConfigItem(DeviceID, 'category')
         scalemode = getConfigItem(DeviceID, 'scalemode')
+        function = functions[DeviceID]['functions']
         if len(Color) != 0: Color = ast.literal_eval(Color)
 
         if dev_type == 'switch':
-            if Command == 'Off':
-                SendCommandCloud(DeviceID, 'switch_' + str(Unit), False)
-                UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
-            elif Command == 'On':
-                SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
-                UpdateDevice(DeviceID, Unit, 'On', 1, 0)
-            elif Command == 'Set Level':
-                SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
-                UpdateDevice(DeviceID, Unit, Level, 1, 0)
+            if Command == 'Off' and searchCode('switch', function):
+                if Command == 'Off':
+                    SendCommandCloud(DeviceID, 'switch', False)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+                elif Command == 'On':
+                    SendCommandCloud(DeviceID, 'switch', True)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+                elif Command == 'Set Level':
+                    SendCommandCloud(DeviceID, 'switch', True)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+            if Command == 'Off' and not searchCode('switch', function):
+                if Command == 'Off':
+                    SendCommandCloud(DeviceID, 'switch_' + str(Unit), False)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+                elif Command == 'On':
+                    SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+                elif Command == 'Set Level':
+                    SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
         elif dev_type in ('dimmer'):
             if Command == 'Off':
@@ -421,7 +433,7 @@ def onHandleThread(startup):
                             Domoticz.Unit(Name=dev['name'] + ' (Dimmer 2)', DeviceID=dev['id'], Unit=2, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
 
                 if dev_type == 'switch':
-                    if  createDevice(dev['id'], 1) and searchCode('switch_1', function) and not searchCode('switch_2', function):
+                    if  createDevice(dev['id'], 1) and (searchCode('switch_1', function) or searchCode('switch', function)) and not searchCode('switch_2', function):
                         Domoticz.Log('Create device Switch')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if searchCode('switch_2', function):
