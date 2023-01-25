@@ -22,21 +22,21 @@
         </ul>
         <h3>Configuration</h3>
         <ul style="list-style-type:square">
-        <li>Enter your apiRegion, apiKey, apiSecret and Search deviceID (This id is used to detect all the other devices), keep the setting 'Data Timeout' disabled.</li>
-        <li>A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID.</li>
+        <li>Enter your Region, Access ID/Client ID, Access Secret/Client Secret and a Search deviceID from your Tuya IOT Account, keep the setting 'Data Timeout' disabled.</li>
+        <li>A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID. (This id is used to detect all the other devices) </li>
         <li>The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.</li>
         </ul>
     </description>
     <params>
-        <param field="Mode1" label="apiRegion" width="150px" required="true" default="EU">
+        <param field="Mode1" label="Region" width="150px" required="true" default="EU">
             <options>
                 <option label="EU" value="eu" default="true" />
                 <option label="US" value="us"/>
                 <option label="CN" value="cn"/>
             </options>
         </param>
-        <param field="Username" label="apiKey" width="300px" required="true" default=""/>
-        <param field="Password" label="apiSecret" width="300px" required="true" default="" password="true"/>
+        <param field="Username" label="Access ID" width="300px" required="true" default=""/>
+        <param field="Password" label="Access Secret" width="300px" required="true" default="" password="true"/>
         <param field="Mode2" label="Search DeviceID" width="300px" />
         <param field="Mode6" label="Debug" width="150px">
             <options>
