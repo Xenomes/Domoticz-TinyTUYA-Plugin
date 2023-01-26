@@ -19,7 +19,7 @@ To install:
 
 To update:
 * Upgrade the tinytuya library ```sudo pip3 install tinytuya --upgrade```
-* Go in your Domoticz directory using a command line and open the plugins directory then the Domoticz-TUYA directory.
+* Go in your Domoticz directory using a command line and open the plugins directory then the Domoticz-TinyTUYA-Plugin directory.
 * Run: ```git pull```
 * Restart Domoticz.
 
