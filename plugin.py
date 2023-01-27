@@ -346,7 +346,13 @@ def onHandleThread(startup):
                             properties[dev['id']]['functions']
                         except:
                             properties[dev['id']]['functions'] = []
-                    # Domoticz.Debug(properties[dev['id']])
+                            Domoticz.Error('!! Warning Functions data is missing !!')
+                        try:
+                            properties[dev['id']]['status']
+                        except:
+                            properties[dev['id']]['status'] = []
+                            Domoticz.Error('!! Warning Status data is missing !!')
+                # Domoticz.Debug(properties[dev['id']])
 
             else:
                 tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
@@ -369,6 +375,10 @@ def onHandleThread(startup):
                         properties[dev['id']]['functions']
                     except:
                         properties[dev['id']]['functions'] = []
+                    try:
+                        properties[dev['id']]['status']
+                    except:
+                        properties[dev['id']]['status'] = []
 
             Domoticz.Log('Scanning for tuya devices on network...')
             scan = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
@@ -525,7 +535,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
 
                 if dev_type == 'fan':
-                    Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+                    if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
 
                 if dev_type == 'fanlight':
                     if createDevice(dev['id'], 2) and searchCode('fan_switch', FunctionProperties):
