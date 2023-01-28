@@ -119,7 +119,7 @@ class BasePlugin:
         if len(Color) != 0: Color = ast.literal_eval(Color)
 
         if dev_type == 'switch':
-            if Command == 'Off' and searchCode('switch', function):
+            if searchCode('switch', function):
                 if Command == 'Off':
                     SendCommandCloud(DeviceID, 'switch', False)
                     UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
@@ -129,7 +129,7 @@ class BasePlugin:
                 elif Command == 'Set Level':
                     SendCommandCloud(DeviceID, 'switch', True)
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
-            if Command == 'Off' and not searchCode('switch', function):
+            if not searchCode('switch', function):
                 if Command == 'Off':
                     SendCommandCloud(DeviceID, 'switch_' + str(Unit), False)
                     UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
@@ -487,7 +487,7 @@ def onHandleThread(startup):
                     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
 
                 if dev_type == 'thermostat' or dev_type == 'heater':
-                    
+
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device Thermostat')
                         if searchCode('switch', FunctionProperties):
