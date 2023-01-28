@@ -457,10 +457,11 @@ def onHandleThread(startup):
                             Domoticz.Unit(Name=dev['name'] + ' (Dimmer 2)', DeviceID=dev['id'], Unit=2, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
 
                 if dev_type == 'switch':
-                    if  createDevice(dev['id'], 1) and (searchCode('switch_1', function) or searchCode('switch', function)) and not searchCode('switch_2', function):
+                    if  createDevice(dev['id'], 1) and (searchCode('switch_1', FunctionProperties) or searchCode('switch', FunctionProperties)) and not searchCode('switch_2', FunctionProperties):
                         Domoticz.Log('Create device Switch')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if searchCode('switch_2', FunctionProperties):
+                        Domoticz.Log('Create device Switch')
                         if createDevice(dev['id'], 1):
                             Domoticz.Unit(Name=dev['name'] + ' (Switch 1)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev['id'], 2):
@@ -486,8 +487,9 @@ def onHandleThread(startup):
                     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
 
                 if dev_type == 'thermostat' or dev_type == 'heater':
-                    Domoticz.Log('Create device Thermostat')
+                    
                     if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device Thermostat')
                         if searchCode('switch', FunctionProperties):
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         else:
@@ -536,10 +538,12 @@ def onHandleThread(startup):
 
                 if dev_type == 'fan':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
+                        Domoticz.Log('Create device Fan')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
 
                 if dev_type == 'fanlight':
                     if createDevice(dev['id'], 2) and searchCode('fan_switch', FunctionProperties):
+                        Domoticz.Log('Create device Fanlight')
                         Domoticz.Unit(Name=dev['name'] + ' (Fan Power)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('fan_speed', FunctionProperties):
                         for item in FunctionProperties:
@@ -569,6 +573,7 @@ def onHandleThread(startup):
 
                 if dev_type == 'siren':
                     if searchCode('AlarmSwitch', FunctionProperties):
+                        Domoticz.Log('Create device Siren')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=13, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('Alarmtype', FunctionProperties):
                         for item in FunctionProperties:
@@ -598,6 +603,7 @@ def onHandleThread(startup):
 
                 if dev_type == 'powermeter':
                     if createDevice(dev['id'], 1) and searchCode('Current', ResultValue):
+                        Domoticz.Log('Create device Powermeter')
                         Domoticz.Unit(Name=dev['name'] + ' (3P A)', DeviceID=dev['id'], Unit=1, Type=89, Subtype=1, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('Current', ResultValue):
                         options = {}
@@ -623,13 +629,13 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' L3 (kWh)', DeviceID=dev['id'], Unit=32, Type=243, Subtype=29, Used=1).Create()
 
                 if dev_type == 'gateway':
-                    Domoticz.Log('Create device gateway')
                     if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device Gateway')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
 
                 if dev_type == ('co2sensor'):
-                    Domoticz.Log('Create device co2 Sensor')
                     if createDevice(dev['id'], 1) and searchCode('temp_current', ResultValue):
+                        Domoticz.Log('Create device co2 Sensor')
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0).Create()
                     if createDevice(dev['id'], 2) and searchCode('humidity_value', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
