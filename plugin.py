@@ -1137,7 +1137,7 @@ def SendCommandCloud(ID, CommandName, Status):
         actual_status = pct_to_brightness(sendfunction, actual_function_name, Status)
     if 'temp_value' in CommandName or 'temp_value_v2' in CommandName:
         actual_status = temp_value_scale(sendfunction, actual_function_name, Status)
-    if type(actual_status) == int in CommandName: # 'temp_set'
+    if type(actual_status) == int or type(actual_status) == float:
         actual_status = set_scale(sendfunction, actual_function_name, Status)
     # Domoticz.Debug("actual_function_name:" + str(actual_function_name))
     # Domoticz.Debug("actual_status:" + str(actual_status))
@@ -1185,6 +1185,7 @@ def set_scale(device_functions, actual_function_name, raw):
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = int(the_values.get('scale', 0))
+                # step = int(the_values.get('step', 0))
     if scale == 1:
         result = int(raw * 10)
     elif scale == 2:
@@ -1197,7 +1198,7 @@ def set_scale(device_functions, actual_function_name, raw):
 
 def get_scale(device_functions, actual_function_name, raw):
     scale = 0
-    if actual_function_name == 'temp_current': actual_function_name = 'temp_set'
+    # if actual_function_name == 'temp_current': actual_function_name = 'temp_set'
     if device_functions and actual_function_name:
         for item in device_functions:
             if item['code'] == actual_function_name:
