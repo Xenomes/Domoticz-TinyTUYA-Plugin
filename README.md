@@ -64,3 +64,4 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.3.7 | Add 3 phase Power meter |
 | 1.3.8 | Changed scaling for result |
 | 1.3.9 | Add Gateway and CO2 Sensor |
+| 1.4.0 | Add Ledstrip with deviating config |

@@ -436,6 +436,9 @@ def onHandleThread(startup):
                     elif searchCode('switch_led', FunctionProperties) and not searchCode('work_mode', FunctionProperties) and (searchCode('colour_data', FunctionProperties) or searchCode('colour_data_v2', FunctionProperties)) and (not searchCode('temp_value', FunctionProperties) or not searchCode('temp_value_v2', FunctionProperties)) and (searchCode('bright_value', FunctionProperties) or searchCode('bright_value_v2', FunctionProperties)):
                         Domoticz.Log('Create device Light RGB')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
+                    elif searchCode('switch_led', FunctionProperties) and searchCode('work_mode', FunctionProperties) and searchCode('colour_data_v2', FunctionProperties) and not searchCode('temp_value_v2', FunctionProperties) and not searchCode('bright_value_v2', FunctionProperties):
+                        Domoticz.Log('Create device Light RGB')
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
                     elif searchCode('switch_led', FunctionProperties) and searchCode('work_mode', FunctionProperties) and not (searchCode('colour_data', FunctionProperties) or searchCode('colour_data_v2', FunctionProperties)) and (searchCode('temp_value', FunctionProperties) or searchCode('temp_value_v2', FunctionProperties)) and (searchCode('bright_value', FunctionProperties) or searchCode('bright_value_v2', FunctionProperties)):
                         Domoticz.Log('Create device Light WWCW')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=8, Switchtype=7, Used=1).Create()
@@ -445,6 +448,9 @@ def onHandleThread(startup):
                     elif searchCode('switch_led', FunctionProperties) and not searchCode('work_mode', FunctionProperties) and not (searchCode('colour_data', FunctionProperties) or searchCode('colour_data_v2', FunctionProperties)) and (not searchCode('temp_value', FunctionProperties) or not searchCode('temp_value_v2', FunctionProperties)) and (not searchCode('bright_value', FunctionProperties) or not searchCode('bright_value_v2', FunctionProperties)):
                         Domoticz.Log('Create device Light On/Off')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
+                    else:
+                        Domoticz.Log('Create device Light On/Off (Unknown Light Device)')
+                        Domoticz.Unit(Name=dev['name' + ' (Unknown Light Device)'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
 
                 if dev_type == 'dimmer':
                     if  createDevice(dev['id'], 1) and searchCode('switch_led_1', FunctionProperties) and not searchCode('switch_led_2', FunctionProperties):
@@ -752,9 +758,12 @@ def onHandleThread(startup):
                     if dev_type == ('light'):
                         # workmode = StatusDeviceTuya('work_mode')
                         currentstatus = StatusDeviceTuya('switch_led')
+                        BrightnessControl = False
                         if searchCode('bright_value', FunctionProperties):
+                            BrightnessControl = True
                             dimtuya = brightness_to_pct(FunctionProperties, 'bright_value', int(StatusDeviceTuya('bright_value')))
                         elif searchCode('bright_value_v2', FunctionProperties):
+                            BrightnessControl = True
                             dimtuya = brightness_to_pct(FunctionProperties, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
                         '''
                         Finding other way to detect
@@ -768,10 +777,16 @@ def onHandleThread(startup):
                             rtuya, gtuya, btuya = hsv_to_rgb(colortuya['h'], colortuya['s'], colortuya['v'])
                             colorupdate = {'m': 3, 'r': rtuya, 'g': gtuya, 'b': btuya}
                         '''
-                        if (bool(currentstatus) == False and bool(nValue) != False) or (int(dimtuya) == 0 and bool(nValue) != False):
-                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif (bool(currentstatus) == True and bool(nValue) != True) or (str(dimtuya) != str(sValue) and bool(nValue) != False):
-                            UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
+                        if BrightnessControl == False:
+                            if (bool(currentstatus) == False and bool(nValue) != False):
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif (bool(currentstatus) == True and bool(nValue) != True):
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        if BrightnessControl == True:
+                            if (bool(currentstatus) == False and bool(nValue) != False) or (int(dimtuya) == 0 and bool(nValue) != False):
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif (bool(currentstatus) == True and bool(nValue) != True) or (str(dimtuya) != str(sValue) and bool(nValue) != False):
+                                UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
                         '''
                         elif currentstatus == True and workmode == 'white':
                             Domoticz.Debug(temptuya['t'])
