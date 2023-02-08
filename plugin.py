@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin v.1.4.0</h2><br/>
+        <h2>TinyTUYA Plugin v.1.4.1</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -151,7 +151,7 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
                 UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
-        elif dev_type in ('light') or (dev_type in ('fanlight') and Unit == 1):
+        elif (dev_type in ('light') or dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1:
             if Command == 'Off':
                 SendCommandCloud(DeviceID, 'switch_led', False)
                 UpdateDevice(DeviceID, 1, 'Off', 0, 0)
@@ -267,6 +267,22 @@ class BasePlugin:
                 mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                 SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
                 UpdateDevice(DeviceID, 3, Level, 1, 0)
+
+        if dev_type == 'pirlight':
+            if Command == 'Off' and Unit == 2:
+                SendCommandCloud(DeviceID, 'switch_pir', False)
+                UpdateDevice(DeviceID, 2, 'Off', 0, 0)
+            elif Command == 'On' and Unit == 2:
+                SendCommandCloud(DeviceID, 'switch_pir', True)
+                UpdateDevice(DeviceID, 2, 'On', 1, 0)
+            elif Command == 'Set Level' and Unit == 3:
+                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                SendCommandCloud(DeviceID, 'device_mode', mode[int(Level / 10)])
+                UpdateDevice(DeviceID, 3, Level, 1, 0)
+            elif Command == 'Set Level' and Unit == 4:
+                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                SendCommandCloud(DeviceID, 'pir_sensitivity', mode[int(Level / 10)])
+                UpdateDevice(DeviceID, 4, Level, 1, 0)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
@@ -422,7 +438,7 @@ def onHandleThread(startup):
                     deviceinfo = {'ip': None, 'version': 3.3}
                 #deviceinfo = tinytuya.find_device(dev['id'])
                 # if dev['id'] not in Devices: # Disabled for create item when device exists
-                if dev_type in ('light', 'fanlight') and createDevice(dev['id'], 1):
+                if dev_type in ('light', 'fanlight', 'pirlight') and createDevice(dev['id'], 1):
                     # for localcontol: and deviceinfo['ip'] != None
                     if searchCode('switch_led', FunctionProperties) and searchCode('work_mode', FunctionProperties) and (searchCode('colour_data', FunctionProperties) or searchCode('colour_data_v2', FunctionProperties)) and (searchCode('temp_value', FunctionProperties) or searchCode('temp_value_v2', FunctionProperties)) and (searchCode('bright_value', FunctionProperties) or searchCode('bright_value_v2', FunctionProperties)):
                         Domoticz.Log('Create device Light RGBWW')
@@ -651,6 +667,40 @@ def onHandleThread(startup):
                         options = {}
                         options['Custom'] = '1;ppm'
                         Domoticz.Unit(Name=dev['name'] + ' (CO2)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=31, Options=options, Used=1).Create()
+
+                if dev_type == 'doorcontact':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device Doorcontact')
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+
+                if dev_type == 'pirlight':
+                    if createDevice(dev['id'], 2) and searchCode('switch_pir', FunctionProperties):
+                        Domoticz.Log('Create device Pirlight')
+                        Domoticz.Unit(Name=dev['name'] + ' (Pir State)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('device_mode', FunctionProperties):
+                        for item in FunctionProperties:
+                            if item['code'] == 'device_mode':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('pir_sensitivity', FunctionProperties):
+                        for item in FunctionProperties:
+                            if item['code'] == 'pir_sensitivity':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                 # if dev_type == 'climate':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
@@ -1040,6 +1090,55 @@ def onHandleThread(startup):
                             currentco2 = StatusDeviceTuya('co2_value')
                             if str(currentco2) != str(Devices[dev['id']].Units[4].nValue):
                                 UpdateDevice(dev['id'], 4, str(currentco2), 0, 0)
+
+                    if dev_type == 'doorcontact':
+                        if searchCode('doorcontact_state', ResultValue):
+                            currentstatus = StatusDeviceTuya('doorcontact_state')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        if searchCode('battery_state', ResultValue) or searchCode('va_battery', ResultValue):
+                            if searchCode('battery_state', ResultValue):
+                                if StatusDeviceTuya('battery_state') == 'high':
+                                    currentbattery = 100
+                                if StatusDeviceTuya('battery_state') == 'middle':
+                                    currentbattery = 50
+                                if StatusDeviceTuya('battery_state') == 'low':
+                                    currentbattery = 5
+                            if searchCode('va_battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('va_battery')
+                            for unit in Devices[dev['id']].Units:
+                                if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
+                                    Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
+                                    Devices[dev['id']].Units[unit].Update()
+
+                    if dev_type == 'pirlight':
+                        if searchCode('switch_pir', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('switch_pir')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 2, 'On', 1, 0)
+                        if searchCode('device_mode', ResultValue):
+                            currentmode = StatusDeviceTuya('device_mode')
+                            for item in FunctionProperties:
+                                if item['code'] == 'device_mode':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(currentmode) * 10) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, int(mode.index(currentmode) * 10), 1, 0)
+                        if searchCode('pir_sensitivity', ResultValue):
+                            currentmode = StatusDeviceTuya('pir_sensitivity')
+                            for item in FunctionProperties:
+                                if item['code'] == 'pir_sensitivity':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(currentmode) * 10) != str(Devices[dev['id']].Units[4].sValue):
+                                UpdateDevice(dev['id'], 4, int(mode.index(currentmode) * 10), 1, 0)
+
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -1073,7 +1172,7 @@ def DeviceType(category):
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
     if category in {'kg', 'cz', 'pc', 'dlq', 'bh', 'tdq'}:
         result = 'switch'
-    elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'gyd', 'jsq', 'tyndj'}:
+    elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj'}:
         result = 'light'
     elif category in {'tgq', 'tgkg'}:
         result = 'dimmer'
@@ -1101,6 +1200,10 @@ def DeviceType(category):
         result = 'gateway'
     elif category in {'co2bj'}:
         result = 'co2sensor'
+    elif category in {'mcs'}:
+        result = 'doorcontact'
+    elif category in {'gyd'}:
+        result = 'pirlight'
 
 
     # elif 'infrared_' in category: # keep it last
