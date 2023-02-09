@@ -402,19 +402,19 @@ def onHandleThread(startup):
         # Initialize/Update devices from TUYA API
         for dev in devs:
             Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'])))
-            if testData == True:
-                online = True
-            else:
-                online = tuya.getconnectstatus(dev['id'])
             try:
+                if testData == True:
+                    online = True
+                else:
+                    online = tuya.getconnectstatus(dev['id'])
                 # Set last update
                 last_update = time.time()
                 FunctionProperties = properties[dev['id']]['functions']
+                dev_type = DeviceType(properties[dev['id']]['category'])
+                StatusProperties = properties[dev['id']]['status']
             except:
                 raise Exception('Credentials are incorrect or tuya subscription has expired!')
                 return
-            dev_type = DeviceType(properties[dev['id']]['category'])
-            StatusProperties = properties[dev['id']]['status']
             if testData == True:
                 with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
                     ResultValue = json.load(rFile)['result']
@@ -594,7 +594,7 @@ def onHandleThread(startup):
                                 Domoticz.Unit(Name=dev['name'] + ' (Fan Direction)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
 
                 if dev_type == 'siren':
-                    if searchCode('AlarmSwitch', FunctionProperties):
+                    if createDevice(dev['id'], 1) and searchCode('AlarmSwitch', FunctionProperties):
                         Domoticz.Log('Create device Siren')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=13, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('Alarmtype', FunctionProperties):
