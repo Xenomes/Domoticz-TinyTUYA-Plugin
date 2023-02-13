@@ -1253,10 +1253,11 @@ def SendCommandCloud(ID, CommandName, Status):
             actual_function_name = str(item['code'])
     if 'bright_value' in CommandName or 'bright_value_v2' in CommandName or 'bright_value_1' in CommandName or 'bright_value_2' in CommandName:
         actual_status = pct_to_brightness(sendfunction, actual_function_name, Status)
-    if 'temp_value' in CommandName or 'temp_value_v2' in CommandName:
+    elif 'temp_value' in CommandName or 'temp_value_v2' in CommandName:
         actual_status = temp_value_scale(sendfunction, actual_function_name, Status)
-    if type(actual_status) == int or type(actual_status) == float:
+    elif type(actual_status) == int or type(actual_status) == float:
         actual_status = set_scale(sendfunction, actual_function_name, Status)
+
     # Domoticz.Debug("actual_function_name:" + str(actual_function_name))
     # Domoticz.Debug("actual_status:" + str(actual_status))
     if testData != True:
@@ -1270,6 +1271,7 @@ def pct_to_brightness(device_functions, actual_function_name, pct):
                 the_values = json.loads(item['values'])
                 min_value = int(the_values.get('min', 0))
                 max_value = int(the_values.get('max', 1000))
+                Domoticz.Debug(round(min_value + (pct*(max_value - min_value)) / 100))
                 return round(min_value + (pct*(max_value - min_value)) / 100)
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round(22.68 + (int(pct) * ((255 - 22.68) / 100)))
