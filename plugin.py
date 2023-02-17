@@ -671,7 +671,7 @@ def onHandleThread(startup):
                 if dev_type == 'doorcontact':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device Doorcontact')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                 if dev_type == 'pirlight':
                     if createDevice(dev['id'], 2) and searchCode('switch_pir', FunctionProperties):
@@ -917,7 +917,7 @@ def onHandleThread(startup):
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('battery_state', ResultValue) or searchCode('va_battery', ResultValue):
+                        if searchCode('battery_state', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
                             if searchCode('battery_state', ResultValue):
                                 if StatusDeviceTuya('battery_state') == 'high':
                                     currentbattery = 100
@@ -925,8 +925,11 @@ def onHandleThread(startup):
                                     currentbattery = 50
                                 if StatusDeviceTuya('battery_state') == 'low':
                                     currentbattery = 5
-                            if searchCode('va_battery', ResultValue):
-                                currentbattery = StatusDeviceTuya('va_battery')
+                            if searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
+                                if searchCode('va_battery', ResultValue):
+                                    currentbattery = StatusDeviceTuya('va_battery')
+                                if searchCode('battery_percentage', ResultValue):
+                                    currentbattery = StatusDeviceTuya('battery_percentage')
                             for unit in Devices[dev['id']].Units:
                                 if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
@@ -1098,7 +1101,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                        if searchCode('battery_state', ResultValue) or searchCode('va_battery', ResultValue):
+                        if searchCode('battery_state', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
                             if searchCode('battery_state', ResultValue):
                                 if StatusDeviceTuya('battery_state') == 'high':
                                     currentbattery = 100
@@ -1106,8 +1109,11 @@ def onHandleThread(startup):
                                     currentbattery = 50
                                 if StatusDeviceTuya('battery_state') == 'low':
                                     currentbattery = 5
-                            if searchCode('va_battery', ResultValue):
-                                currentbattery = StatusDeviceTuya('va_battery')
+                            if searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
+                                if searchCode('va_battery', ResultValue):
+                                    currentbattery = StatusDeviceTuya('va_battery')
+                                if searchCode('battery_percentage', ResultValue):
+                                    currentbattery = StatusDeviceTuya('battery_percentage')
                             for unit in Devices[dev['id']].Units:
                                 if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
