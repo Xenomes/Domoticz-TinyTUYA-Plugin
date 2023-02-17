@@ -583,7 +583,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '1'
+                                options['SelectorStyle'] = '0'
                                 Domoticz.Unit(Name=dev['name'] + ' (Fan Speed)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('fan_direction', FunctionProperties):
                         for item in FunctionProperties:
@@ -999,8 +999,8 @@ def onHandleThread(startup):
                                     mode = ['0']
                                     for num in range(the_values.get('min'),the_values.get('max') + 1):
                                         mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            if str(mode.index(currentmode) * 10) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, int(mode.index(currentmode) * 10), 1, 0)
                         if searchCode('fan_direction', ResultValue):
                             currentmode = StatusDeviceTuya('fan_direction')
                             for item in FunctionProperties:
