@@ -711,6 +711,7 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device Smokedetector')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=5, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=2, Type=243, Subtype=19, Used=1).Create()
                     # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
                     #     for item in StatusProperties:
                     #         if item['code'] == 'PIR':
@@ -1185,6 +1186,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif int(currentstatus) > 0:
                                 UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            UpdateDevice(dev['id'], 2, currentstatus, 0, 0)
                         # if searchCode('PIR', ResultValue):
                         #     currentmode = StatusDeviceTuya('PIR')
                         #     for item in StatusProperties:
