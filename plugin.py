@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
@@ -287,6 +287,26 @@ class BasePlugin:
                 mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                 SendCommandCloud(DeviceID, 'pir_sensitivity', mode[int(Level / 10)])
                 UpdateDevice(DeviceID, 4, Level, 1, 0)
+
+        elif dev_type == 'infrared_ac':
+            if Command == 'Off' and Unit == 1:
+                SendCommandCloud(DeviceID, 'PowerOff', True)
+                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+            elif Command == 'On' and Unit == 1:
+                SendCommandCloud(DeviceID, 'PowerOn', True)
+                UpdateDevice(DeviceID, 1, 'On', 1, 0)
+            elif Command == 'Set Level' and Unit  == 2:
+                SendCommandCloud(DeviceID, 'T', Level)
+                UpdateDevice(DeviceID, 2, Level, 1, 0)
+            elif Command == 'Set Level' and Unit == 3:
+                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                SendCommandCloud(DeviceID, 'M', mode[int(Level / 10)])
+                UpdateDevice(DeviceID, 3, Level, 1, 0)
+            elif Command == 'Set Level' and Unit == 4:
+                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                SendCommandCloud(DeviceID, 'F', mode[int(Level / 10)])
+                UpdateDevice(DeviceID, 4, Level, 1, 0)
+
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
@@ -726,6 +746,39 @@ def onHandleThread(startup):
                     #             options['LevelNames'] = '|'.join(mode)
                     #             options['SelectorStyle'] = '0'
                     #             Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+
+                if dev_type == 'infrared_ac':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device Infrared AC')
+                        Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('temp', StatusProperties):
+                            Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=2, Type=242, Subtype=1, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('mode', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'mode':
+                                the_values = json.loads(item['values'])
+                                mode = ['0']
+                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    mode.extend([str(num)])
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('wind', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'wind':
+                                the_values = json.loads(item['values'])
+                                mode = ['0']
+                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    mode.extend([str(num)])
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
 
                 # if dev_type == 'climate':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
@@ -1288,7 +1341,8 @@ def DeviceType(category):
         result = 'pirlight'
     elif category in {'qt'}:
         result = 'smokedetector'
-
+    elif category in {'infrared_ac'}:
+        result = 'infrared_ac'
     # elif 'infrared_' in category: # keep it last
     #     result = 'infrared_id'
     else:
