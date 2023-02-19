@@ -553,6 +553,8 @@ def onHandleThread(startup):
                     Domoticz.Log('Create device T&H Sensor')
                     if createDevice(dev['id'], 1) and searchCode('va_temperature', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0).Create()
+                    if createDevice(dev['id'], 1) and searchCode('temp_current', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('va_humidity', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
                     if createDevice(dev['id'], 3) and searchCode('va_temperature', ResultValue) and searchCode('va_humidity', ResultValue):
@@ -939,6 +941,10 @@ def onHandleThread(startup):
                     if dev_type in ('temperaturehumiditysensor', 'smartir'):
                         if searchCode('va_temperature', ResultValue):
                             currenttemp = StatusDeviceTuya('va_temperature')
+                            if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
+                                UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
+                        if searchCode('temp_current', ResultValue):
+                            currenttemp = StatusDeviceTuya('temp_current')
                             if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
                         if  searchCode('va_humidity', ResultValue):
