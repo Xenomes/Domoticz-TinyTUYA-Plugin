@@ -887,20 +887,20 @@ def onHandleThread(startup):
                         # workmode = StatusDeviceTuya('work_mode')
                         currentstatus = StatusDeviceTuya('switch_led')
                         BrightnessControl = False
-                        if searchCode('bright_value', FunctionProperties):
+                        if searchCode('bright_value', StatusProperties):
                             BrightnessControl = True
-                            dimtuya = brightness_to_pct(FunctionProperties, 'bright_value', int(StatusDeviceTuya('bright_value')))
-                        elif searchCode('bright_value_v2', FunctionProperties):
+                            dimtuya = brightness_to_pct(StatusProperties, 'bright_value', int(StatusDeviceTuya('bright_value')))
+                        elif searchCode('bright_value_v2', StatusProperties):
                             BrightnessControl = True
-                            dimtuya = brightness_to_pct(FunctionProperties, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
+                            dimtuya = brightness_to_pct(StatusProperties, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
                         '''
                         Finding other way to detect
                         dimlevel = Devices[dev['id']].Units[1].sValue if type(Devices[dev['id']].Units[1].sValue) == int else dimtuya
                         color = Devices[dev['id']].Units[1].Color
 
-                        if searchCode('temp_value', FunctionProperties):
+                        if searchCode('temp_value', StatusProperties):
                             temptuya = {'m': 2, 't': int(inv_val(round(StatusDeviceTuya('temp_value'))))}
-                        if (searchCode('colour_data', FunctionProperties) or searchCode('colour_data_v2', FunctionProperties)):
+                        if (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)):
                             colortuya = ast.literal_eval(StatusDeviceTuya('colour_data'))
                             rtuya, gtuya, btuya = hsv_to_rgb(colortuya['h'], colortuya['s'], colortuya['v'])
                             colorupdate = {'m': 3, 'r': rtuya, 'g': gtuya, 'b': btuya}
