@@ -551,13 +551,11 @@ def onHandleThread(startup):
 
                 if dev_type in ('temperaturehumiditysensor', 'smartir'):
                     Domoticz.Log('Create device T&H Sensor')
-                    if createDevice(dev['id'], 1) and searchCode('va_temperature', ResultValue):
+                    if createDevice(dev['id'], 1) and (searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0).Create()
-                    if createDevice(dev['id'], 1) and searchCode('temp_current', ResultValue):
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=1).Create()
-                    if createDevice(dev['id'], 2) and searchCode('va_humidity', ResultValue):
+                    if createDevice(dev['id'], 2) and (searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
-                    if createDevice(dev['id'], 3) and searchCode('va_temperature', ResultValue) and searchCode('va_humidity', ResultValue):
+                    if createDevice(dev['id'], 3) and ((searchCode('va_temperature', ResultValue) and searchCode('va_humidity', ResultValue)) or (searchCode('temp_current', ResultValue) and searchCode('humidity_value', ResultValue))):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
 
                 if createDevice(dev['id'], 1) and dev_type == 'doorbell':
