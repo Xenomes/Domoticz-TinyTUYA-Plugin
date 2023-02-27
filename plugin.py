@@ -707,11 +707,11 @@ def onHandleThread(startup):
                                 options['SelectorStyle'] = '0'
                                 Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
-                # if dev_type == 'smokedetector':
-                #     if createDevice(dev['id'], 1):
-                #         Domoticz.Log('Create device Smokedetector')
-                #         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=5, Used=1).Create()
-                #         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=2, Type=243, Subtype=19, Used=1).Create()
+                if dev_type == 'smokedetector':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device Smokedetector')
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=5, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=2, Type=243, Subtype=19, Used=1).Create()
                     # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
                     #     for item in StatusProperties:
                     #         if item['code'] == 'PIR':
@@ -828,7 +828,7 @@ def onHandleThread(startup):
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 2, currentdim, 1, 0)
 
-                    if dev_type == ('light'):
+                    if dev_type in ('light','fanlight'):
                         # workmode = StatusDeviceTuya('work_mode')
                         currentstatus = StatusDeviceTuya('switch_led')
                         BrightnessControl = False
@@ -903,8 +903,8 @@ def onHandleThread(startup):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     mode.extend(the_values.get('range'))
-                            if str(mode.index(currentmode) * 10) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, int(mode.index(currentmode) * 10), 1, 0)
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
+                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('window_check', ResultValue):
                             currentstatus = StatusDeviceTuya('window_check')
                             if bool(currentstatus) == False:
@@ -1012,8 +1012,8 @@ def onHandleThread(startup):
                                     mode = ['0']
                                     for num in range(the_values.get('min'),the_values.get('max') + 1):
                                         mode.extend([str(num)])
-                            if str(mode.index(currentmode) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(currentmode) * 10), 1, 0)
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('fan_direction', ResultValue):
                             currentmode = StatusDeviceTuya('fan_direction')
                             for item in FunctionProperties:
@@ -1021,8 +1021,8 @@ def onHandleThread(startup):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     mode.extend(the_values.get('range'))
-                            if str(mode.index(currentmode) * 10) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, int(mode.index(currentmode) * 10), 1, 0)
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
+                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
 
                     if dev_type == 'siren':
                         if searchCode('AlarmSwitch', FunctionProperties):
@@ -1038,8 +1038,8 @@ def onHandleThread(startup):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     mode.extend(the_values.get('range'))
-                            if str(mode.index(currentmode) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, int(mode.index(currentmode) * 10), 1, 0)
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
+                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('AlarmPeriod', ResultValue):
                             currentmode = StatusDeviceTuya('AlarmPeriod')
                             for item in FunctionProperties:
@@ -1179,8 +1179,8 @@ def onHandleThread(startup):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     mode.extend(the_values.get('range'))
-                            if str(mode.index(currentmode) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(currentmode) * 10), 1, 0)
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('pir_sensitivity', ResultValue):
                             currentmode = StatusDeviceTuya('pir_sensitivity')
                             for item in FunctionProperties:
@@ -1188,17 +1188,17 @@ def onHandleThread(startup):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     mode.extend(the_values.get('range'))
-                            if str(mode.index(currentmode) * 10) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, int(mode.index(currentmode) * 10), 1, 0)
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
+                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
 
-                    # if dev_type == 'smokedetector':
-                    #     if searchCode('PIR', ResultValue):
-                    #         currentstatus = StatusDeviceTuya('PIR')
-                    #         if int(currentstatus) == 0:
-                    #             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                    #         elif int(currentstatus) > 0:
-                    #             UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                    #         UpdateDevice(dev['id'], 2, currentstatus, 0, 0)
+                    if dev_type == 'smokedetector':
+                        if searchCode('PIR', ResultValue):
+                            currentstatus = StatusDeviceTuya('PIR')
+                            if int(currentstatus) == 0:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif int(currentstatus) > 0:
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            UpdateDevice(dev['id'], 2, currentstatus, 0, 0)
                         # if searchCode('PIR', ResultValue):
                         #     currentmode = StatusDeviceTuya('PIR')
                         #     for item in StatusProperties:
@@ -1206,8 +1206,8 @@ def onHandleThread(startup):
                         #             the_values = json.loads(item['values'])
                         #             mode = ['off']
                         #             mode.extend(the_values.get('range'))
-                        #     if str(mode.index(currentmode) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                        #         UpdateDevice(dev['id'], 2, int(mode.index(currentmode) * 10), 1, 0)
+                        #     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
+                        #         UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
                             if searchCode('battery_state', ResultValue):
                                 if StatusDeviceTuya('battery_state') == 'high':
@@ -1292,8 +1292,8 @@ def DeviceType(category):
         result = 'doorcontact'
     elif category in {'gyd'}:
         result = 'pirlight'
-    # elif category in {'qt'}:
-    #     result = 'smokedetector'
+    elif category in {'qt'}:
+        result = 'smokedetector'
 
     # elif 'infrared_' in category: # keep it last
     #     result = 'infrared_id'
