@@ -353,6 +353,7 @@ def onHandleThread(startup):
             global login
             global scan
             global last_update
+            last_update = time.time()
             if testData == True:
                 tuya = Domoticz.Log
                 with open(Parameters['HomeFolder'] + '/debug_devices.json') as dFile:
