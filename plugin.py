@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
@@ -518,10 +518,10 @@ def onHandleThread(startup):
                     Domoticz.Log('Create device Cover')
                     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
 
-                if dev_type == 'thermostat' or dev_type == 'heater':
+                if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
 
                     if createDevice(dev['id'], 1):
-                        Domoticz.Log('Create device Thermostat')
+                        Domoticz.Log('Create device Thermostat/heater/heatpump')
                         if searchCode('switch', FunctionProperties):
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         else:
@@ -886,7 +886,7 @@ def onHandleThread(startup):
                         if str(currentposition) != str(Devices[dev['id']].Units[1].sValue):
                             UpdateDevice(dev['id'], 1, currentposition, 2, 0)
 
-                    if dev_type == 'thermostat' or dev_type == 'heater':
+                    if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                         if searchCode('switch', ResultValue):
                             currentstatus = StatusDeviceTuya('switch')
                             if bool(currentstatus) == False:
@@ -1277,6 +1277,8 @@ def DeviceType(category):
         result = 'thermostat'
     elif category in {'wsdcg'}:
         result = 'temperaturehumiditysensor'
+    elif category in {'rs'}:
+        result = 'heatpump'
     elif category in {'sp'}:
         result = 'doorbell'
     elif category in {'fs'}:
