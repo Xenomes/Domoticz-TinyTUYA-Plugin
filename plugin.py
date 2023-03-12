@@ -63,7 +63,6 @@ import sys
 import ast
 import json
 import colorsys
-import collections
 import time
 import re
 
@@ -1481,18 +1480,26 @@ def nextUnit(ID):
     return unit
 
 def searchCode(Item, Function):
-    flag = False
-    for Elem in Function:
-        if collections.Counter(Elem['code']) == collections.Counter(Item):
-            flag = True
+    flag = True
+    if searchCodeActualFunction(Item, Function) is None:
+         flag = False
     return flag
 
 def searchValue(Item, Function):
     flag = 0
-    for Elem in Function:
-        if collections.Counter(Elem['code']) == collections.Counter(Item):
-            flag = Elem['value']
+    ActualItem = searchCodeActualFunction(Item, Function)
+    if ActualItem:
+        for Elem in Function:
+            if str(ActualItem) == str(Elem['code']):
+                flag = Elem['value']
     return flag
+
+def searchCodeActualFunction(Item, Function):
+    for OneItem in Function:
+        if str(Item) in str(OneItem['code']):
+            return str(OneItem['code'])
+    # Domoticz.Debug("searchCodeActualFunction unable to find "+str(Item)+" in "+str(Function))
+    return None
 
 def createDevice(ID, Unit):
     if ID in Devices:
