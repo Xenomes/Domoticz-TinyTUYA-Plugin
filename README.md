@@ -68,3 +68,4 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.4.1 | Add Doorsensor, Motionsensor with light and moddifed the subscription has expired detection |
 | 1.4.2 | Add Tempsensor, Compatible with T&H standard and DP mode |
 | 1.4.3 | Add Heatpump |
+| 1.4.4 | Fix changed lights control |
