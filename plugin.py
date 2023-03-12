@@ -146,17 +146,17 @@ class BasePlugin:
 
         elif dev_type in ('dimmer'):
             if Command == 'Off':
-                SendCommandCloud(DeviceID, 'led_switch_' + str(Unit), False)
+                SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), False)
                 UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
             elif Command == 'On':
-                SendCommandCloud(DeviceID, 'led_switch_' + str(Unit), True)
+                SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), True)
                 UpdateDevice(DeviceID, Unit, 'On', 1, 0)
             elif Command == 'Set Level':
                 SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
                 UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
         elif dev_type in ('light') or ((dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1):
-            switch = 'led_switch' if searchCode('led_switch', FunctionProperties) else 'switch_led'
+            switch = 'switch_led' if searchCode('switch_led', FunctionProperties) else 'led_switch'
             if Command == 'Off':
                 SendCommandCloud(DeviceID, switch, False)
                 UpdateDevice(DeviceID, 1, 'Off', 0, 0)
@@ -452,28 +452,28 @@ def onHandleThread(startup):
 
                 if dev_type in ('light', 'fanlight', 'pirlight') and createDevice(dev['id'], 1):
                     # for localcontol: and deviceinfo['ip'] != None
-                    if (searchCode('led_switch', StatusProperties) or searchCode('switch_led', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
+                    if (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light RGBWW')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7, Used=1).Create()
-                    elif (searchCode('led_switch', StatusProperties) or searchCode('switch_led', StatusProperties)) and 'dc' == str(properties[dev['id']]['category']) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)):
+                    elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and 'dc' == str(properties[dev['id']]['category']) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)):
                         Domoticz.Log('Create device Light Stringlight')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7, Used=1).Create()
-                    elif (searchCode('led_switch', StatusProperties) or searchCode('switch_led', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
+                    elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light RGBW')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=1, Switchtype=7, Used=1).Create()
-                    elif (searchCode('led_switch', StatusProperties) or searchCode('switch_led', StatusProperties)) and not searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
+                    elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and not searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light RGB')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
-                    # elif (searchCode('led_switch', StatusProperties) or searchCode('switch_led', StatusProperties)) and searchCode('work_mode', StatusProperties) and searchCode('colour_data_v2', StatusProperties) and not searchCode('temp_value_v2', StatusProperties) and not searchCode('bright_value_v2', StatusProperties):
+                    # elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and searchCode('colour_data_v2', StatusProperties) and not searchCode('temp_value_v2', StatusProperties) and not searchCode('bright_value_v2', StatusProperties):
                     #     Domoticz.Log('Create device Light RGB')
                     #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
-                    elif (searchCode('led_switch', StatusProperties) or searchCode('switch_led', StatusProperties)) and searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
+                    elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light WWCW')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=8, Switchtype=7, Used=1).Create()
-                    elif (searchCode('led_switch', StatusProperties) or searchCode('switch_led', StatusProperties)) and not searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
+                    elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and not searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light Dimmer')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
-                    elif (searchCode('led_switch', StatusProperties) or searchCode('switch_led', StatusProperties)) and not searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (not searchCode('bright_value', StatusProperties) or not searchCode('bright_value_v2', StatusProperties)):
+                    elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and not searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (not searchCode('bright_value', StatusProperties) or not searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light On/Off')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
                     else:
@@ -481,10 +481,10 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Unknown Light Device)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
 
                 if dev_type == 'dimmer':
-                    if  createDevice(dev['id'], 1) and searchCode('led_switch_1', FunctionProperties) and not searchCode('led_switch_2', FunctionProperties):
+                    if  createDevice(dev['id'], 1) and searchCode('switch_led_1', FunctionProperties) and not searchCode('switch_led_2', FunctionProperties):
                         Domoticz.Log('Create device Dimmer')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
-                    if searchCode('led_switch_2', FunctionProperties):
+                    if searchCode('switch_led_2', FunctionProperties):
                         if createDevice(dev['id'], 1):
                             Domoticz.Unit(Name=dev['name'] + ' (Dimmer 1)', DeviceID=dev['id'], Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
                         if createDevice(dev['id'], 2):
@@ -755,9 +755,9 @@ def onHandleThread(startup):
             if bool(online) == False and Devices[dev['id']].TimedOut == 0:
                 UpdateDevice(dev['id'], 1, 'Off', 0, 1)
             elif bool(online) == True and Devices[dev['id']].TimedOut == 1:
-                UpdateDevice(dev['id'], 1, 'Off' if bool(StatusDeviceTuya('led_switch')) == False else 'On', 0, 0)
-            elif bool(online) == True and Devices[dev['id']].TimedOut == 1:
                 UpdateDevice(dev['id'], 1, 'Off' if bool(StatusDeviceTuya('switch_led')) == False else 'On', 0, 0)
+            elif bool(online) == True and Devices[dev['id']].TimedOut == 1:
+                UpdateDevice(dev['id'], 1, 'Off' if bool(StatusDeviceTuya('led_switch')) == False else 'On', 0, 0)
             elif bool(online) == True and Devices[dev['id']].TimedOut == 0:
                 try:
                     # status Domoticz
@@ -821,16 +821,16 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 13, str(currentvoltage), 0, 0)
 
                     if dev_type == 'dimmer':
-                        if searchCode('led_switch_1', StatusProperties):
-                            currentstatus = StatusDeviceTuya('led_switch_1')
+                        if searchCode('switch_led_1', StatusProperties):
+                            currentstatus = StatusDeviceTuya('switch_led_1')
                             currentdim = brightness_to_pct(StatusProperties, 'bright_value_1', int(StatusDeviceTuya('bright_value_1')))
                             if bool(currentstatus) == False:
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 1, currentdim, 1, 0)
 
-                        if searchCode('led_switch_2', StatusProperties):
-                            currentstatus = StatusDeviceTuya('led_switch_2')
+                        if searchCode('switch_led_2', StatusProperties):
+                            currentstatus = StatusDeviceTuya('switch_led_2')
                             currentdim = brightness_to_pct(StatusProperties, 'bright_value_2', int(StatusDeviceTuya('bright_value_2')))
                             if bool(currentstatus) == False:
                                 UpdateDevice(dev['id'], 2, 'Off', 0, 0)
@@ -839,10 +839,10 @@ def onHandleThread(startup):
 
                     if dev_type in ('light','fanlight'):
                         # workmode = StatusDeviceTuya('work_mode')
-                        if searchCode('led_switch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('led_switch')
-                        else:
+                        if searchCode('switch_led', StatusProperties):
                             currentstatus = StatusDeviceTuya('switch_led')
+                        else:
+                            currentstatus = StatusDeviceTuya('led_switch')
                         BrightnessControl = False
                         if searchCode('bright_value', StatusProperties):
                             BrightnessControl = True
