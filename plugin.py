@@ -839,7 +839,7 @@ def onHandleThread(startup):
 
                     if dev_type in ('light','fanlight'):
                         # workmode = StatusDeviceTuya('work_mode')
-                        if searchCode('led_switch', FunctionProperties):
+                        if searchCode('led_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('led_switch')
                         else:
                             currentstatus = StatusDeviceTuya('switch_led')
