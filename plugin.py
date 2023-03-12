@@ -1480,10 +1480,9 @@ def nextUnit(ID):
     return unit
 
 def searchCode(Item, Function):
-    flag = True
     if searchCodeActualFunction(Item, Function) is None:
-         flag = False
-    return flag
+        return False
+    return True
 
 def searchValue(Item, Function):
     flag = 0
