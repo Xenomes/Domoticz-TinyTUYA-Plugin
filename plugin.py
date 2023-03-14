@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.4.4</h2><br/>
+        <h2>TinyTUYA Plugin version 1.4.5</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -26,6 +26,8 @@
         <li>A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID. (This id is used to detect all the other devices) </li>
         <li>The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.</li>
         </ul>
+        Is your subscription to cloud development plan expired, you can extend it <a href="https://iot.tuya.com/cloud/products/detail?abilityId=1442730014117204014">HERE</a><br/>
+
     </description>
     <params>
         <param field="Mode1" label="Region" width="150px" required="true" default="EU">
@@ -293,6 +295,14 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'pir_sensitivity', mode[int(Level / 10)])
                 UpdateDevice(DeviceID, 4, Level, 1, 0)
 
+        if dev_type == 'garagedooropener':
+            if Command == 'Off' and Unit == 1:
+                SendCommandCloud(DeviceID, 'switch_1', False)
+                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+            elif Command == 'On' and Unit == 1:
+                SendCommandCloud(DeviceID, 'switch_1', True)
+                UpdateDevice(DeviceID, 2, 'On', 1, 0)
+
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
 
@@ -407,7 +417,8 @@ def onHandleThread(startup):
                         properties[dev['id']]['status'] = []
 
             Domoticz.Log('Scanning for tuya devices on network...')
-            scan = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
+            if testData == False:
+                scan = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
 
         # Initialize/Update devices from TUYA API
         for dev in devs:
@@ -664,7 +675,10 @@ def onHandleThread(startup):
                 if dev_type == 'gateway':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device Gateway')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
+                        if searchCode('master_state', ResultValue):
+                            Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
+                        else:
+                            Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
 
                 if dev_type == ('co2sensor'):
                     if createDevice(dev['id'], 1) and searchCode('temp_current', ResultValue):
@@ -717,19 +731,29 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device Smokedetector')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=5, Used=1).Create()
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=2, Type=243, Subtype=19, Used=1).Create()
-                    # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
-                    #     for item in StatusProperties:
-                    #         if item['code'] == 'PIR':
-                    #             the_values = json.loads(item['values'])
-                    #             mode = ['off']
-                    #             mode.extend(the_values.get('range'))
-                    #             options = {}
-                    #             options['LevelOffHidden'] = 'true'
-                    #             options['LevelActions'] = ''
-                    #             options['LevelNames'] = '|'.join(mode)
-                    #             options['SelectorStyle'] = '0'
-                    #             Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=2, Type=243, Subtype=19, Used=1).Create()
+
+                if dev_type == 'garagedooropener':
+                    if createDevice(dev['id'], 1) and searchCode('switch_1', FunctionProperties):
+                        Domoticz.Log('Create device Garage door opener')
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('doorcontact_state', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (Contact state)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('door_control_1', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=3, Type=243, Subtype=19, Used=1).Create()
+
+                # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
+                #     for item in StatusProperties:
+                #         if item['code'] == 'PIR':
+                #             the_values = json.loads(item['values'])
+                #             mode = ['off']
+                #             mode.extend(the_values.get('range'))
+                #             options = {}
+                #             options['LevelOffHidden'] = 'true'
+                #             options['LevelActions'] = ''
+                #             options['LevelNames'] = '|'.join(mode)
+                #             options['SelectorStyle'] = '0'
+                #             Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                 # if dev_type == 'climate':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
@@ -1131,6 +1155,8 @@ def onHandleThread(startup):
                     if dev_type == 'gateway':
                         if searchCode('master_state', ResultValue):
                             UpdateDevice(dev['id'], 1, StatusDeviceTuya('master_state'), 0, 0)
+                        else:
+                            UpdateDevice(dev['id'], 1, 'No data from device', 0, 0)
 
                     if dev_type == ('co2sensor'):
                         if searchCode('temp_current', ResultValue):
@@ -1238,6 +1264,22 @@ def onHandleThread(startup):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
                                     Devices[dev['id']].Units[unit].Update()
 
+                    if dev_type == 'garagedooropener':
+                        if searchCode('switch_1', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('switch_pir')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        if searchCode('doorcontact_state', ResultValue):
+                            currentstatus = StatusDeviceTuya('doorcontact_state')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 2, 'On', 1, 0)
+                        if searchCode('door_control_1', ResultValue):
+                            UpdateDevice(dev['id'], 3, StatusDeviceTuya('door_control_1'), 0, 0)
+
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -1297,7 +1339,7 @@ def DeviceType(category):
         result = 'smartir'
     elif category in {'zndb'}:
         result = 'powermeter'
-    elif category in {'wg2'}:
+    elif category in {'wg2', 'wfcon'}:
         result = 'gateway'
     elif category in {'co2bj'}:
         result = 'co2sensor'
@@ -1307,6 +1349,8 @@ def DeviceType(category):
         result = 'pirlight'
     elif category in {'qt'}:
         result = 'smokedetector'
+    elif category in {'ckmkzq'}:
+        result = 'garagedooropener'
 
     # elif 'infrared_' in category: # keep it last
     #     result = 'infrared_id'
@@ -1426,6 +1470,8 @@ def get_scale(device_functions, actual_function_name, raw):
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = the_values.get('scale', 0)
+                # if the_values.get('unit', 0) == 'mA':
+                #     scale = 3
     if scale == 1:
         result = float(raw / 10)
     elif scale == 2:
