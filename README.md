@@ -69,4 +69,4 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.4.2 | Add Tempsensor, Compatible with T&H standard and DP mode |
 | 1.4.3 | Add Heatpump |
 | 1.4.4 | Fix changed lights control |
-| 1.4.5 | Add Zigbee Gateway (no reporting from device), Garage door opener, Fix changed temp control|
+| 1.4.5 | Add Zigbee Gateway (no reporting from device), Garage door opener, Fix changed temp control |
