@@ -26,7 +26,7 @@
         <li>A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID. (This id is used to detect all the other devices) </li>
         <li>The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.</li>
         </ul>
-        Is your subscription to cloud development plan expired, you can extend it <a href="https://iot.tuya.com/cloud/products/detail?abilityId=1442730014117204014">HERE</a><br/>
+        Is your subscription to cloud development plan expired, you can extend it <a href="https://iot.tuya.com/cloud/products/apply-extension">HERE</a><br/>
 
     </description>
     <params>
@@ -213,6 +213,7 @@ class BasePlugin:
                 UpdateDevice(DeviceID, 1, Level, 1, 0)
 
         elif dev_type == 'thermostat' or dev_type == 'heater':
+            switch = 'temp_set' if searchCode('temp_set', FunctionProperties) else 'set_temp'
             if Command == 'Off' and Unit == 1:
                 SendCommandCloud(DeviceID, 'switch', False)
                 UpdateDevice(DeviceID, 1, 'Off', 0, 0)
@@ -220,7 +221,7 @@ class BasePlugin:
                 SendCommandCloud(DeviceID, 'switch', True)
                 UpdateDevice(DeviceID, 1, 'On', 1, 0)
             elif Command == 'Set Level' and Unit  == 3:
-                SendCommandCloud(DeviceID, 'temp_set', Level)
+                SendCommandCloud(DeviceID, switch, Level)
                 UpdateDevice(DeviceID, 3, Level, 1, 0)
             elif Command == 'Set Level' and Unit == 4:
                 mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
@@ -538,7 +539,7 @@ def onHandleThread(startup):
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         else:
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=0).Create()
-                    if searchCode('set_temp', FunctionProperties):
+                    if searchCode('set_temp', FunctionProperties) or searchCode('temp_set', FunctionProperties):
                         if createDevice(dev['id'], 2):
                             Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev['id'], 3):
@@ -1266,7 +1267,7 @@ def onHandleThread(startup):
 
                     if dev_type == 'garagedooropener':
                         if searchCode('switch_1', FunctionProperties):
-                            currentstatus = StatusDeviceTuya('switch_pir')
+                            currentstatus = StatusDeviceTuya('switch_1')
                             if bool(currentstatus) == False:
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif bool(currentstatus) == True:
