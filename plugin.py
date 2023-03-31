@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.4.5</h2><br/>
+        <h2>TinyTUYA Plugin version 1.4.6</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -24,9 +24,10 @@
         <ul style="list-style-type:square">
         <li>Enter your Region, Access ID/Client ID, Access Secret/Client Secret and a Search deviceID from your Tuya IOT Account, keep the setting 'Data Timeout' disabled.</li>
         <li>A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID. (This id is used to detect all the other devices) </li>
-        <li>The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.</li>
+        <li>The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.<br/>
+        <u>If your Tinutuya version is higher 1.10.3 than this value is no longer needed.</u></li>
         </ul>
-        Is your subscription to cloud development plan expired, you can extend it <a href="https://iot.tuya.com/cloud/products/apply-extension">HERE</a><br/>
+        Is your subscription to cloud development plan expired, you can extend it <a href="https://iot.tuya.com/cloud/products/apply-extension"> HERE</a><br/>
 
     </description>
     <params>
@@ -75,6 +76,7 @@ class BasePlugin:
 
     def onStart(self):
         Domoticz.Log('TinyTUYA plugin started')
+        Domoticz.Log("'TinyTuyaVersion':'" + tinytuya.version + "'")
         if Parameters['Mode6'] != '0':
             Domoticz.Debugging(int(Parameters['Mode6']))
             # Domoticz.Log('Debugger started, use 'telnet 0.0.0.0 4444' to connect')
@@ -392,7 +394,10 @@ def onHandleThread(startup):
                 # Domoticz.Debug(properties[dev['id']])
 
             else:
-                tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
+                if version(tinytuya.version) >= version('1.11.0'):
+                    tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'])
+                else:
+                    tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
                 devs = tuya.getdevices()
                 token = tuya.token
                 # Check credentials
@@ -1586,3 +1591,6 @@ def setConfigItem(Key=None, Value=None):
     except Exception as inst:
         Domoticz.Error('Domoticz.Configuration operation failed: ' + str(inst))
     return Config
+
+def version(v):
+    return tuple(map(int, (v.split("."))))

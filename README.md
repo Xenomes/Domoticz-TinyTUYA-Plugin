@@ -28,6 +28,7 @@ To update:
 * Enter your apiRegion, apiKey, apiSecret and Search deviceID (This id is used to detect all the other devices), keep the setting 'Data Timeout' disabled.
 * A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID.
 * The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.
+  If your Tinutuya version is higher than 1.10.3 this value is no longer needed.
 
 ## Usage
 
@@ -70,3 +71,4 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.4.3 | Add Heatpump |
 | 1.4.4 | Fix changed lights control |
 | 1.4.5 | Add Zigbee Gateway (no reporting from device), Garage door opener, Fix changed temp control |
+| 1.4.6 | Update for Tinytuya 1.11.0 and higher no need for search ID |
