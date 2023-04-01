@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.4.6</h2><br/>
+        <h2>TinyTUYA Plugin version 1.4.7</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -101,6 +101,7 @@ class BasePlugin:
             # Delete device is not reconised
             if Devices[dev['id']].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
                 Devices[dev['id']].Units[1].Delete()
+        time.sleep(2)
 
     def onConnect(self, Connection, Status, Description):
         Domoticz.Log('onConnect called')
@@ -522,7 +523,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 4)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('switch_5', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 5)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    if createDevice(dev['id'], 11) and searchCode('cur_current', ResultValue):
+                    if createDevice(dev['id'], 11) and searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'A':
                         Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
                     if createDevice(dev['id'], 12) and searchCode('cur_power', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (W)', DeviceID=dev['id'], Unit=12, Type=248, Subtype=1, Used=1).Create()
@@ -531,6 +532,10 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 14) and searchCode('cur_power', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Used=1).Create()
                         #UpdateDevice(dev['id'], 14, '0;0', 0, 0, 1)
+                    if createDevice(dev['id'], 15) and searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'mA':
+                        options = {}
+                        options['Custom'] = '1;mA'
+                        Domoticz.Unit(Name=dev['name'] + ' (mA)', DeviceID=dev['id'], Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
 
                 if dev_type == 'cover' and createDevice(dev['id'], 1):
                     Domoticz.Log('Create device Cover')
@@ -840,7 +845,10 @@ def onHandleThread(startup):
                             currentpower = int(StatusDeviceTuya('cur_power'))
                             currentvoltage = int(StatusDeviceTuya('cur_voltage'))
 
-                            UpdateDevice(dev['id'], 11, str(currentcurrent), 0, 0)
+                            if get_unit('cur_current', StatusProperties) == 'mA':
+                                UpdateDevice(dev['id'], 15, str(currentcurrent), 0, 0)
+                            else:
+                                UpdateDevice(dev['id'], 11, str(currentcurrent), 0, 0)
 
                             UpdateDevice(dev['id'], 12, str(currentpower), 0, 0)
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
@@ -1457,7 +1465,6 @@ def set_scale(device_functions, actual_function_name, raw):
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = int(the_values.get('scale', 0))
-                # step = int(the_values.get('step', 0))
     if scale == 1:
         result = int(raw * 10)
     elif scale == 2:
@@ -1476,16 +1483,23 @@ def get_scale(device_functions, actual_function_name, raw):
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = the_values.get('scale', 0)
-                # if the_values.get('unit', 0) == 'mA':
-                #     scale = 3
+                # unit = the_values.get('unit', 0)
     if scale == 1:
         result = float(raw / 10)
     elif scale == 2:
         result = float(raw / 100)
-    elif scale == 3:
+    elif scale == 3: #or unit == 'mA':
         result = float(raw / 1000)
     else:
         result = int(raw)
+    return result
+
+def get_unit(actual_function_name, device_functions):
+    if device_functions and actual_function_name:
+        for item in device_functions:
+            if item['code'] == actual_function_name:
+                the_values = json.loads(item['values'])
+                result = the_values.get('unit', 0)
     return result
 
 def rgb_to_hsv(r, g, b):
@@ -1547,9 +1561,9 @@ def searchValue(Item, Function):
 
 def searchCodeActualFunction(Item, Function):
     for OneItem in Function:
-        if str(Item) in str(OneItem['code']):
+        if str(Item) == str(OneItem['code']):
             return str(OneItem['code'])
-    # Domoticz.Debug("searchCodeActualFunction unable to find "+str(Item)+" in "+str(Function))
+    # Domoticz.Debug("searchCodeActualFunction unable to find " + str(Item) + " in " + str(Function))
     return None
 
 def createDevice(ID, Unit):
