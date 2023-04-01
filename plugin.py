@@ -399,7 +399,11 @@ def onHandleThread(startup):
                     tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'])
                 else:
                     tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
-                devs = tuya.getdevices()
+                devs = []
+                while len(devs) == 0:
+                    devs = tuya.getdevices()
+                    Domoticz.Log('No device data returnd for Tuya. Trying again!')
+                    time.sleep(10)
                 token = tuya.token
                 # Check credentials
                 if 'sign invalid' in str(devs) or token == None:
@@ -1561,6 +1565,7 @@ def searchValue(Item, Function):
 
 def searchCodeActualFunction(Item, Function):
     for OneItem in Function:
+        Domoticz.Debug(str(OneItem['code']))
         if str(Item) == str(OneItem['code']):
             return str(OneItem['code'])
     # Domoticz.Debug("searchCodeActualFunction unable to find " + str(Item) + " in " + str(Function))

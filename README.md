@@ -11,14 +11,14 @@ Python version 3.8 or higher required & Domoticz version 2022.2 or greater.
 
 To install:
 * Go in your Domoticz directory using a command line and open the plugins directory.
-* The plugin required Python library tinytuya ```sudo pip3 install tinytuya```
+* The plugin required Python library tinytuya ```sudo pip3 install tinytuya requests charset-normalizer --upgrade```
 * Run: ```git clone https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git```
 * Restart Domoticz.
 
 ## Updating
 
 To update:
-* Upgrade the tinytuya library ```sudo pip3 install tinytuya --upgrade```
+* Upgrade the tinytuya library ```sudo pip3 install tinytuya requests charset-normalizer --upgrade```
 * Go in your Domoticz directory using a command line and open the plugins directory then the Domoticz-TinyTUYA-Plugin directory.
 * Run: ```git pull```
 * Restart Domoticz.
@@ -72,3 +72,4 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.4.4 | Fix changed lights control |
 | 1.4.5 | Add Zigbee Gateway (no reporting from device), Garage door opener, Fix changed temp control |
 | 1.4.6 | Update for Tinytuya 1.11.0 and higher no need for search ID |
+| 1.4.7 | Sub device added for Powermesument if mA is detectect, small bug fix and update install info to work with Docker|
