@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.4.7</h2><br/>
+        <h2>TinyTUYA Plugin version 1.4.8</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -242,6 +242,12 @@ class BasePlugin:
             elif Command == 'On' and Unit == 6:
                 SendCommandCloud(DeviceID, 'child_lock', True)
                 UpdateDevice(DeviceID, 6, 'On', 1, 0)
+            if Command == 'Off' and Unit == 7:
+                SendCommandCloud(DeviceID, 'eco', False)
+                UpdateDevice(DeviceID, 7, 'Off', 0, 0)
+            elif Command == 'On' and Unit == 7:
+                SendCommandCloud(DeviceID, 'eco', True)
+                UpdateDevice(DeviceID, 7, 'On', 1, 0)
 
         if dev_type == 'fan':
             if Command == 'Off':
@@ -401,12 +407,12 @@ def onHandleThread(startup):
                     tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
                 devs = []
                 i = 0
-                while len(devs) == 0 or i > 5:
+                while len(devs) == 0 or i > 4:
                     devs = tuya.getdevices()
                     Domoticz.Log('No device data returned for Tuya. Trying again!')
-                    i = i + 1
+                    i += 1
                     time.sleep(10)
-                if i > 5:
+                if i > 4:
                     Domoticz.Log('No device data returned for Tuya. Check if subscription cloud development plan has expired!')
                 token = tuya.token
                 # Check credentials
@@ -584,6 +590,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Window check)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 6) and searchCode('child_lock', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 7) and searchCode('child_lock', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Eco)', DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
                 if dev_type in ('temperaturehumiditysensor', 'smartir'):
                     Domoticz.Log('Create device T&H Sensor')
@@ -945,8 +953,13 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                        if searchCode('temp_current', ResultValue):
-                            currenttemp = StatusDeviceTuya('temp_current')
+                        if searchCode('temp_current', ResultValue) or searchCode('upper_temp', ResultValue):
+                            if searchCode('temp_current', ResultValue):
+                                currenttemp = StatusDeviceTuya('temp_current')
+                            elif searchCode('upper_temp', ResultValue):
+                                currenttemp = StatusDeviceTuya('upper_temp')
+                            else:
+                                currenttemp = 0
                             if str(currenttemp) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, currenttemp, 0, 0)
                         if searchCode('temp_set', ResultValue):
@@ -974,6 +987,12 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 6, 'Off', 0, 0)
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 6, 'On', 1, 0)
+                        if searchCode('eco', ResultValue):
+                            currentstatus = StatusDeviceTuya('eco')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 7, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 7, 'On', 1, 0)
                         if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
                             if searchCode('battery_state', ResultValue):
                                 if StatusDeviceTuya('battery_state') == 'high':
@@ -1443,7 +1462,7 @@ def pct_to_brightness(device_functions, actual_function_name, pct):
                 the_values = json.loads(item['values'])
                 min_value = int(the_values.get('min', 0))
                 max_value = int(the_values.get('max', 1000))
-                Domoticz.Debug(round(min_value + (pct*(max_value - min_value)) / 100))
+                # Domoticz.Debug(round(min_value + (pct*(max_value - min_value)) / 100))
                 return round(min_value + (pct*(max_value - min_value)) / 100)
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round(22.68 + (int(pct) * ((255 - 22.68) / 100)))
@@ -1477,6 +1496,7 @@ def set_scale(device_functions, actual_function_name, raw):
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = int(the_values.get('scale', 0))
+                step = the_values.get('step', 0)
     if scale == 1:
         result = int(raw * 10)
     elif scale == 2:
@@ -1485,6 +1505,10 @@ def set_scale(device_functions, actual_function_name, raw):
         result = int(raw * 1000)
     else:
         result = int(raw)
+
+    if step == 5:
+        result = int(raw * 2)
+
     return result
 
 def get_scale(device_functions, actual_function_name, raw):
@@ -1495,15 +1519,19 @@ def get_scale(device_functions, actual_function_name, raw):
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = the_values.get('scale', 0)
-                # unit = the_values.get('unit', 0)
+                step = the_values.get('step', 0)
     if scale == 1:
         result = float(raw / 10)
     elif scale == 2:
         result = float(raw / 100)
-    elif scale == 3: #or unit == 'mA':
+    elif scale == 3:
         result = float(raw / 1000)
     else:
         result = int(raw)
+
+    if step == 5:
+        result = float(raw / 2)
+
     return result
 
 def get_unit(actual_function_name, device_functions):
@@ -1573,7 +1601,6 @@ def searchValue(Item, Function):
 
 def searchCodeActualFunction(Item, Function):
     for OneItem in Function:
-        Domoticz.Debug(str(OneItem['code']))
         if str(Item) == str(OneItem['code']):
             return str(OneItem['code'])
     # Domoticz.Debug("searchCodeActualFunction unable to find " + str(Item) + " in " + str(Function))
