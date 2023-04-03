@@ -400,10 +400,14 @@ def onHandleThread(startup):
                 else:
                     tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
                 devs = []
-                while len(devs) == 0:
+                i = 0
+                while len(devs) == 0 or i > 5:
                     devs = tuya.getdevices()
-                    Domoticz.Log('No device data returnd for Tuya. Trying again!')
+                    Domoticz.Log('No device data returned for Tuya. Trying again!')
+                    i = i + 1
                     time.sleep(10)
+                if i > 5:
+                    Domoticz.Log('No device data returned for Tuya. Check if subscription cloud development plan has expired!')
                 token = tuya.token
                 # Check credentials
                 if 'sign invalid' in str(devs) or token == None:
@@ -755,7 +759,7 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 2) and searchCode('doorcontact_state', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (Contact state)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('door_control_1', ResultValue):
-                        Domoticz.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=3, Type=243, Subtype=19, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                 # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
                 #     for item in StatusProperties:
@@ -1296,7 +1300,11 @@ def onHandleThread(startup):
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 2, 'On', 1, 0)
                         if searchCode('door_control_1', ResultValue):
-                            UpdateDevice(dev['id'], 3, StatusDeviceTuya('door_control_1'), 0, 0)
+                            currentstatus = StatusDeviceTuya('door_control_1')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 3, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 3, 'On', 1, 0)
 
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))

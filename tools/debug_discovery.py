@@ -5,6 +5,7 @@ import tinytuya
 import json
 import os
 import sys
+import time
 
 # TUYA ACCOUNT - Set up a Tuya Account (see PDF Instructions):
 # https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
@@ -39,7 +40,12 @@ try:
                 f = open("dump.json", "w")
 
         # Display list of devices
-        devices = c.getdevices()
+        devices = []
+        while len(devices) == 0:
+                devices = c.getdevices()
+                print('No device data returnd for Tuya. Trying again!')
+                time.sleep(10)
+
         for i in range(len(devices)):
                 devices[i - 1]['key'] = 'Deleted'
 
