@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.4.8</h2><br/>
+        <h2>TinyTUYA Plugin version 1.4.p</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -857,9 +857,9 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 5, 'On', 1, 0)
 
                         if searchCode('cur_current', ResultValue):
-                            currentcurrent = int(StatusDeviceTuya('cur_current'))
-                            currentpower = int(StatusDeviceTuya('cur_power'))
-                            currentvoltage = int(StatusDeviceTuya('cur_voltage'))
+                            currentcurrent = StatusDeviceTuya('cur_current')
+                            currentpower = StatusDeviceTuya('cur_power')
+                            currentvoltage = StatusDeviceTuya('cur_voltage')
 
                             if get_unit('cur_current', StatusProperties) == 'mA':
                                 UpdateDevice(dev['id'], 15, str(currentcurrent), 0, 0)
@@ -1141,10 +1141,10 @@ def onHandleThread(startup):
 
                     if dev_type == 'powermeter':
                         if searchCode('Current', ResultValue):
-                            currentcurrent = int(StatusDeviceTuya('Current'))
-                            currentpower = int(StatusDeviceTuya('ActivePower'))
-                            currentFrequency = int(StatusDeviceTuya('Frequency'))
-                            currentTemperature = int(StatusDeviceTuya('Temperature'))
+                            currentcurrent = StatusDeviceTuya('Current')
+                            currentpower = StatusDeviceTuya('ActivePower')
+                            currentFrequency = StatusDeviceTuya('Frequency')
+                            currentTemperature = StatusDeviceTuya('Temperature')
 
                             UpdateDevice(dev['id'], 2, str(currentFrequency), 0, 0)
                             UpdateDevice(dev['id'], 3, str(currentTemperature), 0, 0)
@@ -1154,9 +1154,9 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 5, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
 
                         if searchCode('CurrentA', ResultValue):
-                            currentcurrentA = int(StatusDeviceTuya('CurrentA'))
-                            currentpowerA = int(StatusDeviceTuya('ActivePowerA'))
-                            currentvoltageA = int(StatusDeviceTuya('VoltageA'))
+                            currentcurrentA = StatusDeviceTuya('CurrentA')
+                            currentpowerA = StatusDeviceTuya('ActivePowerA')
+                            currentvoltageA = StatusDeviceTuya('VoltageA')
 
                             lastvalue3PA = Devices[dev['id']].Units[1].sValue if len(Devices[dev['id']].Units[1].sValue) > 0 else '0;0;0'
                             UpdateDevice(dev['id'], 1, str(currentcurrentA) + ';' + str(float(lastvalue3PA.split(';')[1])) + ';' + str(float(lastvalue3PA.split(';')[2])) , 0, 0, 1)
@@ -1167,9 +1167,9 @@ def onHandleThread(startup):
 
                             UpdateDevice(dev['id'], 11, str(currentvoltageA), 0, 0)
                         if searchCode('CurrentB', ResultValue):
-                            currentcurrentB = int(StatusDeviceTuya('CurrentB'))
-                            currentpowerB = int(StatusDeviceTuya('ActivePowerB'))
-                            currentvoltageB = int(StatusDeviceTuya('VoltageB'))
+                            currentcurrentB = StatusDeviceTuya('CurrentB')
+                            currentpowerB = StatusDeviceTuya('ActivePowerB')
+                            currentvoltageB = StatusDeviceTuya('VoltageB')
 
                             lastvalue3PB = Devices[dev['id']].Units[1].sValue if len(Devices[dev['id']].Units[1].sValue) > 0 else '0;0;0'
                             UpdateDevice(dev['id'], 1, str(float(lastvalue3PB.split(';')[0])) + ';' + str(currentcurrentB) + ';' + str(float(lastvalue3PB.split(';')[2])) , 0, 0, 1)
@@ -1180,9 +1180,9 @@ def onHandleThread(startup):
 
                             UpdateDevice(dev['id'], 21, str(currentvoltageB), 0, 0)
                         if searchCode('CurrentC', ResultValue):
-                            currentcurrentC = int(StatusDeviceTuya('CurrentC'))
-                            currentpowerC = int(StatusDeviceTuya('ActivePowerC'))
-                            currentvoltageC = int(StatusDeviceTuya('VoltageC'))
+                            currentcurrentC = StatusDeviceTuya('CurrentC')
+                            currentpowerC = StatusDeviceTuya('ActivePowerC')
+                            currentvoltageC = StatusDeviceTuya('VoltageC')
 
                             lastvalue3PC = Devices[dev['id']].Units[1].sValue if len(Devices[dev['id']].Units[1].sValue) > 0 else '0;0;0'
                             UpdateDevice(dev['id'], 1, str(float(lastvalue3PC.split(';')[0])) + ';' + str(float(lastvalue3PC.split(';')[1])) + ';' + str(currentcurrentC) , 0, 0, 1)
@@ -1520,7 +1520,16 @@ def get_scale(device_functions, actual_function_name, raw):
                 the_values = json.loads(item['values'])
                 scale = the_values.get('scale', 0)
                 step = the_values.get('step', 0)
-    if scale == 1:
+                unit = the_values.get('unit', 0)
+                max = the_values.get('max', 0)
+    if scale == 0:
+        if unit == 'V' and len(str(max)) >= 4:
+            result = float(raw / 10)
+        elif unit == 'W' and len(str(max)) >= 5:
+            result = float(raw / 10)
+        else:
+            result = int(raw)
+    elif scale == 1:
         result = float(raw / 10)
     elif scale == 2:
         result = float(raw / 100)
