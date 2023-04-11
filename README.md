@@ -77,3 +77,6 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.4.7 | Sub device added for Powermesument if mA is detectect, small bug fix and update install info to work with Docker |
 | 1.4.8 | Added a new config for Thermostats and bug fix restart of the plugin see 'Updating' |
 | 1.4.9 | Added a new configuration for power reading |
+| 1.5.0 | Added feeder |
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/xenomes)

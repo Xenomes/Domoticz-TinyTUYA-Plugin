@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.4.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.4.p</h2><br/>
+        <h2>TinyTUYA Plugin version 1.5.0</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -311,7 +311,19 @@ class BasePlugin:
                 UpdateDevice(DeviceID, 1, 'Off', 0, 0)
             elif Command == 'On' and Unit == 1:
                 SendCommandCloud(DeviceID, 'switch_1', True)
-                UpdateDevice(DeviceID, 2, 'On', 1, 0)
+                UpdateDevice(DeviceID, 1, 'On', 1, 0)
+
+        if dev_type == 'feeder':
+            if Command == 'Off' and Unit == 5:
+                SendCommandCloud(DeviceID, 'light', False)
+                UpdateDevice(DeviceID, 5, 'Off', 0, 0)
+            elif Command == 'On' and Unit == 5:
+                SendCommandCloud(DeviceID, 'light', True)
+                UpdateDevice(DeviceID, 5, 'On', 1, 0)
+            elif Command == 'Set Level' and Unit == 1:
+                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                SendCommandCloud(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
+                UpdateDevice(DeviceID, 1, Level, 1, 0)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
@@ -769,6 +781,49 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 3) and searchCode('door_control_1', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
+                if dev_type == 'feeder':
+                    if createDevice(dev['id'], 1) and searchCode('manual_feed', FunctionProperties):
+                        Domoticz.Log('Create device Feeder')
+                        for item in FunctionProperties:
+                            if item['code'] == 'manual_feed':
+                                the_values = json.loads(item['values'])
+                                mode = ['0']
+                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    mode.extend([str(num)])
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '1'
+                                Domoticz.Unit(Name=dev['name'] + ' (Manual)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('feed_state', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'feed_state':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('feed_report', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'feed_report':
+                                the_values = json.loads(item['values'])
+                                mode = ['0']
+                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    mode.extend([str(num)])
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '1'
+                                Domoticz.Unit(Name=dev['name'] + ' (Report)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                    if createDevice(dev['id'], 5) and searchCode('light', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Light)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
+
                 # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
                 #     for item in StatusProperties:
                 #         if item['code'] == 'PIR':
@@ -797,7 +852,7 @@ def onHandleThread(startup):
                 # Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
-            if dev['id'] not in str(Devices):
+            if dev['id'] not in str(Devices) or len(Devices) == 0:
                 raise Exception('Device not found in Domoticz! Device is removed or Accept New Hardware not enabled?')
 
             #update devices in Domoticz
@@ -1325,6 +1380,43 @@ def onHandleThread(startup):
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 3, 'On', 1, 0)
 
+                    if dev_type == 'feeder':
+                        if searchCode('manual_feed', ResultValue):
+                            currentmode = StatusDeviceTuya('manual_feed')
+                            for item in FunctionProperties:
+                                if item['code'] == 'manual_feed':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['0']
+                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                        mode.extend([str(num)])
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[1].sValue):
+                                UpdateDevice(dev['id'], 1, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('feed_state', ResultValue):
+                            currentmode = StatusDeviceTuya('feed_state')
+                            for item in StatusProperties:
+                                if item['code'] == 'feed_state':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
+                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('feed_report', ResultValue):
+                            currentmode = StatusDeviceTuya('feed_report')
+                            for item in StatusProperties:
+                                if item['code'] == 'feed_report':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['0']
+                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                        mode.extend([str(num)])
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('light', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('light')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 5, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 5, 'On', 1, 0)
+
                 except Exception as err:
                     Domoticz.Log('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -1366,7 +1458,7 @@ def DeviceType(category):
         result = 'cover'
     elif category in {'qn'}:
         result = 'heater'
-    elif category in {'wk', 'wkf'}:
+    elif category in {'wk', 'wkf', 'mjj'}:
         result = 'thermostat'
     elif category in {'wsdcg'}:
         result = 'temperaturehumiditysensor'
@@ -1396,7 +1488,8 @@ def DeviceType(category):
         result = 'smokedetector'
     elif category in {'ckmkzq'}:
         result = 'garagedooropener'
-
+    elif category in {'cwwsq'}:
+        result = 'feeder'
     # elif 'infrared_' in category: # keep it last
     #     result = 'infrared_id'
     else:
