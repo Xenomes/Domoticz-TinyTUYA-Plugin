@@ -30,7 +30,6 @@ To update:
 * Enter your apiRegion, apiKey, apiSecret and Search deviceID (This id is used to detect all the other devices), keep the setting 'Data Timeout' disabled.
 * A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID.
 * The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.
-  If your Tinutuya version is higher than 1.10.3 this value is no longer needed.
 
 ## Usage
 
@@ -77,3 +76,4 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.4.7 | Sub device added for Powermesument if mA is detectect, small bug fix and update install info to work with Docker |
 | 1.4.8 | Added a new config for Thermostats and bug fix restart of the plugin see 'Updating' |
 | 1.4.9 | Added a new configuration for power reading |
+| 1.5.0 | Bug fix for tinytuya 1.12.3 |
