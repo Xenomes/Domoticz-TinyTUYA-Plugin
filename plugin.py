@@ -37,9 +37,9 @@
                 <option label="CN" value="cn"/>
             </options>
         </param>
-        <param field="Username" label="Access ID" width="300px" required="true" default=""/>
-        <param field="Password" label="Access Secret" width="300px" required="true" default="" password="true"/>
-        <param field="Mode2" label="Search DeviceID" width="300px" />
+        <param field="Username" label="Access ID" width="300px" required="true" default="" />
+        <param field="Password" label="Access Secret" width="300px" required="true" default="" password="true" />
+        <param field="Mode2" label="Search DeviceID" width="300px" required="true" />
         <param field="Mode6" label="Debug" width="150px">
             <options>
                 <option label="None" value="0"  default="true" />
