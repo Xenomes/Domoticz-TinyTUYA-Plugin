@@ -407,7 +407,7 @@ def onHandleThread(startup):
                     tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
                 devs = []
                 i = 0
-                while len(devs) == 0 or i > 4:
+                while len(devs) == 0 and i < 4:
                     devs = tuya.getdevices()
                     Domoticz.Log('No device data returned for Tuya. Trying again!')
                     i += 1
