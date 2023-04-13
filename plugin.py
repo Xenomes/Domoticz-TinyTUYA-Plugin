@@ -98,7 +98,7 @@ class BasePlugin:
         Domoticz.Log('onStop called')
         for dev in devs:
             # Delete device is not reconised
-            if Devices[dev['id']].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
+            if str(Devices[dev['id']].Units[1].sValue) == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
                 Devices[dev['id']].Units[1].Delete()
         time.sleep(2)
 
@@ -122,6 +122,10 @@ class BasePlugin:
         # Control device and update status in Domoticz
         dev_type = getConfigItem(DeviceID, 'category')
         scalemode = getConfigItem(DeviceID, 'scalemode')
+        if len(properties) == 0:
+            properties = {}
+            for dev in devs:
+                properties[dev['id']] = tuya.getproperties(dev['id'])['result']
         function = properties[DeviceID]['functions']
         if len(Color) != 0: Color = ast.literal_eval(Color)
 
