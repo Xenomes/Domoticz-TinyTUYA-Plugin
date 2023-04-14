@@ -12,24 +12,27 @@ Python version 3.8 or higher required & Domoticz version 2022.2 or greater.
 To install:
 * Go in your Domoticz directory using a command line and open the plugins directory.
 * ```cd ~/domoticz/plugins``` for most user or go to the Docker volume mount plugins directory.
-* The plugin required Python library tinytuya ```sudo pip3 install tinytuya -U``` ```sudo pip3 install requests==2.23.0 charset-normalizer==3.0.1```
+* The plugin required Python library tinytuya ```sudo pip3 install requests==2.23.0 charset-normalizer==3.0.1 tinytuya -U```
 * Run: ```git clone https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git```
 * Restart Domoticz.
 
 ## Updating
 
 To update:
-* Upgrade the tinytuya library ```sudo pip3 install tinytuya -U``` ```sudo pip3 install requests==2.23.0 charset-normalizer==3.0.1```
+* Upgrade the tinytuya library ```sudo pip3 install requests==2.23.0 charset-normalizer==3.0.1 tinytuya -U```
 * Go in your Domoticz directory using a command line and open the plugins directory then the Domoticz-TinyTUYA-Plugin directory.
 * ```cd ~/domoticz/plugins/Domoticz-TinyTUYA-Plugin``` for most user or go to the Docker volume mount plugins/Domoticz-TinyTUYA-Plugin directory.
 * Run: ```git pull```
 * Restart Domoticz.
 
+## Subscription expired
+Is your subscription to cloud development plan expired, you can extend it <a href="https://iot.tuya.com/cloud/products/apply-extension"> HERE</a><br/>
+
 ## Configuration
 
-* Enter your apiRegion, apiKey, apiSecret and Search deviceID (This id is used to detect all the other devices), keep the setting 'Data Timeout' disabled.
-* A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID.
-* The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.
+Enter your apiRegion, apiKey, apiSecret and Search deviceID (This id is used to detect all the other devices), keep the setting 'Data Timeout' disabled.
+A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID.
+The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.
 
 ## Usage
 
@@ -78,5 +81,6 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.4.9 | Added a new configuration for power reading |
 | 1.5.0 | Bug fix for tinytuya 1.12.3 |
 | 1.5.1 | Added feeder |
+| 1.5.2 | Changed the detection of a faulty login credentials or expired subscription |
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/xenomes)
