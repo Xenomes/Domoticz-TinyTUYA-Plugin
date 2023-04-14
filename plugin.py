@@ -125,10 +125,11 @@ class BasePlugin:
             # Control device and update status in Domoticz
             dev_type = getConfigItem(DeviceID, 'category')
             scalemode = getConfigItem(DeviceID, 'scalemode')
-            if len(properties) == 0:
-                properties = {}
-                for dev in devs:
-                    properties[dev['id']] = tuya.getproperties(dev['id'])['result']
+            # if len(properties) == 0:
+            properties = {}
+            for dev in devs:
+                properties[dev['id']] = tuya.getproperties(dev['id'])['result']
+
             function = properties[DeviceID]['functions']
             if len(Color) != 0: Color = ast.literal_eval(Color)
 
