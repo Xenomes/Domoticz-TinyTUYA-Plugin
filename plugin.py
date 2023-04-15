@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.5.3</h2><br/>
+        <h2>TinyTUYA Plugin version 1.5.4</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -99,7 +99,7 @@ class BasePlugin:
         if len(devs) != 0:
             for dev in devs:
                 # Delete device is not reconised
-                if str(Devices[dev['id']].Units[1].sValue) == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
+                if Devices[dev['id']].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
                     Devices[dev['id']].Units[1].Delete()
 
     def onConnect(self, Connection, Status, Description):
@@ -119,16 +119,16 @@ class BasePlugin:
         Domoticz.Debug('sValue: ' + str(dev.sValue) + ' Type ' + str(type(dev.sValue)))
         Domoticz.Debug('LastLevel: ' + str(dev.LastLevel))
 
-        if tuya.error is not None:
-            Domoticz.Error(tuya.error['Payload'])
+        if Error is not None:
+            Domoticz.Error(Error['Payload'])
         else:
             # Control device and update status in Domoticz
             dev_type = getConfigItem(DeviceID, 'category')
             scalemode = getConfigItem(DeviceID, 'scalemode')
             # if len(properties) == 0:
-            properties = {}
-            for dev in devs:
-                properties[dev['id']] = tuya.getproperties(dev['id'])['result']
+            #     properties = {}
+            #     for dev in devs:
+            #         properties[dev['id']] = tuya.getproperties(dev['id'])['result']
 
             function = properties[DeviceID]['functions']
             if len(Color) != 0: Color = ast.literal_eval(Color)
@@ -210,13 +210,22 @@ class BasePlugin:
 
             if dev_type == ('cover'):
                 if Command == 'Open':
-                    SendCommandCloud(DeviceID, 'mach_operate', 'FZ')
+                    if searchCode('mach_operate', function):
+                        SendCommandCloud(DeviceID, 'mach_operate', 'FZ')
+                    else:
+                        SendCommandCloud(DeviceID, 'control', 'open')
                     UpdateDevice(DeviceID, 1, 'Open', 0, 0)
                 elif Command == 'Close':
-                    SendCommandCloud(DeviceID, 'mach_operate', 'ZZ')
+                    if searchCode('mach_operate', function):
+                        SendCommandCloud(DeviceID, 'mach_operate', 'ZZ')
+                    else:
+                        SendCommandCloud(DeviceID, 'control', 'close')
                     UpdateDevice(DeviceID, 1, 'Close', 1, 0)
                 elif Command == 'Stop':
-                    SendCommandCloud(DeviceID, 'mach_operate', 'STOP')
+                    if searchCode('mach_operate', function):
+                        SendCommandCloud(DeviceID, 'mach_operate', 'STOP')
+                    else:
+                        SendCommandCloud(DeviceID, 'control', 'stop')
                     UpdateDevice(DeviceID, 1, 'Stop', 1, 0)
                 elif Command == 'Set Level':
                     SendCommandCloud(DeviceID, 'position', Level)
@@ -347,8 +356,8 @@ class BasePlugin:
             Domoticz.Debug("onHeartbeat called skipped")
             return
         Domoticz.Debug("onHeartbeat called last run: " + str(time.time() - last_update))
-        if tuya.error is not None:
-            Domoticz.Error(tuya.error['Payload'])
+        if Error is not None:
+            Domoticz.Error(Error['Payload'])
         else:
             onHandleThread(False)
 
@@ -397,7 +406,7 @@ def onHandleThread(startup):
             global ResultValue
             global FunctionProperties
             global StatusProperties
-            # global login
+            global Error
             global scan
             global last_update
             last_update = time.time()
@@ -406,6 +415,7 @@ def onHandleThread(startup):
                 with open(Parameters['HomeFolder'] + '/debug_devices.json') as dFile:
                     devs = json.load(dFile)
                 token = 'Fake'
+                Error = None
                 properties = {}
                 with open(Parameters['HomeFolder'] + '/debug_functions.json') as fFile:
                     for dev in devs:
@@ -429,8 +439,10 @@ def onHandleThread(startup):
                 tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
                 tuya.use_old_device_list = True
                 tuya.new_sign_algorithm = True
-                if tuya.error is not None:
-                    raise Exception(tuya.error['Payload'])
+                Error = tuya.error
+
+                if Error is not None:
+                    raise Exception(Error['Payload'])
                 devs = []
                 i = 0
                 while len(devs) == 0 and i < 4:
@@ -577,10 +589,12 @@ def onHandleThread(startup):
 
                 if dev_type == 'cover' and createDevice(dev['id'], 1):
                     Domoticz.Log('Create device Cover')
-                    Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
+                    if searchCode('position', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
+                    else:
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=14, Used=1).Create()
 
                 if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
-
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device Thermostat/heater/heatpump')
                         if searchCode('switch', FunctionProperties):
@@ -1006,13 +1020,30 @@ def onHandleThread(startup):
                         #         UpdateDevice(dev['id'], 1, colorupdate, 1, 0)
 
                     if dev_type == 'cover':
-                        currentposition = StatusDeviceTuya('position')
-                        if str(currentposition) == '0':
-                            UpdateDevice(dev['id'], 1, currentposition, 1, 0)
-                        if str(currentposition) == '100':
-                            UpdateDevice(dev['id'], 1, currentposition, 0, 0)
-                        if str(currentposition) != str(Devices[dev['id']].Units[1].sValue):
-                            UpdateDevice(dev['id'], 1, currentposition, 2, 0)
+                        if searchCode('position', StatusProperties):
+                            currentposition = StatusDeviceTuya('position')
+                            if str(currentposition) == '0':
+                                UpdateDevice(dev['id'], 1, currentposition, 1, 0)
+                            if str(currentposition) == '100':
+                                UpdateDevice(dev['id'], 1, currentposition, 0, 0)
+                            if str(currentposition) != str(Devices[dev['id']].Units[1].sValue):
+                                UpdateDevice(dev['id'], 1, currentposition, 2, 0)
+                        if searchCode('mach_operate', StatusProperties):
+                            currentstatus = StatusDeviceTuya('control')
+                            if currentstatus == 'close':
+                                UpdateDevice(dev['id'], 1, 'ZZ', 0, 0)
+                            elif currentstatus == 'open':
+                                UpdateDevice(dev['id'], 1, 'FZ', 1, 0)
+                            elif currentstatus == 'stop':
+                                UpdateDevice(dev['id'], 1, 'STOP', 1, 0)
+                        if searchCode('control', StatusProperties):
+                            currentstatus = StatusDeviceTuya('control')
+                            if currentstatus == 'close':
+                                UpdateDevice(dev['id'], 1, 'Open', 0, 0)
+                            elif currentstatus == 'open':
+                                UpdateDevice(dev['id'], 1, 'Close', 1, 0)
+                            elif currentstatus == 'stop':
+                                UpdateDevice(dev['id'], 1, 'Stop', 1, 0)
 
                     if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                         if searchCode('switch', ResultValue):
