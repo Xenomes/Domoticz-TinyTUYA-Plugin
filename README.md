@@ -82,5 +82,6 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.5.0 | Bug fix for tinytuya 1.12.3 |
 | 1.5.1 | Added feeder |
 | 1.5.2 | Changed the detection of a faulty login credentials or expired subscription |
+| 1.5.3 | Some optimize, cleanup, turn down chattiness |
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/xenomes)
