@@ -232,7 +232,12 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
 
             elif dev_type == 'thermostat' or dev_type == 'heater':
-                switch = 'temp_set' if searchCode('temp_set', function) else 'set_temp'
+                if searchCode('temp_set', function):
+                    switch = 'temp_set'
+                elif searchCode('set_temp', function):
+                    switch = 'set_temp'
+                elif searchCode('temperature_c', function):
+                    switch = 'temperature_c'
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch', False)
                     UpdateDevice(DeviceID, 1, 'Off', 0, 0)
@@ -601,7 +606,7 @@ def onHandleThread(startup):
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         else:
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=0).Create()
-                    if searchCode('set_temp', FunctionProperties) or searchCode('temp_set', FunctionProperties):
+                    if searchCode('set_temp', FunctionProperties) or searchCode('temp_set', FunctionProperties) or searchCode('temperature_c', FunctionProperties):
                         if createDevice(dev['id'], 2):
                             Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev['id'], 3):
@@ -1052,19 +1057,24 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                        if searchCode('temp_current', ResultValue) or searchCode('upper_temp', ResultValue):
+                        if searchCode('temp_current', ResultValue) or searchCode('upper_temp', ResultValue) or searchCode('c_temperature', ResultValue):
                             if searchCode('temp_current', ResultValue):
                                 currenttemp = StatusDeviceTuya('temp_current')
                             elif searchCode('upper_temp', ResultValue):
                                 currenttemp = StatusDeviceTuya('upper_temp')
+                            elif searchCode('c_temperature', ResultValue):
+                                currenttemp = StatusDeviceTuya('c_temperature')
                             else:
                                 currenttemp = 0
                             if str(currenttemp) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, currenttemp, 0, 0)
-                        if searchCode('temp_set', ResultValue):
-                            currenttemp_set = StatusDeviceTuya('temp_set')
+                        if searchCode('temp_set', ResultValue) or searchCode('temperature_c', ResultValue):
+                            if searchCode('temp_set', ResultValue):
+                                currenttemp_set = StatusDeviceTuya('temp_set')
+                            elif searchCode('temperature_c', ResultValue):
+                                currenttemp_set = StatusDeviceTuya('temperature_c')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, currenttemp_set, 0, 0)
+                                    UpdateDevice(dev['id'], 3, currenttemp_set, 0, 0)
                         if searchCode('mode', ResultValue):
                             currentmode = StatusDeviceTuya('mode')
                             for item in FunctionProperties:
