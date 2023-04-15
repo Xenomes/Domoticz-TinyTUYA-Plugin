@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.5.1</h2><br/>
+        <h2>TinyTUYA Plugin version 1.5.3</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -96,11 +96,11 @@ class BasePlugin:
 
     def onStop(self):
         Domoticz.Log('onStop called')
-        for dev in devs:
-            # Delete device is not reconised
-            if Devices[dev['id']].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
-                Devices[dev['id']].Units[1].Delete()
-        time.sleep(2)
+        if len(devs) != 0:
+            for dev in devs:
+                # Delete device is not reconised
+                if str(Devices[dev['id']].Units[1].sValue) == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
+                    Devices[dev['id']].Units[1].Delete()
 
     def onConnect(self, Connection, Status, Description):
         Domoticz.Log('onConnect called')
@@ -119,210 +119,218 @@ class BasePlugin:
         Domoticz.Debug('sValue: ' + str(dev.sValue) + ' Type ' + str(type(dev.sValue)))
         Domoticz.Debug('LastLevel: ' + str(dev.LastLevel))
 
-        # Control device and update status in Domoticz
-        dev_type = getConfigItem(DeviceID, 'category')
-        scalemode = getConfigItem(DeviceID, 'scalemode')
-        function = properties[DeviceID]['functions']
-        if len(Color) != 0: Color = ast.literal_eval(Color)
+        if tuya.error is not None:
+            Domoticz.Error(tuya.error['Payload'])
+        else:
+            # Control device and update status in Domoticz
+            dev_type = getConfigItem(DeviceID, 'category')
+            scalemode = getConfigItem(DeviceID, 'scalemode')
+            # if len(properties) == 0:
+            properties = {}
+            for dev in devs:
+                properties[dev['id']] = tuya.getproperties(dev['id'])['result']
 
-        if dev_type == 'switch':
-            if searchCode('switch', function):
+            function = properties[DeviceID]['functions']
+            if len(Color) != 0: Color = ast.literal_eval(Color)
+
+            if dev_type == 'switch':
+                if searchCode('switch', function):
+                    if Command == 'Off':
+                        SendCommandCloud(DeviceID, 'switch', False)
+                        UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+                    elif Command == 'On':
+                        SendCommandCloud(DeviceID, 'switch', True)
+                        UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+                    elif Command == 'Set Level':
+                        SendCommandCloud(DeviceID, 'switch', True)
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                if not searchCode('switch', function):
+                    if Command == 'Off':
+                        SendCommandCloud(DeviceID, 'switch_' + str(Unit), False)
+                        UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+                    elif Command == 'On':
+                        SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
+                        UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+                    elif Command == 'Set Level':
+                        SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+
+            elif dev_type in ('dimmer'):
+                if Command == 'Off':
+                    SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), False)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+                elif Command == 'On':
+                    SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), True)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+                elif Command == 'Set Level':
+                    SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+
+            elif dev_type in ('light') or ((dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1):
+                switch = 'led_switch' if searchCode('led_switch', function) else 'switch_led'
+                if Command == 'Off':
+                    SendCommandCloud(DeviceID, switch, False)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                elif Command == 'On':
+                    SendCommandCloud(DeviceID, switch, True)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
+                elif Command == 'Set Level':
+                    if scalemode == 'v2':
+                        SendCommandCloud(DeviceID, switch, True)
+                        SendCommandCloud(DeviceID, 'bright_value_v2', Level)
+                    else:
+                        SendCommandCloud(DeviceID, switch, True)
+                        SendCommandCloud(DeviceID, 'bright_value', Level)
+                    UpdateDevice(DeviceID, 1, Level, 1, 0)
+                elif Command == 'Set Color':
+                    if Color['m'] == 2:
+                        if scalemode == 'v2':
+                            # SendCommandCloud(DeviceID, switch, True)
+                            SendCommandCloud(DeviceID, 'bright_value_v2', Level)
+                            SendCommandCloud(DeviceID, 'temp_value_v2', int(Color['t']))
+                        else:
+                            # SendCommandCloud(DeviceID, switch, True)
+                            SendCommandCloud(DeviceID, 'bright_value', Level)
+                            SendCommandCloud(DeviceID, 'temp_value', int(Color['t']))
+                        UpdateDevice(DeviceID, 1, Level, 1, 0)
+                        UpdateDevice(DeviceID, 1, Color, 1, 0)
+                    elif Color['m'] == 3:
+                        if scalemode == 'v2':
+                            h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
+                            hvs = {'h':h, 's':s, 'v':Level * 10}
+                            SendCommandCloud(DeviceID, switch, True)
+                            SendCommandCloud(DeviceID, 'colour_data', hvs)
+                        else:
+                            h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
+                            hvs = {'h':h, 's':s, 'v':Level * 2.55}
+                            SendCommandCloud(DeviceID, switch, True)
+                            SendCommandCloud(DeviceID, 'colour_data', hvs)
+                        UpdateDevice(DeviceID, 1, Level, 1, 0)
+                        UpdateDevice(DeviceID, 1, Color, 1, 0)
+
+            if dev_type == ('cover'):
+                if Command == 'Open':
+                    SendCommandCloud(DeviceID, 'mach_operate', 'FZ')
+                    UpdateDevice(DeviceID, 1, 'Open', 0, 0)
+                elif Command == 'Close':
+                    SendCommandCloud(DeviceID, 'mach_operate', 'ZZ')
+                    UpdateDevice(DeviceID, 1, 'Close', 1, 0)
+                elif Command == 'Stop':
+                    SendCommandCloud(DeviceID, 'mach_operate', 'STOP')
+                    UpdateDevice(DeviceID, 1, 'Stop', 1, 0)
+                elif Command == 'Set Level':
+                    SendCommandCloud(DeviceID, 'position', Level)
+                    UpdateDevice(DeviceID, 1, Level, 1, 0)
+
+            elif dev_type == 'thermostat' or dev_type == 'heater':
+                switch = 'temp_set' if searchCode('temp_set', function) else 'set_temp'
+                if Command == 'Off' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'switch', False)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'switch', True)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
+                elif Command == 'Set Level' and Unit  == 3:
+                    SendCommandCloud(DeviceID, switch, Level)
+                    UpdateDevice(DeviceID, 3, Level, 1, 0)
+                elif Command == 'Set Level' and Unit == 4:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 4, Level, 1, 0)
+                if Command == 'Off' and Unit == 5:
+                    SendCommandCloud(DeviceID, 'window_check', False)
+                    UpdateDevice(DeviceID, 5, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 5:
+                    SendCommandCloud(DeviceID, 'window_check', True)
+                    UpdateDevice(DeviceID, 5, 'On', 1, 0)
+                if Command == 'Off' and Unit == 6:
+                    SendCommandCloud(DeviceID, 'child_lock', False)
+                    UpdateDevice(DeviceID, 6, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 6:
+                    SendCommandCloud(DeviceID, 'child_lock', True)
+                    UpdateDevice(DeviceID, 6, 'On', 1, 0)
+                if Command == 'Off' and Unit == 7:
+                    SendCommandCloud(DeviceID, 'eco', False)
+                    UpdateDevice(DeviceID, 7, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 7:
+                    SendCommandCloud(DeviceID, 'eco', True)
+                    UpdateDevice(DeviceID, 7, 'On', 1, 0)
+
+            if dev_type == 'fan':
                 if Command == 'Off':
                     SendCommandCloud(DeviceID, 'switch', False)
                     UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                 elif Command == 'On':
                     SendCommandCloud(DeviceID, 'switch', True)
                     UpdateDevice(DeviceID, Unit, 'On', 1, 0)
-                elif Command == 'Set Level':
-                    SendCommandCloud(DeviceID, 'switch', True)
-                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
-            if not searchCode('switch', function):
+
+            if dev_type == 'fanlight':
+                if Command == 'Off' and Unit == 2:
+                    SendCommandCloud(DeviceID, 'fan_switch', False)
+                    UpdateDevice(DeviceID, 2, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 2:
+                    SendCommandCloud(DeviceID, 'fan_switch', True)
+                    UpdateDevice(DeviceID, 2, 'On', 1, 0)
+                elif Command == 'Set Level' and Unit == 3:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'fan_speed', int(mode[int(Level / 10)]))
+                    UpdateDevice(DeviceID, 3, Level, 1, 0)
+                elif Command == 'Set Level' and Unit == 4:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'fan_direction', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 4, Level, 1, 0)
+
+            if dev_type == 'siren':
                 if Command == 'Off':
-                    SendCommandCloud(DeviceID, 'switch_' + str(Unit), False)
+                    SendCommandCloud(DeviceID, 'AlarmSwitch', False)
                     UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                 elif Command == 'On':
-                    SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
+                    SendCommandCloud(DeviceID, 'AlarmSwitch', True)
                     UpdateDevice(DeviceID, Unit, 'On', 1, 0)
-                elif Command == 'Set Level':
-                    SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
-                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                elif Command == 'Set Level' and Unit == 2:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 2, Level, 1, 0)
+                elif Command == 'Set Level' and Unit == 3:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 3, Level, 1, 0)
 
-        elif dev_type in ('dimmer'):
-            if Command == 'Off':
-                SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), False)
-                UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
-            elif Command == 'On':
-                SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), True)
-                UpdateDevice(DeviceID, Unit, 'On', 1, 0)
-            elif Command == 'Set Level':
-                SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
-                UpdateDevice(DeviceID, Unit, Level, 1, 0)
+            if dev_type == 'pirlight':
+                if Command == 'Off' and Unit == 2:
+                    SendCommandCloud(DeviceID, 'switch_pir', False)
+                    UpdateDevice(DeviceID, 2, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 2:
+                    SendCommandCloud(DeviceID, 'switch_pir', True)
+                    UpdateDevice(DeviceID, 2, 'On', 1, 0)
+                elif Command == 'Set Level' and Unit == 3:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'device_mode', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 3, Level, 1, 0)
+                elif Command == 'Set Level' and Unit == 4:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'pir_sensitivity', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 4, Level, 1, 0)
 
-        elif dev_type in ('light') or ((dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1):
-            switch = 'switch_led' if searchCode('switch_led', FunctionProperties) else 'led_switch'
-            if Command == 'Off':
-                SendCommandCloud(DeviceID, switch, False)
-                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
-            elif Command == 'On':
-                SendCommandCloud(DeviceID, switch, True)
-                UpdateDevice(DeviceID, 1, 'On', 1, 0)
-            elif Command == 'Set Level':
-                if scalemode == 'v2':
-                    SendCommandCloud(DeviceID, switch, True)
-                    SendCommandCloud(DeviceID, 'bright_value_v2', Level)
-                else:
-                    SendCommandCloud(DeviceID, switch, True)
-                    SendCommandCloud(DeviceID, 'bright_value', Level)
-                UpdateDevice(DeviceID, 1, Level, 1, 0)
-            elif Command == 'Set Color':
-                if Color['m'] == 2:
-                    if scalemode == 'v2':
-                        # SendCommandCloud(DeviceID, switch, True)
-                        SendCommandCloud(DeviceID, 'bright_value_v2', Level)
-                        SendCommandCloud(DeviceID, 'temp_value_v2', int(Color['t']))
-                    else:
-                        # SendCommandCloud(DeviceID, switch, True)
-                        SendCommandCloud(DeviceID, 'bright_value', Level)
-                        SendCommandCloud(DeviceID, 'temp_value', int(Color['t']))
+            if dev_type == 'garagedooropener':
+                if Command == 'Off' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'switch_1', False)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'switch_1', True)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
+
+            if dev_type == 'feeder':
+                if Command == 'Off' and Unit == 5:
+                    SendCommandCloud(DeviceID, 'light', False)
+                    UpdateDevice(DeviceID, 5, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 5:
+                    SendCommandCloud(DeviceID, 'light', True)
+                    UpdateDevice(DeviceID, 5, 'On', 1, 0)
+                elif Command == 'Set Level' and Unit == 1:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
-                    UpdateDevice(DeviceID, 1, Color, 1, 0)
-                elif Color['m'] == 3:
-                    if scalemode == 'v2':
-                        h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
-                        hvs = {'h':h, 's':s, 'v':Level * 10}
-                        SendCommandCloud(DeviceID, switch, True)
-                        SendCommandCloud(DeviceID, 'colour_data', hvs)
-                    else:
-                        h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
-                        hvs = {'h':h, 's':s, 'v':Level * 2.55}
-                        SendCommandCloud(DeviceID, switch, True)
-                        SendCommandCloud(DeviceID, 'colour_data', hvs)
-                    UpdateDevice(DeviceID, 1, Level, 1, 0)
-                    UpdateDevice(DeviceID, 1, Color, 1, 0)
-
-        if dev_type == ('cover'):
-            if Command == 'Open':
-                SendCommandCloud(DeviceID, 'mach_operate', 'FZ')
-                UpdateDevice(DeviceID, 1, 'Open', 0, 0)
-            elif Command == 'Close':
-                SendCommandCloud(DeviceID, 'mach_operate', 'ZZ')
-                UpdateDevice(DeviceID, 1, 'Close', 1, 0)
-            elif Command == 'Stop':
-                SendCommandCloud(DeviceID, 'mach_operate', 'STOP')
-                UpdateDevice(DeviceID, 1, 'Stop', 1, 0)
-            elif Command == 'Set Level':
-                SendCommandCloud(DeviceID, 'position', Level)
-                UpdateDevice(DeviceID, 1, Level, 1, 0)
-
-        elif dev_type == 'thermostat' or dev_type == 'heater':
-            switch = 'temp_set' if searchCode('temp_set', FunctionProperties) else 'set_temp'
-            if Command == 'Off' and Unit == 1:
-                SendCommandCloud(DeviceID, 'switch', False)
-                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
-            elif Command == 'On' and Unit == 1:
-                SendCommandCloud(DeviceID, 'switch', True)
-                UpdateDevice(DeviceID, 1, 'On', 1, 0)
-            elif Command == 'Set Level' and Unit  == 3:
-                SendCommandCloud(DeviceID, switch, Level)
-                UpdateDevice(DeviceID, 3, Level, 1, 0)
-            elif Command == 'Set Level' and Unit == 4:
-                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
-                UpdateDevice(DeviceID, 4, Level, 1, 0)
-            if Command == 'Off' and Unit == 5:
-                SendCommandCloud(DeviceID, 'window_check', False)
-                UpdateDevice(DeviceID, 5, 'Off', 0, 0)
-            elif Command == 'On' and Unit == 5:
-                SendCommandCloud(DeviceID, 'window_check', True)
-                UpdateDevice(DeviceID, 5, 'On', 1, 0)
-            if Command == 'Off' and Unit == 6:
-                SendCommandCloud(DeviceID, 'child_lock', False)
-                UpdateDevice(DeviceID, 6, 'Off', 0, 0)
-            elif Command == 'On' and Unit == 6:
-                SendCommandCloud(DeviceID, 'child_lock', True)
-                UpdateDevice(DeviceID, 6, 'On', 1, 0)
-            if Command == 'Off' and Unit == 7:
-                SendCommandCloud(DeviceID, 'eco', False)
-                UpdateDevice(DeviceID, 7, 'Off', 0, 0)
-            elif Command == 'On' and Unit == 7:
-                SendCommandCloud(DeviceID, 'eco', True)
-                UpdateDevice(DeviceID, 7, 'On', 1, 0)
-
-        if dev_type == 'fan':
-            if Command == 'Off':
-                SendCommandCloud(DeviceID, 'switch', False)
-                UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
-            elif Command == 'On':
-                SendCommandCloud(DeviceID, 'switch', True)
-                UpdateDevice(DeviceID, Unit, 'On', 1, 0)
-
-        if dev_type == 'fanlight':
-            if Command == 'Off' and Unit == 2:
-                SendCommandCloud(DeviceID, 'fan_switch', False)
-                UpdateDevice(DeviceID, 2, 'Off', 0, 0)
-            elif Command == 'On' and Unit == 2:
-                SendCommandCloud(DeviceID, 'fan_switch', True)
-                UpdateDevice(DeviceID, 2, 'On', 1, 0)
-            elif Command == 'Set Level' and Unit == 3:
-                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                SendCommandCloud(DeviceID, 'fan_speed', int(mode[int(Level / 10)]))
-                UpdateDevice(DeviceID, 3, Level, 1, 0)
-            elif Command == 'Set Level' and Unit == 4:
-                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                SendCommandCloud(DeviceID, 'fan_direction', mode[int(Level / 10)])
-                UpdateDevice(DeviceID, 4, Level, 1, 0)
-
-        if dev_type == 'siren':
-            if Command == 'Off':
-                SendCommandCloud(DeviceID, 'AlarmSwitch', False)
-                UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
-            elif Command == 'On':
-                SendCommandCloud(DeviceID, 'AlarmSwitch', True)
-                UpdateDevice(DeviceID, Unit, 'On', 1, 0)
-            elif Command == 'Set Level' and Unit == 2:
-                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
-                UpdateDevice(DeviceID, 2, Level, 1, 0)
-            elif Command == 'Set Level' and Unit == 3:
-                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
-                UpdateDevice(DeviceID, 3, Level, 1, 0)
-
-        if dev_type == 'pirlight':
-            if Command == 'Off' and Unit == 2:
-                SendCommandCloud(DeviceID, 'switch_pir', False)
-                UpdateDevice(DeviceID, 2, 'Off', 0, 0)
-            elif Command == 'On' and Unit == 2:
-                SendCommandCloud(DeviceID, 'switch_pir', True)
-                UpdateDevice(DeviceID, 2, 'On', 1, 0)
-            elif Command == 'Set Level' and Unit == 3:
-                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                SendCommandCloud(DeviceID, 'device_mode', mode[int(Level / 10)])
-                UpdateDevice(DeviceID, 3, Level, 1, 0)
-            elif Command == 'Set Level' and Unit == 4:
-                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                SendCommandCloud(DeviceID, 'pir_sensitivity', mode[int(Level / 10)])
-                UpdateDevice(DeviceID, 4, Level, 1, 0)
-
-        if dev_type == 'garagedooropener':
-            if Command == 'Off' and Unit == 1:
-                SendCommandCloud(DeviceID, 'switch_1', False)
-                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
-            elif Command == 'On' and Unit == 1:
-                SendCommandCloud(DeviceID, 'switch_1', True)
-                UpdateDevice(DeviceID, 1, 'On', 1, 0)
-
-        if dev_type == 'feeder':
-            if Command == 'Off' and Unit == 5:
-                SendCommandCloud(DeviceID, 'light', False)
-                UpdateDevice(DeviceID, 5, 'Off', 0, 0)
-            elif Command == 'On' and Unit == 5:
-                SendCommandCloud(DeviceID, 'light', True)
-                UpdateDevice(DeviceID, 5, 'On', 1, 0)
-            elif Command == 'Set Level' and Unit == 1:
-                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                SendCommandCloud(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
-                UpdateDevice(DeviceID, 1, Level, 1, 0)
 
         elif dev_type == 'infrared_ac':
             if Command == 'Off' and Unit == 1:
@@ -358,7 +366,10 @@ class BasePlugin:
             Domoticz.Debug("onHeartbeat called skipped")
             return
         Domoticz.Debug("onHeartbeat called last run: " + str(time.time() - last_update))
-        onHandleThread(False)
+        if tuya.error is not None:
+            Domoticz.Error(tuya.error['Payload'])
+        else:
+            onHandleThread(False)
 
 global _plugin
 _plugin = BasePlugin()
@@ -405,7 +416,7 @@ def onHandleThread(startup):
             global ResultValue
             global FunctionProperties
             global StatusProperties
-            global login
+            # global login
             global scan
             global last_update
             last_update = time.time()
@@ -435,25 +446,29 @@ def onHandleThread(startup):
                 #     tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'])
                 # else:
                 tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
+                tuya.use_old_device_list = True
+                tuya.new_sign_algorithm = True
+                if tuya.error is not None:
+                    raise Exception(tuya.error['Payload'])
                 devs = []
                 i = 0
                 while len(devs) == 0 and i < 4:
                     devs = tuya.getdevices()
                     Domoticz.Log('No device data returned for Tuya. Trying again!')
                     i += 1
-                    time.sleep(10)
                 if i > 4:
-                    Domoticz.Log('No device data returned for Tuya. Check if subscription cloud development plan has expired!')
+                    raise Exception('No device data returned for Tuya. Check if subscription cloud development plan has expired!')
                 token = tuya.token
-                # Check credentials
-                if 'sign invalid' in str(devs) or token == None:
-                    login = False
-                    raise Exception('Credentials are incorrect!')
 
-                # Check ID search device is valid
-                if 'permission deny' in str(devs):
-                    login = False
-                    raise Exception('ID search device not found!')
+                # # Check credentials
+                # if 'sign invalid' in str(devs) or token == None:
+                #     login = False
+                #     raise Exception('Credentials are incorrect!')
+
+                # # Check ID search device is valid
+                # if 'permission deny' in str(devs):
+                #     login = False
+                #     raise Exception('ID search device not found!')
 
                 properties = {}
                 for dev in devs:
@@ -472,7 +487,9 @@ def onHandleThread(startup):
                 scan = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
 
         # Initialize/Update devices from TUYA API
+        run = 0
         for dev in devs:
+            run += 1
             Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'])))
             try:
                 last_update = time.time()
@@ -503,13 +520,12 @@ def onHandleThread(startup):
 
             # Create devices
             if startup == True:
-                Domoticz.Debug('Run Startup script')
+                if run == 1:
+                    Domoticz.Debug('Run Startup script')
                 try:
                     deviceinfo = scan[dev['id']]
                 except:
                     deviceinfo = {'ip': None, 'version': 3.3}
-                #deviceinfo = tinytuya.find_device(dev['id'])
-                # if dev['id'] not in Devices: # Disabled for create item when device exists
 
                 if dev_type in ('light', 'fanlight', 'pirlight') and createDevice(dev['id'], 1):
                     # for localcontol: and deviceinfo['ip'] != None
@@ -525,9 +541,6 @@ def onHandleThread(startup):
                     elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and not searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light RGB')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
-                    # elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and searchCode('colour_data_v2', StatusProperties) and not searchCode('temp_value_v2', StatusProperties) and not searchCode('bright_value_v2', StatusProperties):
-                    #     Domoticz.Log('Create device Light RGB')
-                    #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
                     elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light WWCW')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=8, Switchtype=7, Used=1).Create()
@@ -906,7 +919,8 @@ def onHandleThread(startup):
                 raise Exception('Device not found in Domoticz! Device is removed or Accept New Hardware not enabled?')
 
             #update devices in Domoticz
-            Domoticz.Log('Update devices in Domoticz')
+            if run == 1:
+                Domoticz.Log('Update devices in Domoticz')
             if bool(online) == False and Devices[dev['id']].TimedOut == 0:
                 UpdateDevice(dev['id'], 1, 'Off', 0, 1)
             elif bool(online) == True and Devices[dev['id']].TimedOut == 1:
@@ -1008,18 +1022,18 @@ def onHandleThread(startup):
                         elif searchCode('bright_value_v2', StatusProperties):
                             BrightnessControl = True
                             dimtuya = brightness_to_pct(StatusProperties, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
-                        '''
-                        Finding other way to detect
-                        dimlevel = Devices[dev['id']].Units[1].sValue if type(Devices[dev['id']].Units[1].sValue) == int else dimtuya
-                        color = Devices[dev['id']].Units[1].Color
 
-                        if searchCode('temp_value', StatusProperties):
-                            temptuya = {'m': 2, 't': int(inv_val(round(StatusDeviceTuya('temp_value'))))}
-                        if (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)):
-                            colortuya = ast.literal_eval(StatusDeviceTuya('colour_data'))
-                            rtuya, gtuya, btuya = hsv_to_rgb(colortuya['h'], colortuya['s'], colortuya['v'])
-                            colorupdate = {'m': 3, 'r': rtuya, 'g': gtuya, 'b': btuya}
-                        '''
+                        # Finding other way to detect
+                        # dimlevel = Devices[dev['id']].Units[1].sValue if type(Devices[dev['id']].Units[1].sValue) == int else dimtuya
+                        # color = Devices[dev['id']].Units[1].Color
+
+                        # if searchCode('temp_value', StatusProperties):
+                        #     temptuya = {'m': 2, 't': int(inv_val(round(StatusDeviceTuya('temp_value'))))}
+                        # if (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)):
+                        #     colortuya = ast.literal_eval(StatusDeviceTuya('colour_data'))
+                        #     rtuya, gtuya, btuya = hsv_to_rgb(colortuya['h'], colortuya['s'], colortuya['v'])
+                        #     colorupdate = {'m': 3, 'r': rtuya, 'g': gtuya, 'b': btuya}
+
                         if BrightnessControl == False:
                             if (bool(currentstatus) == False and bool(nValue) != False):
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
@@ -1030,18 +1044,18 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif (bool(currentstatus) == True and bool(nValue) != True) or (str(dimtuya) != str(sValue) and bool(nValue) != False):
                                 UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
-                        '''
-                        elif currentstatus == True and workmode == 'white':
-                            Domoticz.Debug(temptuya['t'])
-                            Domoticz.Debug(color['t'])
-                            if int((temptuya['t'])) != int(color['t']):
-                                Domoticz.Debug(str((temptuya['t'])) + ' ' + str(color['t']))
-                                UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
-                                UpdateDevice(dev['id'], 1, temptuya, 1, 0)
-                        elif currentstatus == True and workmode == 'colour':
-                            if type(color) == dict and (color['r'] != rtuya or color['g'] != gtuya or color['b'] != btuya ):
-                                UpdateDevice(dev['id'], 1, colorupdate, 1, 0)
-                        '''
+
+                        # elif currentstatus == True and workmode == 'white':
+                        #     Domoticz.Debug(temptuya['t'])
+                        #     Domoticz.Debug(color['t'])
+                        #     if int((temptuya['t'])) != int(color['t']):
+                        #         Domoticz.Debug(str((temptuya['t'])) + ' ' + str(color['t']))
+                        #         UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
+                        #         UpdateDevice(dev['id'], 1, temptuya, 1, 0)
+                        # elif currentstatus == True and workmode == 'colour':
+                        #     if type(color) == dict and (color['r'] != rtuya or color['g'] != gtuya or color['b'] != btuya ):
+                        #         UpdateDevice(dev['id'], 1, colorupdate, 1, 0)
+
                     if dev_type == 'cover':
                         currentposition = StatusDeviceTuya('position')
                         if str(currentposition) == '0':
@@ -1468,7 +1482,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 5, 'On', 1, 0)
 
                 except Exception as err:
-                    Domoticz.Log('Device read failed: ' + str(dev['id']))
+                    Domoticz.Error('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
 
     except Exception as err:
@@ -1570,7 +1584,7 @@ def StatusDeviceTuya(Function):
     else:
         Domoticz.Debug('StatusDeviceTuya called ' + Function + ' not found ')
         return None
-    if type(valueRaw) == int: # and Function not in ('battery_percentage', 'bright_value', 'bright_value_v2', 'temp_value', 'temp_value_v2') :
+    if type(valueRaw) == int:
         valueT = get_scale(StatusProperties, Function, valueRaw)
     else:
         valueT = valueRaw
@@ -1757,7 +1771,7 @@ def searchCodeActualFunction(Item, Function):
     for OneItem in Function:
         if str(Item) == str(OneItem['code']):
             return str(OneItem['code'])
-    # Domoticz.Debug("searchCodeActualFunction unable to find " + str(Item) + " in " + str(Function))
+    Domoticz.Debug("searchCodeActualFunction unable to find " + str(Item) + " in " + str(Function))
     return None
 
 def createDevice(ID, Unit):

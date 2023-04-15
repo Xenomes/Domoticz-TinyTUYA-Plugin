@@ -28,7 +28,10 @@ try:
                 apiSecret=APISECRET,
                 apiDeviceID=DEVICEID
                 )
-
+        c.use_old_device_list = True
+        c.new_sign_algorithm = True
+        if c.error is not None:
+                raise Exception(c.error['Payload'])
         token = c.token
         # Check credentials
         if token == None:
