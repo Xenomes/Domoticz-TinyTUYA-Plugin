@@ -96,7 +96,7 @@ class BasePlugin:
 
     def onStop(self):
         Domoticz.Log('onStop called')
-        if len(devs) != 0:
+        if len(str(devs)) != 0:
             for dev in devs:
                 # Delete device is not reconised
                 if Devices[dev['id']].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
@@ -125,6 +125,7 @@ class BasePlugin:
             # Control device and update status in Domoticz
             dev_type = getConfigItem(DeviceID, 'category')
             scalemode = getConfigItem(DeviceID, 'scalemode')
+            product_id = getConfigItem(DeviceID, 'product_id')
             # if len(properties) == 0:
             #     properties = {}
             #     for dev in devs:
@@ -361,8 +362,9 @@ class BasePlugin:
             Domoticz.Debug("onHeartbeat called skipped")
             return
         Domoticz.Debug("onHeartbeat called last run: " + str(time.time() - last_update))
-        if Error is not None:
-            Domoticz.Error(Error['Payload'])
+        if testData == False:
+            if Error is not None:
+                Domoticz.Error(Error['Payload'])
         else:
             onHandleThread(False)
 
@@ -414,6 +416,7 @@ def onHandleThread(startup):
             global Error
             global scan
             global last_update
+            global product_id
             last_update = time.time()
             if testData == True:
                 tuya = Domoticz.Log
@@ -879,7 +882,7 @@ def onHandleThread(startup):
                     UpdateDevice(dev['id'], 1, 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.', 0, 0)
 
                 # Set extra info
-                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'ip': deviceinfo['ip'], 'version': deviceinfo['version'], 'scalemode': scalemode})
+                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'ip': deviceinfo['ip'], 'product_id': dev['product_id'], 'version': deviceinfo['version'], 'scalemode': scalemode})
                 # Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
@@ -900,6 +903,7 @@ def onHandleThread(startup):
                     # status Domoticz
                     sValue = Devices[dev['id']].Units[1].sValue
                     nValue = Devices[dev['id']].Units[1].nValue
+                    product_id = getConfigItem(dev['id'],'product_id')
 
                     if dev_type == 'switch':
                         if searchCode('switch_1', FunctionProperties):
@@ -1643,7 +1647,7 @@ def set_scale(device_functions, actual_function_name, raw):
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = int(the_values.get('scale', 0))
-                step = the_values.get('step', 0)
+                # step = the_values.get('step', 0)
     if scale == 1:
         result = int(raw * 10)
     elif scale == 2:
@@ -1653,7 +1657,7 @@ def set_scale(device_functions, actual_function_name, raw):
     else:
         result = int(raw)
 
-    if step == 5:
+    if product_id == 'IAYz2WK1th0cMLmL':
         result = int(raw * 2)
 
     return result
@@ -1666,7 +1670,7 @@ def get_scale(device_functions, actual_function_name, raw):
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 scale = the_values.get('scale', 0)
-                step = the_values.get('step', 0)
+                # step = the_values.get('step', 0)
                 unit = the_values.get('unit', 0)
                 max = the_values.get('max', 0)
     if scale == 0:
@@ -1685,7 +1689,7 @@ def get_scale(device_functions, actual_function_name, raw):
     else:
         result = int(raw)
 
-    if step == 5:
+    if product_id == 'IAYz2WK1th0cMLmL':
         result = float(raw / 2)
 
     return result
