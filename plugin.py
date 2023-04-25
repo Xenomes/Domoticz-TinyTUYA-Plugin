@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.5.4</h2><br/>
+        <h2>TinyTUYA Plugin version 1.5.5</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -96,7 +96,7 @@ class BasePlugin:
 
     def onStop(self):
         Domoticz.Log('onStop called')
-        if len(str(devs)) != 0:
+        if len(Devices) > 0:
             for dev in devs:
                 # Delete device is not reconised
                 if Devices[dev['id']].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
@@ -1648,6 +1648,9 @@ def set_scale(device_functions, actual_function_name, raw):
                 the_values = json.loads(item['values'])
                 scale = int(the_values.get('scale', 0))
                 # step = the_values.get('step', 0)
+                max = the_values.get('max', 0)
+                min = the_values.get('min', 0)
+
     if scale == 1:
         result = int(raw * 10)
     elif scale == 2:
@@ -1659,6 +1662,13 @@ def set_scale(device_functions, actual_function_name, raw):
 
     if product_id == 'IAYz2WK1th0cMLmL':
         result = int(raw * 2)
+
+    if result > max:
+        result = int(max)
+        Domoticz.Log('Value higer then maximum device')
+    elif result < min:
+        result = int(min)
+        Domoticz.Log('Value lower then minium device')
 
     return result
 
@@ -1763,7 +1773,7 @@ def searchCodeActualFunction(Item, Function):
     for OneItem in Function:
         if str(Item) == str(OneItem['code']):
             return str(OneItem['code'])
-    Domoticz.Debug("searchCodeActualFunction unable to find " + str(Item) + " in " + str(Function))
+    # Domoticz.Debug("searchCodeActualFunction unable to find " + str(Item) + " in " + str(Function))
     return None
 
 def createDevice(ID, Unit):
