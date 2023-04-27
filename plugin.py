@@ -366,6 +366,8 @@ class BasePlugin:
         if testData == False:
             if Error is not None:
                 Domoticz.Error(Error['Payload'])
+            else:
+                onHandleThread(False)
         else:
             onHandleThread(False)
 
@@ -895,10 +897,6 @@ def onHandleThread(startup):
                 Domoticz.Log('Update devices in Domoticz')
             if bool(online) == False and Devices[dev['id']].TimedOut == 0:
                 UpdateDevice(dev['id'], 1, 'Off', 0, 1)
-            elif bool(online) == True and Devices[dev['id']].TimedOut == 1:
-                UpdateDevice(dev['id'], 1, 'Off' if bool(StatusDeviceTuya('switch_led')) == False else 'On', 0, 0)
-            elif bool(online) == True and Devices[dev['id']].TimedOut == 1:
-                UpdateDevice(dev['id'], 1, 'Off' if bool(StatusDeviceTuya('led_switch')) == False else 'On', 0, 0)
             elif bool(online) == True and Devices[dev['id']].TimedOut == 0:
                 try:
                     # status Domoticz
@@ -983,11 +981,14 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 2, currentdim, 1, 0)
 
                     if dev_type in ('light','fanlight'):
-                        # workmode = StatusDeviceTuya('work_mode')
                         if searchCode('switch_led', StatusProperties):
                             currentstatus = StatusDeviceTuya('switch_led')
                         else:
                             currentstatus = StatusDeviceTuya('led_switch')
+                        if bool(currentstatus) == False:
+                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                        elif bool(currentstatus) == True:
+                            UpdateDevice(dev['id'], 1, 'On', 1, 0)
                         BrightnessControl = False
                         if searchCode('bright_value', StatusProperties):
                             BrightnessControl = True
