@@ -239,6 +239,7 @@ class BasePlugin:
                     switch = 'set_temp'
                 elif searchCode('temperature_c', function):
                     switch = 'temperature_c'
+                Domoticz.Debug('Debug switch Temp ' + str(switch))
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch', False)
                     UpdateDevice(DeviceID, 1, 'Off', 0, 0)
@@ -1072,9 +1073,11 @@ def onHandleThread(startup):
                                 currenttemp = 0
                             if str(currenttemp) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, currenttemp, 0, 0)
-                        if searchCode('temp_set', ResultValue) or searchCode('temperature_c', ResultValue):
+                        if searchCode('temp_set', ResultValue) or searchCode('set_temp', ResultValue) or searchCode('temperature_c', ResultValue):
                             if searchCode('temp_set', ResultValue):
                                 currenttemp_set = StatusDeviceTuya('temp_set')
+                            elif searchCode('set_temp', ResultValue):
+                                currenttemp_set = StatusDeviceTuya('set_temp')
                             elif searchCode('temperature_c', ResultValue):
                                 currenttemp_set = StatusDeviceTuya('temperature_c')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[3].sValue):
@@ -1665,7 +1668,7 @@ def set_scale(device_functions, actual_function_name, raw):
 
     if result > max:
         result = int(max)
-        Domoticz.Log('Value higer then maximum device')
+        Domoticz.Log('Value higher then maximum device')
     elif result < min:
         result = int(min)
         Domoticz.Log('Value lower then minium device')
