@@ -84,5 +84,6 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.5.2 | Changed the detection of a faulty login credentials or expired subscription |
 | 1.5.3 | Some optimize, cleanup, turn down chattiness |
 | 1.5.4 | Add new Curtain, heater control and custom scale for thermostat with deviant behavior |
+| 1.5.5 | Add min/max for set devices |
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/xenomes)
