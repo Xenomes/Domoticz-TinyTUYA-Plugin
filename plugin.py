@@ -611,7 +611,7 @@ def onHandleThread(startup):
                         options['Custom'] = '1;mA'
                         Domoticz.Unit(Name=dev['name'] + ' (mA)', DeviceID=dev['id'], Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 16) and searchCode('temp_current', ResultValue):
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=16, Type=80, Subtype=5, Used=0).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=16, Type=80, Subtype=5, Used=1).Create()
 
                 if dev_type == 'cover' and createDevice(dev['id'], 1):
                     Domoticz.Log('Create device Cover')
@@ -988,7 +988,7 @@ def onHandleThread(startup):
                             # Extract voltage, current, and power data
                             currentvoltage = int.from_bytes(decoded_data[:2], byteorder='big') * 0.1
                             currentcurrent = int.from_bytes(decoded_data[2:5], byteorder='big') * 0.001
-                            currentpower = int.from_bytes(decoded_data[5:8], byteorder='big') * 0.001
+                            currentpower = int.from_bytes(decoded_data[5:8], byteorder='big')
                             leakagecurrent = StatusDeviceTuya('leakage_current')
 
                             UpdateDevice(dev['id'], 11, str(currentcurrent), 0, 0)
