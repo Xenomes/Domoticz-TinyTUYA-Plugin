@@ -67,6 +67,7 @@ import json
 import colorsys
 import time
 import re
+import base64
 
 class BasePlugin:
     enabled = False
@@ -596,19 +597,21 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 4)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('switch_5', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 5)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    if createDevice(dev['id'], 11) and searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'A':
+                    if createDevice(dev['id'], 11) and ((searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'A') or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
-                    if createDevice(dev['id'], 12) and searchCode('cur_power', ResultValue):
+                    if createDevice(dev['id'], 12) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (W)', DeviceID=dev['id'], Unit=12, Type=248, Subtype=1, Used=1).Create()
-                    if createDevice(dev['id'], 13) and searchCode('cur_voltage', ResultValue):
+                    if createDevice(dev['id'], 13) and (searchCode('cur_voltage', ResultValue) or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
-                    if createDevice(dev['id'], 14) and searchCode('cur_power', ResultValue):
+                    if createDevice(dev['id'], 14) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Used=1).Create()
                         #UpdateDevice(dev['id'], 14, '0;0', 0, 0, 1)
-                    if createDevice(dev['id'], 15) and searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'mA':
+                    if createDevice(dev['id'], 15) and (searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'mA' or searchCode('leakage_current', ResultValue)):
                         options = {}
                         options['Custom'] = '1;mA'
                         Domoticz.Unit(Name=dev['name'] + ' (mA)', DeviceID=dev['id'], Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 16) and searchCode('temp_current', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=16, Type=80, Subtype=5, Used=0).Create()
 
                 if dev_type == 'cover' and createDevice(dev['id'], 1):
                     Domoticz.Log('Create device Cover')
@@ -976,6 +979,29 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
 
                             UpdateDevice(dev['id'], 13, str(currentvoltage), 0, 0)
+
+                        if searchCode('phase_a', ResultValue):
+                            base64_string = StatusDeviceTuya('phase_a')
+                            # Decode base64 string
+                            decoded_data = base64.b64decode(base64_string)
+
+                            # Extract voltage, current, and power data
+                            currentvoltage = int.from_bytes(decoded_data[:2], byteorder='big') * 0.1
+                            currentcurrent = int.from_bytes(decoded_data[2:5], byteorder='big') * 0.001
+                            currentpower = int.from_bytes(decoded_data[5:8], byteorder='big') * 0.001
+                            leakagecurrent = StatusDeviceTuya('leakage_current')
+
+                            UpdateDevice(dev['id'], 11, str(currentcurrent), 0, 0)
+                            UpdateDevice(dev['id'], 12, str(currentpower), 0, 0)
+                            UpdateDevice(dev['id'], 13, str(currentvoltage), 0, 0)
+                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                            lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
+                            UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
+                            UpdateDevice(dev['id'], 15, str(leakagecurrent), 0, 0)
+                        if searchCode('temp_current', ResultValue):
+                            currenttemp = StatusDeviceTuya('temp_current')
+                            if str(currenttemp) != str(Devices[dev['id']].Units[16].sValue):
+                                UpdateDevice(dev['id'], 16, currenttemp, 0, 0)
 
                     if dev_type == 'dimmer':
                         if searchCode('switch_led_1', StatusProperties):
