@@ -178,14 +178,14 @@ class BasePlugin:
                 elif Command == 'On':
                     SendCommandCloud(DeviceID, switch, True)
                     UpdateDevice(DeviceID, 1, 'On', 1, 0)
-                # elif Command == 'Set Level':
-                #     if searchCode('bright_value_v2', function):
-                #         SendCommandCloud(DeviceID, switch, True)
-                #         SendCommandCloud(DeviceID, 'bright_value_v2', Level)
-                #     else:
-                #         SendCommandCloud(DeviceID, switch, True)
-                #         SendCommandCloud(DeviceID, 'bright_value', Level)
-                #     UpdateDevice(DeviceID, 1, Level, 1, 0)
+                elif Command == 'Set Level':
+                    if searchCode('bright_value_v2', function):
+                        SendCommandCloud(DeviceID, switch, True)
+                        SendCommandCloud(DeviceID, 'bright_value_v2', Level)
+                    else:
+                        SendCommandCloud(DeviceID, switch, True)
+                        SendCommandCloud(DeviceID, 'bright_value', Level)
+                    UpdateDevice(DeviceID, 1, Level, 1, 0)
                 elif (Command == 'Set Color' or Command == 'Set Level') and len(Color) != 0:
                     if Color['m'] == 2:
                         SendCommandCloud(DeviceID, switch, True)
@@ -219,7 +219,7 @@ class BasePlugin:
                             SendCommandCloud(DeviceID, 'colour_data_v2', rgbcolor)
                         else:
                             SendCommandCloud(DeviceID, 'colour_data', rgbcolor)
-                        # UpdateDevice(DeviceID, 1, Level, 1, 0)
+                        UpdateDevice(DeviceID, 1, Level, 1, 0)
                         UpdateDevice(DeviceID, 1, Color, 1, 0)
 
             if dev_type == ('cover'):
