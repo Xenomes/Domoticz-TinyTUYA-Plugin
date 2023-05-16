@@ -361,6 +361,25 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
 
+        elif dev_type == 'infrared_ac':
+            if Command == 'Off' and Unit == 1:
+                SendCommandCloud(DeviceID, 'PowerOff', 'PowerOff')
+                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+            elif Command == 'On' and Unit == 1:
+                SendCommandCloud(DeviceID, 'PowerOn', 'PowerOn')
+                UpdateDevice(DeviceID, 1, 'On', 1, 0)
+            elif Command == 'Set Level' and Unit  == 2:
+                SendCommandCloud(DeviceID, 'T', Level)
+                UpdateDevice(DeviceID, 2, Level, 1, 0)
+            elif Command == 'Set Level' and Unit == 3:
+                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                SendCommandCloud(DeviceID, 'M', mode[int(Level / 10)])
+                UpdateDevice(DeviceID, 3, Level, 1, 0)
+            elif Command == 'Set Level' and Unit == 4:
+                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                SendCommandCloud(DeviceID, 'F', mode[int(Level / 10)])
+                UpdateDevice(DeviceID, 4, Level, 1, 0)
+
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
 
@@ -666,8 +685,8 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 3) and ((searchCode('va_temperature', ResultValue) and searchCode('va_humidity', ResultValue)) or (searchCode('temp_current', ResultValue) and searchCode('humidity_value', ResultValue))):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
 
-                if createDevice(dev['id'], 1) and dev_type == 'doorbell':
-                    if searchCode('basic_indicator', FunctionProperties):
+                if dev_type == 'doorbell':
+                    if createDevice(dev['id'], 1) and searchCode('basic_indicator', FunctionProperties):
                         Domoticz.Log('Create device Doorbell')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
 
@@ -888,6 +907,39 @@ def onHandleThread(startup):
                 #             options['LevelNames'] = '|'.join(mode)
                 #             options['SelectorStyle'] = '0'
                 #             Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+
+                if dev_type == 'infrared_ac':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device Infrared AC')
+                        Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('temp', StatusProperties):
+                            Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=2, Type=242, Subtype=1, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('mode', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'mode':
+                                the_values = json.loads(item['values'])
+                                mode = ['0']
+                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    mode.extend([str(num)])
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('wind', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'wind':
+                                the_values = json.loads(item['values'])
+                                mode = ['0']
+                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    mode.extend([str(num)])
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
 
                 # if dev_type == 'climate':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
@@ -1613,6 +1665,8 @@ def DeviceType(category):
         result = 'garagedooropener'
     elif category in {'cwwsq'}:
         result = 'feeder'
+    elif category in {'infrared_ac'}:
+        result = 'infrared_ac'
     # elif 'infrared_' in category: # keep it last
     #     result = 'infrared_id'
     else:
