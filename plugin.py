@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.5.6</h2><br/>
+        <h2>TinyTUYA Plugin version 1.5.7</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -361,24 +361,24 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
 
-        elif dev_type == 'infrared_ac':
-            if Command == 'Off' and Unit == 1:
-                SendCommandCloud(DeviceID, 'PowerOff', 'PowerOff')
-                UpdateDevice(DeviceID, 1, 'Off', 0, 0)
-            elif Command == 'On' and Unit == 1:
-                SendCommandCloud(DeviceID, 'PowerOn', 'PowerOn')
-                UpdateDevice(DeviceID, 1, 'On', 1, 0)
-            elif Command == 'Set Level' and Unit  == 2:
-                SendCommandCloud(DeviceID, 'T', Level)
-                UpdateDevice(DeviceID, 2, Level, 1, 0)
-            elif Command == 'Set Level' and Unit == 3:
-                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                SendCommandCloud(DeviceID, 'M', mode[int(Level / 10)])
-                UpdateDevice(DeviceID, 3, Level, 1, 0)
-            elif Command == 'Set Level' and Unit == 4:
-                mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                SendCommandCloud(DeviceID, 'F', mode[int(Level / 10)])
-                UpdateDevice(DeviceID, 4, Level, 1, 0)
+            elif dev_type == 'infrared_ac':
+                if Command == 'Off' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'PowerOff', 'PowerOff')
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'PowerOn', 'PowerOn')
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
+                elif Command == 'Set Level' and Unit  == 2:
+                    SendCommandCloud(DeviceID, 'T', Level)
+                    UpdateDevice(DeviceID, 2, Level, 1, 0)
+                elif Command == 'Set Level' and Unit == 3:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'M', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 3, Level, 1, 0)
+                elif Command == 'Set Level' and Unit == 4:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'F', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 4, Level, 1, 0)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
