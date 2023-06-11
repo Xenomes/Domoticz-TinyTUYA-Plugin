@@ -876,7 +876,37 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 5) and searchCode('light', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Light)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
 
-                # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
+                if dev_type == 'waterleak':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device Water leak sensor')
+                        for item in StatusProperties:
+                            if item['code'] == 'watersensor_state':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+
+                if dev_type == 'presence':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device PIR sensor')
+                        for item in StatusProperties:
+                            if item['code'] == 'pir':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+
+                                # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
                 #     for item in StatusProperties:
                 #         if item['code'] == 'PIR':
                 #             the_values = json.loads(item['values'])
@@ -1540,6 +1570,64 @@ def onHandleThread(startup):
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 5, 'On', 1, 0)
 
+                    if dev_type == 'waterleak':
+                        if searchCode('watersensor_state', ResultValue):
+                            currentmode = StatusDeviceTuya('watersensor_state')
+                            for item in FunctionProperties:
+                                if item['code'] == 'watersensor_state':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[1].sValue):
+                                UpdateDevice(dev['id'], 1, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
+                            if searchCode('battery_state', ResultValue):
+                                if StatusDeviceTuya('battery_state') == 'high':
+                                    currentbattery = 100
+                                if StatusDeviceTuya('battery_state') == 'middle':
+                                    currentbattery = 50
+                                if StatusDeviceTuya('battery_state') == 'low':
+                                    currentbattery = 5
+                            if searchCode('battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('battery') * 10
+                            if searchCode('va_battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('va_battery')
+                            if searchCode('battery_percentage', ResultValue):
+                                currentbattery = StatusDeviceTuya('battery_percentage')
+                            for unit in Devices[dev['id']].Units:
+                                if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
+                                    Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
+                                    Devices[dev['id']].Units[unit].Update()
+
+                    if dev_type == 'presence':
+                        if searchCode('pir', ResultValue):
+                            currentmode = StatusDeviceTuya('pir')
+                            for item in FunctionProperties:
+                                if item['code'] == 'pir':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[1].sValue):
+                                UpdateDevice(dev['id'], 1, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
+                            if searchCode('battery_state', ResultValue):
+                                if StatusDeviceTuya('battery_state') == 'high':
+                                    currentbattery = 100
+                                if StatusDeviceTuya('battery_state') == 'middle':
+                                    currentbattery = 50
+                                if StatusDeviceTuya('battery_state') == 'low':
+                                    currentbattery = 5
+                            if searchCode('battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('battery') * 10
+                            if searchCode('va_battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('va_battery')
+                            if searchCode('battery_percentage', ResultValue):
+                                currentbattery = StatusDeviceTuya('battery_percentage')
+                            for unit in Devices[dev['id']].Units:
+                                if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
+                                    Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
+                                    Devices[dev['id']].Units[unit].Update()
+
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -1613,6 +1701,10 @@ def DeviceType(category):
         result = 'garagedooropener'
     elif category in {'cwwsq'}:
         result = 'feeder'
+    elif category in {'sj'}:
+        result = 'waterleak'
+    elif category in {'pir'}:
+        result = 'presence'
     # elif 'infrared_' in category: # keep it last
     #     result = 'infrared_id'
     else:
