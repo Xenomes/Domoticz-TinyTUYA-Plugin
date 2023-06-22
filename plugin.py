@@ -361,6 +361,14 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
 
+            if dev_type == 'irrigation':
+                if Command == 'Off' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'switch', False)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'switch', True)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
+
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
 
@@ -884,9 +892,26 @@ def onHandleThread(startup):
                 if dev_type == 'presence':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device PIR sensor')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=6, Used=1).Create()
 
-                                # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
+                if dev_type == 'irrigation':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device Irrigation')
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=6, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('work_state', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'work_state':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+
+                # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
                 #     for item in StatusProperties:
                 #         if item['code'] == 'PIR':
                 #             the_values = json.loads(item['values'])
@@ -1604,6 +1629,41 @@ def onHandleThread(startup):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
                                     Devices[dev['id']].Units[unit].Update()
 
+                    if dev_type == 'irrigation':
+                        if searchCode('switch', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('switch')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        if searchCode('work_state', ResultValue):
+                            currentmode = StatusDeviceTuya('work_state')
+                            for item in StatusProperties:
+                                if item['code'] == 'work_state':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
+                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
+                            if searchCode('battery_state', ResultValue):
+                                if StatusDeviceTuya('battery_state') == 'high':
+                                    currentbattery = 100
+                                if StatusDeviceTuya('battery_state') == 'middle':
+                                    currentbattery = 50
+                                if StatusDeviceTuya('battery_state') == 'low':
+                                    currentbattery = 5
+                            if searchCode('battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('battery') * 10
+                            if searchCode('va_battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('va_battery')
+                            if searchCode('battery_percentage', ResultValue):
+                                currentbattery = StatusDeviceTuya('battery_percentage')
+                            for unit in Devices[dev['id']].Units:
+                                if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
+                                    Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
+                                    Devices[dev['id']].Units[unit].Update()
+
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -1681,6 +1741,8 @@ def DeviceType(category):
         result = 'waterleak'
     elif category in {'pir'}:
         result = 'presence'
+    elif category in {'sfkzq'}:
+        result = 'irrigation'
     # elif 'infrared_' in category: # keep it last
     #     result = 'infrared_id'
     else:
