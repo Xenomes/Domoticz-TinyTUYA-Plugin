@@ -57,7 +57,7 @@ try:
 
         for d in devices:
                 # Display Properties of Device
-                result = c.getproperties (d["id"])
+                result = c.getproperties(d["id"])
                 print("\nProperties of device: " + d["id"] + "\n", json.dumps(result, indent=2))
                 f.write("\nProperties of device: " + d["id"] + "\n" + json.dumps(result, indent=2))
 

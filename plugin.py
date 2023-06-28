@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.5.7</h2><br/>
+        <h2>TinyTUYA Plugin version 1.5.8</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -75,8 +75,8 @@ class BasePlugin:
         return
 
     def onStart(self):
-        Domoticz.Log('TinyTUYA plugin started')
-        Domoticz.Log("'TinyTuyaVersion':'" + tinytuya.version + "'")
+        Domoticz.Log('TinyTUYA ' + Parameters['Version'] + ' plugin started')
+        Domoticz.Log('TinyTuyaVersion:' + tinytuya.version )
         if Parameters['Mode6'] != '0':
             Domoticz.Debugging(int(Parameters['Mode6']))
             # Domoticz.Log('Debugger started, use 'telnet 0.0.0.0 4444' to connect')
@@ -97,11 +97,11 @@ class BasePlugin:
 
     def onStop(self):
         try:
-            devs = tuya.getdevices()
+            devs = Devices
             for dev in devs:
                 # Delete device is not reconised
-                if Devices[dev['id']].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
-                    Devices[dev['id']].Units[1].Delete()
+                if Devices[dev].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
+                    Devices[dev].Units[1].Delete()
         except:
             Domoticz.Log('onStop called')
 
@@ -361,6 +361,14 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
 
+            if dev_type == 'irrigation':
+                if Command == 'Off' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'switch', False)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'switch', True)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
+
             elif dev_type == 'infrared_ac':
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'PowerOff', 'PowerOff')
@@ -490,7 +498,8 @@ def onHandleThread(startup):
                 i = 0
                 while len(devs) == 0 and i < 4:
                     devs = tuya.getdevices()
-                    Domoticz.Log('No device data returned for Tuya. Trying again!')
+                    if i > 0:
+                        Domoticz.Log('No device data returned for Tuya. Trying again!')
                     i += 1
                 if i > 4:
                     raise Exception('No device data returned for Tuya. Check if subscription cloud development plan has expired!')
@@ -685,8 +694,8 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 3) and ((searchCode('va_temperature', ResultValue) and searchCode('va_humidity', ResultValue)) or (searchCode('temp_current', ResultValue) and searchCode('humidity_value', ResultValue))):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
 
-                if dev_type == 'doorbell':
-                    if createDevice(dev['id'], 1) and searchCode('basic_indicator', FunctionProperties):
+                if createDevice(dev['id'], 1) and dev_type == 'doorbell':
+                    if searchCode('basic_indicator', FunctionProperties):
                         Domoticz.Log('Create device Doorbell')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
 
@@ -895,18 +904,32 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 5) and searchCode('light', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Light)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
 
-                # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
-                #     for item in StatusProperties:
-                #         if item['code'] == 'PIR':
-                #             the_values = json.loads(item['values'])
-                #             mode = ['off']
-                #             mode.extend(the_values.get('range'))
-                #             options = {}
-                #             options['LevelOffHidden'] = 'true'
-                #             options['LevelActions'] = ''
-                #             options['LevelNames'] = '|'.join(mode)
-                #             options['SelectorStyle'] = '0'
-                #             Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                if dev_type == 'waterleak':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device water leak sesor')
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+
+                if dev_type == 'presence':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device PIR sensor')
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=6, Used=1).Create()
+
+                if dev_type == 'irrigation':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device Irrigation')
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=6, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('work_state', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'work_state':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                 if dev_type == 'infrared_ac':
                     if createDevice(dev['id'], 1):
@@ -940,6 +963,19 @@ def onHandleThread(startup):
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
                                 Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+
+                # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
+                #     for item in StatusProperties:
+                #         if item['code'] == 'PIR':
+                #             the_values = json.loads(item['values'])
+                #             mode = ['off']
+                #             mode.extend(the_values.get('range'))
+                #             options = {}
+                #             options['LevelOffHidden'] = 'true'
+                #             options['LevelActions'] = ''
+                #             options['LevelNames'] = '|'.join(mode)
+                #             options['SelectorStyle'] = '0'
+                #             Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                 # if dev_type == 'climate':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
@@ -1500,6 +1536,13 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
 
                     if dev_type == 'smokedetector':
+                        if searchCode('smoke_sensor_status', ResultValue):
+                            currentstatus = StatusDeviceTuya('smoke_sensor_status')
+                            if currentstatus == 'normal':
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif currentstatus == 'alarm':
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            UpdateDevice(dev['id'], 2, currentstatus, 0, 0)
                         if searchCode('PIR', ResultValue):
                             currentstatus = StatusDeviceTuya('PIR')
                             if int(currentstatus) == 0:
@@ -1592,6 +1635,95 @@ def onHandleThread(startup):
                             elif bool(currentstatus) == True:
                                 UpdateDevice(dev['id'], 5, 'On', 1, 0)
 
+                    if dev_type == 'waterleak':
+                        if searchCode('watersensor_state', ResultValue):
+                            currentstatus = StatusDeviceTuya('watersensor_state')
+                            if currentstatus == 'normal':
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif currentstatus == 'alarm':
+                                    UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[1].sValue):
+                                UpdateDevice(dev['id'], 1, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
+                            if searchCode('battery_state', ResultValue):
+                                if StatusDeviceTuya('battery_state') == 'high':
+                                    currentbattery = 100
+                                if StatusDeviceTuya('battery_state') == 'middle':
+                                    currentbattery = 50
+                                if StatusDeviceTuya('battery_state') == 'low':
+                                    currentbattery = 5
+                            if searchCode('battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('battery') * 10
+                            if searchCode('va_battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('va_battery')
+                            if searchCode('battery_percentage', ResultValue):
+                                currentbattery = StatusDeviceTuya('battery_percentage')
+                            for unit in Devices[dev['id']].Units:
+                                if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
+                                    Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
+                                    Devices[dev['id']].Units[unit].Update()
+
+                    if dev_type == 'presence':
+                        if searchCode('watersensor_state', ResultValue):
+                            currentstatus = StatusDeviceTuya('watersensor_state')
+                            if currentstatus == 'none':
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif currentstatus == 'pir':
+                                    UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
+                            if searchCode('battery_state', ResultValue):
+                                if StatusDeviceTuya('battery_state') == 'high':
+                                    currentbattery = 100
+                                if StatusDeviceTuya('battery_state') == 'middle':
+                                    currentbattery = 50
+                                if StatusDeviceTuya('battery_state') == 'low':
+                                    currentbattery = 5
+                            if searchCode('battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('battery') * 10
+                            if searchCode('va_battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('va_battery')
+                            if searchCode('battery_percentage', ResultValue):
+                                currentbattery = StatusDeviceTuya('battery_percentage')
+                            for unit in Devices[dev['id']].Units:
+                                if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
+                                    Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
+                                    Devices[dev['id']].Units[unit].Update()
+
+                    if dev_type == 'irrigation':
+                        if searchCode('switch', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('switch')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        if searchCode('work_state', ResultValue):
+                            currentmode = StatusDeviceTuya('work_state')
+                            for item in StatusProperties:
+                                if item['code'] == 'work_state':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
+                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
+                            if searchCode('battery_state', ResultValue):
+                                if StatusDeviceTuya('battery_state') == 'high':
+                                    currentbattery = 100
+                                if StatusDeviceTuya('battery_state') == 'middle':
+                                    currentbattery = 50
+                                if StatusDeviceTuya('battery_state') == 'low':
+                                    currentbattery = 5
+                            if searchCode('battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('battery') * 10
+                            if searchCode('va_battery', ResultValue):
+                                currentbattery = StatusDeviceTuya('va_battery')
+                            if searchCode('battery_percentage', ResultValue):
+                                currentbattery = StatusDeviceTuya('battery_percentage')
+                            for unit in Devices[dev['id']].Units:
+                                if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
+                                    Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
+                                    Devices[dev['id']].Units[unit].Update()
+
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -1659,12 +1791,18 @@ def DeviceType(category):
         result = 'doorcontact'
     elif category in {'gyd'}:
         result = 'pirlight'
-    elif category in {'qt'}:
+    elif category in {'qt','ywbj'}:
         result = 'smokedetector'
     elif category in {'ckmkzq'}:
         result = 'garagedooropener'
     elif category in {'cwwsq'}:
         result = 'feeder'
+    elif category in {'sj'}:
+        result = 'waterleak'
+    elif category in {'pir'}:
+        result = 'presence'
+    elif category in {'sfkzq'}:
+        result = 'irrigation'
     elif category in {'infrared_ac'}:
         result = 'infrared_ac'
     # elif 'infrared_' in category: # keep it last
@@ -1723,9 +1861,13 @@ def SendCommandCloud(ID, CommandName, Status):
 
     # Domoticz.Debug("actual_function_name:" + str(actual_function_name))
     # Domoticz.Debug("actual_status:" + str(actual_status))
+    if actual_function_name in ('PowerOff', 'PowerOn'):
+        uri='devices/'
+    else:
+        uri='iot-03/devices/'
     if testData != True:
-        tuya.sendcommand(ID, {'commands': [{'code': actual_function_name, 'value': actual_status}]})
-    Domoticz.Debug('Command send to tuya :' + str(ID) + ", " + str({'commands': [{'code': actual_function_name, 'value': actual_status}]}))
+        tuya.sendcommand(ID, {'commands': [{'code': actual_function_name, 'value': actual_status}]}, uri)
+    Domoticz.Debug('Command send to tuya :' + str(ID) + ", " + str({'commands': [{'code': actual_function_name, 'value': actual_status}]}) + ", " + str(uri))
 
 def pct_to_brightness(device_functions, actual_function_name, pct):
     if device_functions and actual_function_name:
