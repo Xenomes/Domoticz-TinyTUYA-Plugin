@@ -40,7 +40,7 @@ In the web UI, navigate to the Hardware page. In the hardware dropdown there wil
 
 ## Test device
 
-I had only a RGBWW light to fully test the script, if there is a fuction missing in the plugin and it is not noted on the TODO list you can provide the jsom data from you device by edit and running the debug_discovery.py in the tools directory and posted in issues.
+I had only a RGBWW light to fully test the script, if there is a fuction missing in the plugin you can provide the json data for you device by edit and running the debug_discovery.py in the tools directory and posted in issues on Github.
 
 ## Change log
 
@@ -87,6 +87,6 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.5.5 | Add min/max for set devices |
 | 1.5.6 | Fixed colour control and added Energy breaker switch|
 | 1.5.7 | Add water leak sensor and presence sensors |
-| 1.5.8 | Add Irrigation Control |
+| 1.5.8 | Add Irrigation Control and smokesensor |
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/xenomes)

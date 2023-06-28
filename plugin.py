@@ -3,12 +3,12 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.5.6</h2><br/>
+        <h2>TinyTUYA Plugin version 1.5.8</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -75,8 +75,8 @@ class BasePlugin:
         return
 
     def onStart(self):
-        Domoticz.Log('TinyTUYA plugin started')
-        Domoticz.Log("'TinyTuyaVersion':'" + tinytuya.version + "'")
+        Domoticz.Log('TinyTUYA ' + Parameters['Version'] + ' plugin started')
+        Domoticz.Log('TinyTuyaVersion:' + tinytuya.version )
         if Parameters['Mode6'] != '0':
             Domoticz.Debugging(int(Parameters['Mode6']))
             # Domoticz.Log('Debugger started, use 'telnet 0.0.0.0 4444' to connect')
@@ -97,11 +97,11 @@ class BasePlugin:
 
     def onStop(self):
         try:
-            devs = tuya.getdevices()
+            devs = Devices
             for dev in devs:
                 # Delete device is not reconised
-                if Devices[dev['id']].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
-                    Devices[dev['id']].Units[1].Delete()
+                if Devices[dev].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
+                    Devices[dev].Units[1].Delete()
         except:
             Domoticz.Log('onStop called')
 
@@ -1483,6 +1483,13 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
 
                     if dev_type == 'smokedetector':
+                        if searchCode('smoke_sensor_status', ResultValue):
+                            currentstatus = StatusDeviceTuya('smoke_sensor_status')
+                            if currentstatus == 'normal':
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif currentstatus == 'alarm':
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            UpdateDevice(dev['id'], 2, currentstatus, 0, 0)
                         if searchCode('PIR', ResultValue):
                             currentstatus = StatusDeviceTuya('PIR')
                             if int(currentstatus) == 0:
@@ -1731,7 +1738,7 @@ def DeviceType(category):
         result = 'doorcontact'
     elif category in {'gyd'}:
         result = 'pirlight'
-    elif category in {'qt'}:
+    elif category in {'qt','ywbj'}:
         result = 'smokedetector'
     elif category in {'ckmkzq'}:
         result = 'garagedooropener'
