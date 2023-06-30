@@ -1179,15 +1179,19 @@ def onHandleThread(startup):
                                 currenttemp_set = StatusDeviceTuya('temperature_c')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[3].sValue):
                                     UpdateDevice(dev['id'], 3, currenttemp_set, 0, 0)
-                        if searchCode('mode', ResultValue):
+                        if searchCode('mode', ResultValue) and Devices[dev['id']].Units[4].Used == 1:
                             currentmode = StatusDeviceTuya('mode')
                             for item in FunctionProperties:
                                 if item['code'] == 'mode':
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            try:
+                                if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
+                                    UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            except:
+                                Domoticz.Debug('Tuya delivers a wrong status, device not updated!')
+
                         if searchCode('window_check', ResultValue):
                             currentstatus = StatusDeviceTuya('window_check')
                             if bool(currentstatus) == False:
