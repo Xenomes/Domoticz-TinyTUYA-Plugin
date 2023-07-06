@@ -245,7 +245,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'position', Level)
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
 
-            elif dev_type == 'thermostat' or dev_type == 'heater':
+            elif dev_type == 'thermostat' or dev_type == 'heater'or dev_type == 'heatpump':
                 if searchCode('temp_set', function):
                     switch = 'temp_set'
                 elif searchCode('set_temp', function):
@@ -534,6 +534,8 @@ def onHandleThread(startup):
                     ResultValue = json.load(rFile)['result']
             else:
                 ResultValue = tuya.getstatus(dev['id'])['result']
+
+            product_id = getConfigItem(dev['id'],'product_id')
             # Define scale mode
             # if '_v2' in str(FunctionProperties):
             #     scalemode = 'v2'
@@ -649,14 +651,21 @@ def onHandleThread(startup):
                             image = 7
                         for item in FunctionProperties:
                             if item['code'] == 'mode':
-                                the_values = json.loads(item['values'])
-                                mode = ['off']
-                                mode.extend(the_values.get('range'))
-                                options = {}
-                                options['LevelOffHidden'] = 'true'
-                                options['LevelActions'] = ''
-                                options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                if product_id == 'al8g1qdamyu5cfcc':
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = 'off|auto|a_silent|a_powerful|heat|h_powerful|h_silent|cool|c_powerful|c_silent'
+                                    options['SelectorStyle'] = '1'
+                                else:
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0'
                                 Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=image, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('window_check', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Window check)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -909,7 +918,7 @@ def onHandleThread(startup):
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
-                                Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=, Used=1).Create()
+                                Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=22, Used=1).Create()
 
                 # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
                 #     for item in StatusProperties:
