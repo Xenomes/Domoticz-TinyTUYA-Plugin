@@ -642,7 +642,7 @@ def onHandleThread(startup):
                             Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev['id'], 3):
                             Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Used=1).Create()
-                    if createDevice(dev['id'], 4) and searchCode('mode', FunctionProperties):
+                    if createDevice(dev['id'], 4) and searchCode('mode', FunctionProperties) and product_id != 'al8g1qdamyu5cfcc':
                         if dev_type == 'thermostat':
                             image = 16
                         elif dev_type == 'heater':
@@ -651,21 +651,21 @@ def onHandleThread(startup):
                             image = 7
                         for item in FunctionProperties:
                             if item['code'] == 'mode':
-                                if product_id == 'al8g1qdamyu5cfcc':
-                                    options = {}
-                                    options['LevelOffHidden'] = 'true'
-                                    options['LevelActions'] = ''
-                                    options['LevelNames'] = 'off|auto|a_silent|a_powerful|heat|h_powerful|h_silent|cool|c_powerful|c_silent'
-                                    options['SelectorStyle'] = '1'
-                                else:
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    mode.extend(the_values.get('range'))
-                                    options = {}
-                                    options['LevelOffHidden'] = 'true'
-                                    options['LevelActions'] = ''
-                                    options['LevelNames'] = '|'.join(mode)
-                                    options['SelectorStyle'] = '0'
+                                # if product_id == 'al8g1qdamyu5cfcc':
+                                #     options = {}
+                                #     options['LevelOffHidden'] = 'true'
+                                #     options['LevelActions'] = ''
+                                #     options['LevelNames'] = 'off|auto|a_silent|a_powerful|heat|h_powerful|h_silent|cool|c_powerful|c_silent'
+                                #     options['SelectorStyle'] = '1'
+                                # else:
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
                                 Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=image, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('window_check', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Window check)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -1188,18 +1188,15 @@ def onHandleThread(startup):
                                 currenttemp_set = StatusDeviceTuya('temperature_c')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[3].sValue):
                                     UpdateDevice(dev['id'], 3, currenttemp_set, 0, 0)
-                        if searchCode('mode', ResultValue) and Devices[dev['id']].Units[4].Used == 1:
+                        if searchCode('mode', ResultValue) and checkDevice(dev['id'],4):
                             currentmode = StatusDeviceTuya('mode')
                             for item in FunctionProperties:
                                 if item['code'] == 'mode':
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     mode.extend(the_values.get('range'))
-                            try:
-                                if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
-                                    UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
-                            except:
-                                Domoticz.Debug('Tuya delivers a wrong status, device not updated!')
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
+                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
 
                         if searchCode('window_check', ResultValue):
                             currentstatus = StatusDeviceTuya('window_check')
@@ -1771,7 +1768,7 @@ def DeviceType(category):
 
 def UpdateDevice(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate = 0):
     # Make sure that the Domoticz device still exists (they can be deleted) before updating it
-    if ID in Devices:
+    if checkDevice(ID,Unit):
         if str(Devices[ID].Units[Unit].sValue) != str(sValue) or str(Devices[ID].Units[Unit].nValue) != str(nValue) or str(Devices[ID].TimedOut) != str(TimedOut) or AlwaysUpdate == 1:
             if sValue == None:
                 sValue = Devices[ID].Units[Unit].sValue
@@ -1784,7 +1781,9 @@ def UpdateDevice(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate = 0):
             Devices[ID].TimedOut = TimedOut
             Devices[ID].Units[Unit].Update(Log=True)
 
-            Domoticz.Debug('Update device value:' + str(ID) + ' Unit: ' + str(Unit) + ' sValue: ' +  str(sValue) + ' nValue: ' + str(nValue) + ' TimedOut=' + str(TimedOut))
+            Domoticz.Debug('Update device value: ' + str(ID) + ' Unit: ' + str(Unit) + ' sValue: ' +  str(sValue) + ' nValue: ' + str(nValue) + ' TimedOut=' + str(TimedOut))
+    else:
+        Domoticz.Debug('Device: ' + str(ID) + ' Unit: ' + str(Unit) + ' doesn\'t exsist. Nothing to update')
     return
 
 def StatusDeviceTuya(Function):
@@ -1979,6 +1978,13 @@ def nextUnit(ID):
     while unit in Devices(ID) and unit < 255:
         unit = unit + 1
     return unit
+
+def checkDevice(Id, Unit):
+    try:
+        Devices[Id].Units[Unit]
+        return True
+    except:
+        return False
 
 def searchCode(Item, Function):
     if searchCodeActualFunction(Item, Function) is None:
