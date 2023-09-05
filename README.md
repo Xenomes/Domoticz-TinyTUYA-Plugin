@@ -19,7 +19,7 @@ To install:
 ## Updating
 
 To update:
-* Upgrade the tinytuya library ```sudo pip3 install requests==2.23.0 charset-normalizer==3.0.1 tinytuya -U```
+* Upgrade the tinytuya library ```sudo pip3 install tinytuya -U```
 * Go in your Domoticz directory using a command line and open the plugins directory then the Domoticz-TinyTUYA-Plugin directory.
 * ```cd ~/domoticz/plugins/Domoticz-TinyTUYA-Plugin``` for most user or go to the Docker volume mount plugins/Domoticz-TinyTUYA-Plugin directory.
 * Run: ```git pull```

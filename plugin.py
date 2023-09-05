@@ -6,7 +6,6 @@
 <plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.5.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
-        Support forum Dutch: <a href="https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846">https://contactkring.nl/phpbb/viewtopic.php?f=60&amp;t=846</a><br/>
         <br/>
         <h2>TinyTUYA Plugin version 1.5.8</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
@@ -170,7 +169,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
-            elif dev_type in ('light') or ((dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1):
+            elif dev_type in ('light') or ((dev_type in ('fanlight') or dev_type in ('pirlight') and Unit == 1) or dev_type in ('starlight') and Unit == 1):
                 switch = 'led_switch' if searchCode('led_switch', function) else 'switch_led'
                 if Command == 'Off':
                     SendCommandCloud(DeviceID, switch, False)
@@ -369,6 +368,34 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'switch', True)
                     UpdateDevice(DeviceID, 1, 'On', 1, 0)
 
+            if dev_type == 'starlight':
+                if Command == 'Off' and Unit == 2:
+                    SendCommandCloud(DeviceID, 'colour_switch', False)
+                    UpdateDevice(DeviceID, 2, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 4:
+                    SendCommandCloud(DeviceID, 'colour_switch', True)
+                    UpdateDevice(DeviceID, 2, 'On', 1, 0)
+                if Command == 'Off' and Unit == 3:
+                    SendCommandCloud(DeviceID, 'laser_switch', False)
+                    UpdateDevice(DeviceID, 3, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 3:
+                    SendCommandCloud(DeviceID, 'laser_switch', True)
+                    UpdateDevice(DeviceID, 3, 'On', 1, 0)
+                elif Command == 'Set Level' and Unit == 3:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'laser_bright', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 3, Level, 1, 0)
+                if Command == 'Off' and Unit == 3:
+                    SendCommandCloud(DeviceID, 'fan_switch', False)
+                    UpdateDevice(DeviceID, 3, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 3:
+                    SendCommandCloud(DeviceID, 'fan_switch', True)
+                    UpdateDevice(DeviceID, 3, 'On', 1, 0)
+                elif Command == 'Set Level' and Unit == 3:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'fan_speed', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 3, Level, 1, 0)
+
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
 
@@ -554,7 +581,7 @@ def onHandleThread(startup):
                 except:
                     deviceinfo = {'ip': None, 'version': 3.3}
 
-                if dev_type in ('light', 'fanlight', 'pirlight') and createDevice(dev['id'], 1):
+                if dev_type in ('light', 'fanlight', 'pirlight', 'starlight') and createDevice(dev['id'], 1):
                     # for localcontol: and deviceinfo['ip'] != None
                     if (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light RGBWW')
@@ -577,6 +604,9 @@ def onHandleThread(startup):
                     elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and not searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (not searchCode('bright_value', StatusProperties) or not searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light On/Off')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
+                    elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('star_work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)):
+                        Domoticz.Log('Create device Light RGBWW')
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7, Used=1).Create()
                     else:
                         Domoticz.Log('Create device Light On/Off (Unknown Light Device)')
                         Domoticz.Unit(Name=dev['name'] + ' (Unknown Light Device)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
@@ -920,6 +950,15 @@ def onHandleThread(startup):
                                 options['SelectorStyle'] = '0'
                                 Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=22, Used=1).Create()
 
+                if dev_type == 'starlight':
+                    if createDevice(dev['id'], 2) and searchCode('colour_switch', FunctionProperties):
+                        Domoticz.Log('Create device Starlight')
+                        Domoticz.Unit(Name=dev['name'] + ' (Colour)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('laser_switch', FunctionProperties) and searchCode('laser_bright', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Laser)', DeviceID=dev['id'], Unit=3, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('fan_switch', FunctionProperties) and searchCode('fan_speed', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
+
                 # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
                 #     for item in StatusProperties:
                 #         if item['code'] == 'PIR':
@@ -1051,20 +1090,20 @@ def onHandleThread(startup):
                         if searchCode('switch_led_1', StatusProperties):
                             currentstatus = StatusDeviceTuya('switch_led_1')
                             currentdim = brightness_to_pct(StatusProperties, 'bright_value_1', int(StatusDeviceTuya('bright_value_1')))
-                            if bool(currentstatus) == False:
+                            if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
+                            elif bool(currentstatus) == True or currentdim > 0:
                                 UpdateDevice(dev['id'], 1, currentdim, 1, 0)
 
                         if searchCode('switch_led_2', StatusProperties):
                             currentstatus = StatusDeviceTuya('switch_led_2')
                             currentdim = brightness_to_pct(StatusProperties, 'bright_value_2', int(StatusDeviceTuya('bright_value_2')))
-                            if bool(currentstatus) == False:
+                            if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 2, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
+                            elif bool(currentstatus) == True or currentdim > 0:
                                 UpdateDevice(dev['id'], 2, currentdim, 1, 0)
 
-                    if dev_type in ('light','fanlight'):
+                    if dev_type in ('light','fanlight','starlight'):
                         if searchCode('switch_led', StatusProperties):
                             currentstatus = StatusDeviceTuya('switch_led')
                         else:
@@ -1073,7 +1112,10 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                         elif bool(currentstatus) == True:
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                        workmode = StatusDeviceTuya('work_mode')
+                        if dev_type == 'starlight':
+                            workmode = 'colour'
+                        else:
+                            workmode = StatusDeviceTuya('work_mode')
                         BrightnessControl = False
                         if searchCode('bright_value', StatusProperties):
                             BrightnessControl = True
@@ -1122,7 +1164,7 @@ def onHandleThread(startup):
                                     colorupdate = {'b':b,'cw':0,'g':g,'m':3,'r':r,'t':0,'ww':0}
                                 else:
                                     # colorupdate = {'r':int('0x' + colortuya[0:-12],0),'g':int('0x' + colortuya[2:-10],0),'b':int('0x' + colortuya[4:-8],0)}
-                                    h,s,level = rgb_to_hsv(int('0x' + colortuya[0:-12],0),int('0x' + colortuya[2:-10],0),int('0x' + colortuya[4:-8],0))
+                                    h,s,level = rgb_to_hsv(int('0x' + colortuya[0:-12],0),int('0x' + colortuya[2:-10],0),int('0x' + colortuya[4:-8],0)) # Need fix for starlight
                                     r,g,b = hsv_to_rgb(h, s, 100)
                                     colorupdate = {'b':b,'cw':0,'g':g,'m':3,'r':r,'t':0,'ww':0}
                                 Domoticz.Debug('levelupdate: ' + str(level))
@@ -1681,6 +1723,28 @@ def onHandleThread(startup):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
                                     Devices[dev['id']].Units[unit].Update()
 
+                    if dev_type == 'starlight':
+                        if searchCode('colour_switch', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('colour_switch')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 2, 'On', 1, 0)
+                        if searchCode('laser_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('laser_switch')
+                            currentdim = brightness_to_pct(StatusProperties, 'laser_bright', int(StatusDeviceTuya('laser_bright')))
+                            if bool(currentstatus) == False or currentdim == 0:
+                                UpdateDevice(dev['id'], 3, 'Off', 0, 0)
+                            elif bool(currentstatus) == True or currentdim > 0:
+                                UpdateDevice(dev['id'], 3, currentdim, 1, 0)
+                        if searchCode('fan_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('fan_switch')
+                            currentdim = brightness_to_pct(StatusProperties, 'fan_speed', int(StatusDeviceTuya('fan_speed')))
+                            if bool(currentstatus) == False or currentdim == 0:
+                                UpdateDevice(dev['id'], 4, 'Off', 0, 0)
+                            elif bool(currentstatus) == True or currentdim > 0:
+                                UpdateDevice(dev['id'], 4, currentdim, 1, 0)
+
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -1712,7 +1776,7 @@ def DumpConfigToLog():
 def DeviceType(category):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
-    if category in {'kg', 'cz', 'pc', 'dlq', 'bh', 'tdq'}:
+    if category in {'kg', 'cz', 'pc', 'dlq', 'bh', 'tdq', 'znjdq'}:
         result = 'switch'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj'}:
         result = 'light'
@@ -1760,6 +1824,8 @@ def DeviceType(category):
         result = 'presence'
     elif category in {'sfkzq'}:
         result = 'irrigation'
+    elif category in {'xktyd'}:
+        result = 'starlight'
     # elif 'infrared_' in category: # keep it last
     #     result = 'infrared_id'
     else:
