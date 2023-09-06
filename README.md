@@ -88,5 +88,7 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.5.6 | Fixed colour control and added Energy breaker switch|
 | 1.5.7 | Add water leak sensor and presence sensors |
 | 1.5.8 | Add Irrigation Control and smokesensor |
+| 1.5.9 | Add new switch device |
+| 1.6.0 | Add Starlight and Smart Wireless Switch M4 device |
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/xenomes)
