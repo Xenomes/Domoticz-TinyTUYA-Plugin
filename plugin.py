@@ -392,7 +392,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'laser_switch', True)
                     UpdateDevice(DeviceID, 3, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
-                    SendCommandCloud(DeviceID, 'laser_switch', Level)
+                    SendCommandCloud(DeviceID, 'laser_bright', Level)
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 if Command == 'Off' and Unit == 4:
                     SendCommandCloud(DeviceID, 'fan_switch', False)
@@ -401,7 +401,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'fan_switch', True)
                     UpdateDevice(DeviceID, 4, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
-                    SendCommandCloud(DeviceID, 'fan_switch', Level)
+                    SendCommandCloud(DeviceID, 'fan_speed', Level)
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
 
             if dev_type == 'wswitch':
@@ -971,11 +971,11 @@ def onHandleThread(startup):
                 if dev_type == 'starlight':
                     if createDevice(dev['id'], 2) and searchCode('colour_switch', FunctionProperties):
                         Domoticz.Log('Create device Starlight')
-                        Domoticz.Unit(Name=dev['name'] + ' (Colour)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Colour)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('laser_switch', FunctionProperties) and searchCode('laser_bright', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Laser)', DeviceID=dev['id'], Unit=3, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('fan_switch', FunctionProperties) and searchCode('fan_speed', FunctionProperties):
-                        Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=241, Subtype=3, Switchtype=7, Image=7, Used=1).Create()
 
                 if dev_type == 'wswitch':
                     # if createDevice(dev['id'], 1) and searchCode('switch1_value', StatusProperties):
@@ -1989,7 +1989,7 @@ def SendCommandCloud(ID, CommandName, Status):
     for item in sendfunction:
         if str(CommandName) in str(item['code']):
             actual_function_name = str(item['code'])
-    if 'bright_value' in CommandName or 'bright_value_v2' in CommandName or 'bright_value_1' in CommandName or 'bright_value_2' in CommandName:
+    if 'bright_value' in CommandName or 'bright_value_v2' in CommandName or 'bright_value_1' in CommandName or 'bright_value_2' in CommandName or 'laser_bright' in CommandName:
         actual_status = pct_to_brightness(sendfunction, actual_function_name, Status)
     elif 'temp_value' in CommandName or 'temp_value_v2' in CommandName:
         actual_status = temp_value_scale(sendfunction, actual_function_name, Status)
