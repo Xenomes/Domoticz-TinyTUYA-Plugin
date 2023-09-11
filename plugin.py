@@ -169,7 +169,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
-            elif dev_type in ('light') or ((dev_type in ('fanlight') or dev_type in ('pirlight') and Unit == 1) or dev_type in ('starlight') and Unit == 1):
+            elif dev_type in ('light') or ((dev_type in ('fanlight') or dev_type in ('pirlight') or dev_type in ('starlight')) and Unit == 1):
                 switch = 'led_switch' if searchCode('led_switch', function) else 'switch_led'
                 if Command == 'Off':
                     SendCommandCloud(DeviceID, switch, False)
@@ -212,7 +212,7 @@ class BasePlugin:
                     #     UpdateDevice(DeviceID, 1, Color, 1, 0)
                     elif Color['m'] == 3:
                         if dev_type in ('wswitch'):
-                            if searchCode('colour_data_v2', StatusProperties):
+                            if searchCode('colour_data_v2', StatusProperties) or dev_type == 'starlight':
                                 h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
                                 hvs = {'h':h, 's':s, 'v':Level * 10}
                                 SendCommandCloud(DeviceID, 'colour_data', hvs)
@@ -392,7 +392,9 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'laser_switch', True)
                     UpdateDevice(DeviceID, 3, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
+                    SendCommandCloud(DeviceID, 'laser_switch', True)
                     SendCommandCloud(DeviceID, 'laser_bright', Level)
+                    UpdateDevice(DeviceID, 3, 'On', 1, 0)
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 if Command == 'Off' and Unit == 4:
                     SendCommandCloud(DeviceID, 'fan_switch', False)
@@ -401,7 +403,9 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'fan_switch', True)
                     UpdateDevice(DeviceID, 4, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
+                    SendCommandCloud(DeviceID, 'fan_switch', True)
                     SendCommandCloud(DeviceID, 'fan_speed', Level)
+                    UpdateDevice(DeviceID, 4, 'On', 1, 0)
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
 
             if dev_type == 'wswitch':
@@ -1816,6 +1820,7 @@ def onHandleThread(startup):
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 3, 'Off', 0, 0)
                             elif bool(currentstatus) == True or currentdim > 0:
+                                UpdateDevice(dev['id'], 3, 'On', 1, 0)
                                 UpdateDevice(dev['id'], 3, currentdim, 1, 0)
                         if searchCode('fan_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('fan_switch')
@@ -1823,6 +1828,7 @@ def onHandleThread(startup):
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 4, 'Off', 0, 0)
                             elif bool(currentstatus) == True or currentdim > 0:
+                                UpdateDevice(dev['id'], 4, 'On', 1, 0)
                                 UpdateDevice(dev['id'], 4, currentdim, 1, 0)
 
                     if dev_type == 'wswitch':
