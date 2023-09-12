@@ -380,10 +380,10 @@ class BasePlugin:
 
             if dev_type == 'starlight':
                 if Command == 'Off' and Unit == 2:
-                    SendCommandCloud(DeviceID, 'colour_switch', False)
+                    SendCommandCloud(DeviceID, 'colour_switch', True) #Inverted
                     UpdateDevice(DeviceID, 2, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 2:
-                    SendCommandCloud(DeviceID, 'colour_switch', True)
+                    SendCommandCloud(DeviceID, 'colour_switch', False) #Inverted
                     UpdateDevice(DeviceID, 2, 'On', 1, 0)
                 if Command == 'Off' and Unit == 3:
                     SendCommandCloud(DeviceID, 'laser_switch', False)
@@ -628,7 +628,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
                     elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('star_work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)):
                         Domoticz.Log('Create device Light RGBWW')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
                     else:
                         Domoticz.Log('Create device Light On/Off (Unknown Light Device)')
                         Domoticz.Unit(Name=dev['name'] + ' (Unknown Light Device)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
@@ -1239,7 +1239,7 @@ def onHandleThread(startup):
                                 color = ast.literal_eval(Devices[dev['id']].Units[1].Color)
                                 Domoticz.Debug('Colordata = ' + str(color))
                                 if dev_type in ('starlight'):
-                                    h, s, v = StatusDeviceTuya('colour_data')
+                                    h, s, level = StatusDeviceTuya('colour_data')
                                     r,g,b = hsv_to_rgb_v2(h, s, v)
                                 else:
                                     if searchCode('colour_data_v2', StatusProperties):
