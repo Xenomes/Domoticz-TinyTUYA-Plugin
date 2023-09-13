@@ -211,14 +211,14 @@ class BasePlugin:
                     #     UpdateDevice(DeviceID, 1, Level, 1, 0)
                     #     UpdateDevice(DeviceID, 1, Color, 1, 0)
                     elif Color['m'] == 3:
-                        if dev_type in ('wswitch'):
-                            if searchCode('colour_data_v2', StatusProperties) or dev_type == 'starlight':
+                        if dev_type in ('starlight'):
+                            if searchCode('colour_data_v2', StatusProperties):
                                 h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
                                 hvs = {'h':h, 's':s, 'v':Level * 10}
                                 SendCommandCloud(DeviceID, 'colour_data', hvs)
                             else:
                                 h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
-                                hvs = {'h':h, 's':s, 'v':Level * 2.55}
+                                hvs = {'h':h, 's':s, 'v':Level * 10}
                                 SendCommandCloud(DeviceID, 'colour_data', hvs)
                         else:
                             rgbcolor = format(rgb_temp(Color['r'], Level), '02x') + format(rgb_temp(Color['g'], Level), '02x') + format(rgb_temp(Color['b'], Level), '02x') + '0000ffff'
