@@ -1058,6 +1058,11 @@ def onHandleThread(startup):
                 # if dev_type == 'lock':
                 #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
+                if dev_type == 'lightsensor':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device light sensor')
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=246, Subtype=1, Switchtype=11, Used=1).Create()
+
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Infrared device: ' + str(dev['name']))
@@ -1870,6 +1875,10 @@ def onHandleThread(startup):
                                 if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
                                     Devices[dev['id']].Units[unit].Update()
+                    if dev_type == 'lightsensor':
+                        if searchCode('bright_value', ResultValue):
+                            currentbright= StatusDeviceTuya('bright_value')
+                            UpdateDevice(dev['id'], 1, float(currentbright),1, 0)
 
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
@@ -1954,6 +1963,8 @@ def DeviceType(category):
         result = 'starlight'
     elif category in {'wxkg'}:
         result = 'wswitch'
+    elif category in {'dgnbj'}:
+        result = 'lightsensor'
     elif 'infrared_' in category: # keep it last
         result = 'infrared'
     else:
