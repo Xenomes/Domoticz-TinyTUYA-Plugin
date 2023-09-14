@@ -1184,7 +1184,7 @@ def onHandleThread(startup):
                             currentdim = brightness_to_pct(StatusProperties, 'bright_value_1', int(StatusDeviceTuya('bright_value_1')))
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True and  currentdim > 0 and currentdim != int(Devices[dev['id']].Units[1].sValue):
+                            elif bool(currentstatus) == True and  currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, currentdim, 1, 0)
 
                         if searchCode('switch_led_2', StatusProperties):
@@ -1192,7 +1192,7 @@ def onHandleThread(startup):
                             currentdim = brightness_to_pct(StatusProperties, 'bright_value_2', int(StatusDeviceTuya('bright_value_2')))
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 2, 'Off', 0, 0)
-                            elif bool(currentstatus) == True and currentdim > 0 and currentdim != int(Devices[dev['id']].Units[2].sValue):
+                            elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, currentdim, 1, 0)
 
                     if dev_type in ('light','fanlight','starlight'):
@@ -1831,7 +1831,7 @@ def onHandleThread(startup):
                             currentdim = brightness_to_pct(StatusProperties, 'laser_bright', int(StatusDeviceTuya('laser_bright')))
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 3, 'Off', 0, 0)
-                            elif bool(currentstatus) == True and currentdim > 0 and currentdim != int(Devices[dev['id']].Units[3].sValue):
+                            elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, 'On', 1, 0)
                                 UpdateDevice(dev['id'], 3, currentdim, 1, 0)
                         if searchCode('fan_switch', StatusProperties):
@@ -1839,7 +1839,7 @@ def onHandleThread(startup):
                             currentdim = brightness_to_pct(StatusProperties, 'fan_speed', int(StatusDeviceTuya('fan_speed')))
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 4, 'Off', 0, 0)
-                            elif bool(currentstatus) == True and currentdim > 0 and currentdim != int(Devices[dev['id']].Units[4].sValue):
+                            elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[4].sValue):
                                 Domoticz.Debug(Devices[dev['id']].Units[4].sValue)
                                 UpdateDevice(dev['id'], 4, 'On', 1, 0)
                                 UpdateDevice(dev['id'], 4, currentdim, 1, 0)
