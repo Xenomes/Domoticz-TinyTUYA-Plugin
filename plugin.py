@@ -169,7 +169,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
-            elif dev_type in ('light') or ((dev_type in ('fanlight') or dev_type in ('pirlight') or dev_type in ('starlight')) and Unit == 1):
+            elif dev_type in ('light') or ((dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1):
                 switch = 'led_switch' if searchCode('led_switch', function) else 'switch_led'
                 if Command == 'Off':
                     SendCommandCloud(DeviceID, switch, False)
@@ -211,23 +211,13 @@ class BasePlugin:
                     #     UpdateDevice(DeviceID, 1, Level, 1, 0)
                     #     UpdateDevice(DeviceID, 1, Color, 1, 0)
                     elif Color['m'] == 3:
-                        if dev_type in ('starlight'):
-                            if searchCode('colour_data_v2', StatusProperties):
-                                h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
-                                hvs = {'h':h, 's':s, 'v':Level * 10}
-                                SendCommandCloud(DeviceID, 'colour_data', hvs)
-                            else:
-                                h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
-                                hvs = {'h':h, 's':s, 'v':Level * 10}
-                                SendCommandCloud(DeviceID, 'colour_data', hvs)
+                        rgbcolor = format(rgb_temp(Color['r'], Level), '02x') + format(rgb_temp(Color['g'], Level), '02x') + format(rgb_temp(Color['b'], Level), '02x') + '0000ffff'
+                        SendCommandCloud(DeviceID, switch, True)
+                        SendCommandCloud(DeviceID, 'work_mode', 'colour')
+                        if searchCode('colour_data_v2', function):
+                            SendCommandCloud(DeviceID, 'colour_data_v2', rgbcolor)
                         else:
-                            rgbcolor = format(rgb_temp(Color['r'], Level), '02x') + format(rgb_temp(Color['g'], Level), '02x') + format(rgb_temp(Color['b'], Level), '02x') + '0000ffff'
-                            SendCommandCloud(DeviceID, switch, True)
-                            SendCommandCloud(DeviceID, 'work_mode', 'colour')
-                            if searchCode('colour_data_v2', function):
-                                SendCommandCloud(DeviceID, 'colour_data_v2', rgbcolor)
-                            else:
-                                SendCommandCloud(DeviceID, 'colour_data', rgbcolor)
+                            SendCommandCloud(DeviceID, 'colour_data', rgbcolor)
                         UpdateDevice(DeviceID, 1, Level, 1, 0)
                         UpdateDevice(DeviceID, 1, Color, 1, 0)
 
@@ -379,11 +369,28 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 1, 'On', 1, 0)
 
             if dev_type == 'starlight':
+                if Command == 'Off' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'switch_led', False)
+                    SendCommandCloud(DeviceID, 'colour_switch', False)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                    UpdateDevice(DeviceID, 2, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'switch_led', True)
+                    SendCommandCloud(DeviceID, 'colour_switch', True)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
+                    UpdateDevice(DeviceID, 2, 'On', 1, 0)
+                elif (Command == 'Set Color' or Command == 'Set Level') and len(Color) != 0 and Unit == 1:
+                    h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
+                    hvs = {'h':h, 's':s, 'v':Level * 10}
+                    SendCommandCloud(DeviceID, 'colour_data', hvs)
+                    SendCommandCloud(DeviceID, 'colour_switch', True)
+                    UpdateDevice(DeviceID, 1, Level, 1, 0)
+                    UpdateDevice(DeviceID, 1, Color, 1, 0)
                 if Command == 'Off' and Unit == 2:
-                    SendCommandCloud(DeviceID, 'colour_switch', True) #Inverted
+                    SendCommandCloud(DeviceID, 'colour_switch', False)
                     UpdateDevice(DeviceID, 2, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 2:
-                    SendCommandCloud(DeviceID, 'colour_switch', False) #Inverted
+                    SendCommandCloud(DeviceID, 'colour_switch', True)
                     UpdateDevice(DeviceID, 2, 'On', 1, 0)
                 if Command == 'Off' and Unit == 3:
                     SendCommandCloud(DeviceID, 'laser_switch', False)
@@ -1172,7 +1179,7 @@ def onHandleThread(startup):
                             currentdim = brightness_to_pct(StatusProperties, 'bright_value_1', int(StatusDeviceTuya('bright_value_1')))
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True or currentdim > 0:
+                            elif bool(currentstatus) == True and  currentdim > 0 and currentdim != int(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, currentdim, 1, 0)
 
                         if searchCode('switch_led_2', StatusProperties):
@@ -1180,7 +1187,7 @@ def onHandleThread(startup):
                             currentdim = brightness_to_pct(StatusProperties, 'bright_value_2', int(StatusDeviceTuya('bright_value_2')))
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 2, 'Off', 0, 0)
-                            elif bool(currentstatus) == True or currentdim > 0:
+                            elif bool(currentstatus) == True and currentdim > 0 and currentdim != int(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, currentdim, 1, 0)
 
                     if dev_type in ('light','fanlight','starlight'):
@@ -1819,7 +1826,7 @@ def onHandleThread(startup):
                             currentdim = brightness_to_pct(StatusProperties, 'laser_bright', int(StatusDeviceTuya('laser_bright')))
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 3, 'Off', 0, 0)
-                            elif bool(currentstatus) == True or currentdim > 0:
+                            elif bool(currentstatus) == True and currentdim > 0 and currentdim != int(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, 'On', 1, 0)
                                 UpdateDevice(dev['id'], 3, currentdim, 1, 0)
                         if searchCode('fan_switch', StatusProperties):
@@ -1827,7 +1834,8 @@ def onHandleThread(startup):
                             currentdim = brightness_to_pct(StatusProperties, 'fan_speed', int(StatusDeviceTuya('fan_speed')))
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 4, 'Off', 0, 0)
-                            elif bool(currentstatus) == True or currentdim > 0:
+                            elif bool(currentstatus) == True and currentdim > 0 and currentdim != int(Devices[dev['id']].Units[4].sValue):
+                                Domoticz.Debug(Devices[dev['id']].Units[4].sValue)
                                 UpdateDevice(dev['id'], 4, 'On', 1, 0)
                                 UpdateDevice(dev['id'], 4, currentdim, 1, 0)
 
