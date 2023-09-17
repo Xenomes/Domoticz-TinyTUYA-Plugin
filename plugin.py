@@ -380,7 +380,7 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 1, 'On', 1, 0)
                     UpdateDevice(DeviceID, 2, 'On', 1, 0)
                 elif (Command == 'Set Color' or Command == 'Set Level') and len(Color) != 0 and Unit == 1:
-                    h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
+                    h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
                     hvs = {'h':h, 's':s, 'v':Level * 10}
                     SendCommandCloud(DeviceID, 'colour_data', hvs)
                     SendCommandCloud(DeviceID, 'colour_switch', True)
@@ -389,9 +389,11 @@ class BasePlugin:
                 if Command == 'Off' and Unit == 2:
                     SendCommandCloud(DeviceID, 'colour_switch', False)
                     UpdateDevice(DeviceID, 2, 'Off', 0, 0)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 2:
                     SendCommandCloud(DeviceID, 'colour_switch', True)
                     UpdateDevice(DeviceID, 2, 'On', 1, 0)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
                 if Command == 'Off' and Unit == 3:
                     SendCommandCloud(DeviceID, 'laser_switch', False)
                     UpdateDevice(DeviceID, 3, 'Off', 0, 0)
