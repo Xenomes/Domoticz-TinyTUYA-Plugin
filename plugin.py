@@ -841,6 +841,16 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 32) and searchCode('ActivePowerC', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' L3 (kWh)', DeviceID=dev['id'], Unit=32, Type=243, Subtype=29, Used=1).Create()
 
+                if dev_type == 'powermeter':
+                    if createDevice(dev['id'], 1) and searchCode('phase_a', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=23, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('phase_a', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (W)', DeviceID=dev['id'], Unit=2, Type=248, Subtype=1, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('phase_a', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=3, Type=243, Subtype=8, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('phase_a', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=29, Used=1).Create()
+ 
                 if dev_type == 'gateway':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device Gateway')
@@ -1556,6 +1566,24 @@ def onHandleThread(startup):
 
                             UpdateDevice(dev['id'], 31, str(currentvoltageC), 0, 0)
 
+                        # 1 phase_a Meter
+                        if searchCode('phase_a', ResultValue):
+                            base64_string = StatusDeviceTuya('phase_a')
+                            # Decode base64 string
+                            decoded_data = base64.b64decode(base64_string)
+
+                            # Extract voltage, current, and power data
+                            currentvoltage = int.from_bytes(decoded_data[:2], byteorder='big') * 0.1
+                            currentcurrent = int.from_bytes(decoded_data[2:5], byteorder='big') * 0.001
+                            currentpower = int.from_bytes(decoded_data[5:8], byteorder='big')
+                            leakagecurrent = StatusDeviceTuya('leakage_current')
+
+                            UpdateDevice(dev['id'], 1, str(currentcurrent), 0, 0)
+                            UpdateDevice(dev['id'], 2, str(currentpower), 0, 0)
+                            UpdateDevice(dev['id'], 3, str(currentvoltage), 0, 0)
+                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[4].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                            lastvalue = Devices[dev['id']].Units[4].sValue if len(Devices[dev['id']].Units[4].sValue) > 0 else '0;0'
+                            UpdateDevice(dev['id'], 4, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
                     if dev_type == 'gateway':
                         if searchCode('master_state', ResultValue):
                             UpdateDevice(dev['id'], 1, StatusDeviceTuya('master_state'), 0, 0)
