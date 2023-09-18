@@ -379,12 +379,11 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'colour_switch', True)
                     UpdateDevice(DeviceID, 1, 'On', 1, 0)
                     UpdateDevice(DeviceID, 2, 'On', 1, 0)
-                elif (Command == 'Set Color' or Command == 'Set Level') and len(Color) != 0 and Unit == 1:
+                elif (Command == 'Set Color' or Command == 'Set Level') and Unit == 1: # and len(Color) != 0
                     h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
                     hvs = {'h':h, 's':s, 'v':Level * 10}
                     SendCommandCloud(DeviceID, 'colour_data', hvs)
                     SendCommandCloud(DeviceID, 'colour_switch', True)
-                    UpdateDevice(DeviceID, 1, Level, 1, 0)
                     UpdateDevice(DeviceID, 1, Color, 1, 0)
                 if Command == 'Off' and Unit == 2:
                     SendCommandCloud(DeviceID, 'colour_switch', False)
@@ -402,7 +401,7 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 3, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
                     SendCommandCloud(DeviceID, 'laser_switch', True)
-                    SendCommandCloud(DeviceID, 'laser_bright', Level)
+                    SendCommandCloud(DeviceID, 'laser_bright', Level * 10)
                     UpdateDevice(DeviceID, 3, 'On', 1, 0)
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 if Command == 'Off' and Unit == 4:
@@ -850,7 +849,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=3, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('phase_a', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=29, Used=1).Create()
- 
+
                 if dev_type == 'gateway':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device Gateway')
