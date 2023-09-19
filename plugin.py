@@ -368,54 +368,6 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'switch', True)
                     UpdateDevice(DeviceID, 1, 'On', 1, 0)
 
-            if dev_type == 'starlight':
-                if Command == 'Off' and Unit == 1:
-                    SendCommandCloud(DeviceID, 'switch_led', False)
-                    SendCommandCloud(DeviceID, 'colour_switch', False)
-                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
-                    UpdateDevice(DeviceID, 2, 'Off', 0, 0)
-                elif Command == 'On' and Unit == 1:
-                    SendCommandCloud(DeviceID, 'switch_led', True)
-                    SendCommandCloud(DeviceID, 'colour_switch', True)
-                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
-                    UpdateDevice(DeviceID, 2, 'On', 1, 0)
-                elif (Command == 'Set Color' or Command == 'Set Level') and Unit == 1: # and len(Color) != 0
-                    h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
-                    hvs = {'h':h, 's':s, 'v':Level * 10}
-                    SendCommandCloud(DeviceID, 'colour_data', hvs)
-                    SendCommandCloud(DeviceID, 'colour_switch', True)
-                    UpdateDevice(DeviceID, 1, Color, 1, 0)
-                if Command == 'Off' and Unit == 2:
-                    SendCommandCloud(DeviceID, 'colour_switch', False)
-                    UpdateDevice(DeviceID, 2, 'Off', 0, 0)
-                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
-                elif Command == 'On' and Unit == 2:
-                    SendCommandCloud(DeviceID, 'colour_switch', True)
-                    UpdateDevice(DeviceID, 2, 'On', 1, 0)
-                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
-                if Command == 'Off' and Unit == 3:
-                    SendCommandCloud(DeviceID, 'laser_switch', False)
-                    UpdateDevice(DeviceID, 3, 'Off', 0, 0)
-                elif Command == 'On' and Unit == 3:
-                    SendCommandCloud(DeviceID, 'laser_switch', True)
-                    UpdateDevice(DeviceID, 3, 'On', 1, 0)
-                elif Command == 'Set Level' and Unit == 3:
-                    SendCommandCloud(DeviceID, 'laser_switch', True)
-                    SendCommandCloud(DeviceID, 'laser_bright', Level * 10)
-                    UpdateDevice(DeviceID, 3, 'On', 1, 0)
-                    UpdateDevice(DeviceID, 3, Level, 1, 0)
-                if Command == 'Off' and Unit == 4:
-                    SendCommandCloud(DeviceID, 'fan_switch', False)
-                    UpdateDevice(DeviceID, 4, 'Off', 0, 0)
-                elif Command == 'On' and Unit == 4:
-                    SendCommandCloud(DeviceID, 'fan_switch', True)
-                    UpdateDevice(DeviceID, 4, 'On', 1, 0)
-                elif Command == 'Set Level' and Unit == 4:
-                    SendCommandCloud(DeviceID, 'fan_switch', True)
-                    SendCommandCloud(DeviceID, 'fan_speed', Level)
-                    UpdateDevice(DeviceID, 4, 'On', 1, 0)
-                    UpdateDevice(DeviceID, 4, Level, 1, 0)
-
             if dev_type == 'wswitch':
                 if Command == 'Set Level':
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
@@ -611,7 +563,7 @@ def onHandleThread(startup):
                 except:
                     deviceinfo = {'ip': None, 'version': 3.3}
 
-                if dev_type in ('light', 'fanlight', 'pirlight', 'starlight') and createDevice(dev['id'], 1):
+                if dev_type in ('light', 'fanlight', 'pirlight') and createDevice(dev['id'], 1):
                     # for localcontol: and deviceinfo['ip'] != None
                     if (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light RGBWW')
@@ -634,9 +586,6 @@ def onHandleThread(startup):
                     elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and not searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (not searchCode('bright_value', StatusProperties) or not searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light On/Off')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
-                    elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('star_work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)):
-                        Domoticz.Log('Create device Light RGBWW')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
                     else:
                         Domoticz.Log('Create device Light On/Off (Unknown Light Device)')
                         Domoticz.Unit(Name=dev['name'] + ' (Unknown Light Device)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
@@ -990,15 +939,6 @@ def onHandleThread(startup):
                                 options['SelectorStyle'] = '0'
                                 Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=22, Used=1).Create()
 
-                if dev_type == 'starlight':
-                    if createDevice(dev['id'], 2) and searchCode('colour_switch', FunctionProperties):
-                        Domoticz.Log('Create device Starlight')
-                        Domoticz.Unit(Name=dev['name'] + ' (Colour)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
-                    if createDevice(dev['id'], 3) and searchCode('laser_switch', FunctionProperties) and searchCode('laser_bright', FunctionProperties):
-                        Domoticz.Unit(Name=dev['name'] + ' (Laser)', DeviceID=dev['id'], Unit=3, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
-                    if createDevice(dev['id'], 4) and searchCode('fan_switch', FunctionProperties) and searchCode('fan_speed', FunctionProperties):
-                        Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=241, Subtype=3, Switchtype=7, Image=7, Used=1).Create()
-
                 if dev_type == 'wswitch':
                     # if createDevice(dev['id'], 1) and searchCode('switch1_value', StatusProperties):
                     #     Domoticz.Unit(Name=dev['name'] + ' single click (Switch 1)', DeviceID=dev['id'], Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -1018,56 +958,6 @@ def onHandleThread(startup):
                                     options['SelectorStyle'] = '0'
                                     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
-                    # if createDevice(dev['id'], 2) and searchCode('switch2_value', StatusProperties):
-                    #     Domoticz.Unit(Name=dev['name'] + ' single click (Switch 2)', DeviceID=dev['id'], Unit=21, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' double click (Switch 2)', DeviceID=dev['id'], Unit=22, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' long press (Switch 2)', DeviceID=dev['id'], Unit=23, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    # if createDevice(dev['id'], 3) and searchCode('switch3_value', StatusProperties):
-                    #     Domoticz.Unit(Name=dev['name'] + ' single click (Switch 3)', DeviceID=dev['id'], Unit=31, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' double click (Switch 3)', DeviceID=dev['id'], Unit=32, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' long press (Switch 3)', DeviceID=dev['id'], Unit=33, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    # if createDevice(dev['id'], 4) and searchCode('switch4_value', StatusProperties):
-                    #     Domoticz.Unit(Name=dev['name'] + ' single click (Switch 4)', DeviceID=dev['id'], Unit=41, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' double click (Switch 4)', DeviceID=dev['id'], Unit=42, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' long press (Switch 4)', DeviceID=dev['id'], Unit=43, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    # if createDevice(dev['id'], 5) and searchCode('switch5_value', StatusProperties):
-                    #     Domoticz.Unit(Name=dev['name'] + ' single click (Switch 5)', DeviceID=dev['id'], Unit=51, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' double click (Switch 5)', DeviceID=dev['id'], Unit=52, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' long press (Switch 5)', DeviceID=dev['id'], Unit=53, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    # if createDevice(dev['id'], 6) and searchCode('switch5_value', StatusProperties):
-                    #     Domoticz.Unit(Name=dev['name'] + ' single click (Switch 6)', DeviceID=dev['id'], Unit=61, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' double click (Switch 6)', DeviceID=dev['id'], Unit=62, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' long press (Switch 6)', DeviceID=dev['id'], Unit=63, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    # if createDevice(dev['id'], 7) and searchCode('switch5_value', StatusProperties):
-                    #     Domoticz.Unit(Name=dev['name'] + ' single click (Switch 7)', DeviceID=dev['id'], Unit=71, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' double click (Switch 7)', DeviceID=dev['id'], Unit=72, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' long press (Switch 7)', DeviceID=dev['id'], Unit=73, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    # if createDevice(dev['id'], 8) and searchCode('switch5_value', StatusProperties):
-                    #     Domoticz.Unit(Name=dev['name'] + ' single click (Switch 8)', DeviceID=dev['id'], Unit=81, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' double click (Switch 8)', DeviceID=dev['id'], Unit=82, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' long press (Switch 8)', DeviceID=dev['id'], Unit=83, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    # if createDevice(dev['id'], 9) and searchCode('switch5_value', StatusProperties):
-                    #     Domoticz.Unit(Name=dev['name'] + ' single click (Switch 9)', DeviceID=dev['id'], Unit=91, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' double click (Switch 9)', DeviceID=dev['id'], Unit=92, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' long press (Switch 9)', DeviceID=dev['id'], Unit=93, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-
-                # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
-                #     for item in StatusProperties:
-                #         if item['code'] == 'PIR':
-                #             the_values = json.loads(item['values'])
-                #             mode = ['off']
-                #             mode.extend(the_values.get('range'))
-                #             options = {}
-                #             options['LevelOffHidden'] = 'true'
-                #             options['LevelActions'] = ''
-                #             options['LevelNames'] = '|'.join(mode)
-                #             options['SelectorStyle'] = '0'
-                #             Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
-
-                # if dev_type == 'climate':
-                #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
-                # if dev_type == 'lock':
-                #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                 if dev_type == 'lightsensor':
                     if createDevice(dev['id'], 1):
@@ -1206,7 +1096,7 @@ def onHandleThread(startup):
                             elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, currentdim, 1, 0)
 
-                    if dev_type in ('light','fanlight','starlight'):
+                    if dev_type in ('light','fanlight'):
                         if searchCode('switch_led', StatusProperties):
                             currentstatus = StatusDeviceTuya('switch_led')
                         else:
@@ -1215,10 +1105,7 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                         elif bool(currentstatus) == True:
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                        if dev_type == 'starlight':
-                            workmode = 'colour'
-                        else:
-                            workmode = StatusDeviceTuya('work_mode')
+                        workmode = StatusDeviceTuya('work_mode')
                         BrightnessControl = False
                         if searchCode('bright_value', StatusProperties):
                             BrightnessControl = True
@@ -1261,18 +1148,14 @@ def onHandleThread(startup):
                             if len(Devices[dev['id']].Units[1].Color) != 0:
                                 color = ast.literal_eval(Devices[dev['id']].Units[1].Color)
                                 Domoticz.Debug('Colordata = ' + str(color))
-                                if dev_type in ('starlight'):
-                                    h, s, level = StatusDeviceTuya('colour_data')
-                                    r,g,b = hsv_to_rgb_v2(h, s, v)
+                                if searchCode('colour_data_v2', StatusProperties):
+                                    # colorupdate = {'r':int('0x' + colortuya[0:-12],0),'g':int('0x' + colortuya[2:-10],0),'b':int('0x' + colortuya[4:-8],0)}
+                                    h,s,level = rgb_to_hsv_v2(int('0x' + colortuya[0:-12],0),int('0x' + colortuya[2:-10],0),int('0x' + colortuya[4:-8],0))
+                                    r,g,b = hsv_to_rgb_v2(h, s, 1000)
                                 else:
-                                    if searchCode('colour_data_v2', StatusProperties):
-                                        # colorupdate = {'r':int('0x' + colortuya[0:-12],0),'g':int('0x' + colortuya[2:-10],0),'b':int('0x' + colortuya[4:-8],0)}
-                                        h,s,level = rgb_to_hsv_v2(int('0x' + colortuya[0:-12],0),int('0x' + colortuya[2:-10],0),int('0x' + colortuya[4:-8],0))
-                                        r,g,b = hsv_to_rgb_v2(h, s, 1000)
-                                    else:
-                                        # colorupdate = {'r':int('0x' + colortuya[0:-12],0),'g':int('0x' + colortuya[2:-10],0),'b':int('0x' + colortuya[4:-8],0)}
-                                        h,s,level = rgb_to_hsv(int('0x' + colortuya[0:-12],0),int('0x' + colortuya[2:-10],0),int('0x' + colortuya[4:-8],0)) # Need fix for starlight
-                                        r,g,b = hsv_to_rgb(h, s, 100)
+                                    # colorupdate = {'r':int('0x' + colortuya[0:-12],0),'g':int('0x' + colortuya[2:-10],0),'b':int('0x' + colortuya[4:-8],0)}
+                                    h,s,level = rgb_to_hsv(int('0x' + colortuya[0:-12],0),int('0x' + colortuya[2:-10],0),int('0x' + colortuya[4:-8],0))
+                                    r,g,b = hsv_to_rgb(h, s, 100)
                                 colorupdate = {'b':b,'cw':0,'g':g,'m':3,'r':r,'t':0,'ww':0}
                                 Domoticz.Debug('levelupdate: ' + str(level))
                                 Domoticz.Debug('Colorupdate = ' + str(colorupdate))
@@ -1848,31 +1731,6 @@ def onHandleThread(startup):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
                                     Devices[dev['id']].Units[unit].Update()
 
-                    if dev_type == 'starlight':
-                        if searchCode('colour_switch', FunctionProperties):
-                            currentstatus = StatusDeviceTuya('colour_switch')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 2, 'On', 1, 0)
-                        if searchCode('laser_switch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('laser_switch')
-                            currentdim = brightness_to_pct(StatusProperties, 'laser_bright', int(StatusDeviceTuya('laser_bright')))
-                            if bool(currentstatus) == False or currentdim == 0:
-                                UpdateDevice(dev['id'], 3, 'Off', 0, 0)
-                            elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, 'On', 1, 0)
-                                UpdateDevice(dev['id'], 3, currentdim, 1, 0)
-                        if searchCode('fan_switch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('fan_switch')
-                            currentdim = brightness_to_pct(StatusProperties, 'fan_speed', int(StatusDeviceTuya('fan_speed')))
-                            if bool(currentstatus) == False or currentdim == 0:
-                                UpdateDevice(dev['id'], 4, 'Off', 0, 0)
-                            elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[4].sValue):
-                                Domoticz.Debug(Devices[dev['id']].Units[4].sValue)
-                                UpdateDevice(dev['id'], 4, 'On', 1, 0)
-                                UpdateDevice(dev['id'], 4, currentdim, 1, 0)
-
                     if dev_type == 'wswitch':
                         timestamp = int(time.mktime(time.localtime()) * 1000)
                         if (int(timestamp) - int(t)) < 61000:
@@ -1988,8 +1846,6 @@ def DeviceType(category):
         result = 'presence'
     elif category in {'sfkzq'}:
         result = 'irrigation'
-    elif category in {'xktyd'}:
-        result = 'starlight'
     elif category in {'wxkg'}:
         result = 'wswitch'
     elif category in {'dgnbj'}:
