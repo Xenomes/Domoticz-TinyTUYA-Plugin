@@ -1496,7 +1496,7 @@ def onHandleThread(startup):
                         if searchCode('master_state', ResultValue):
                             UpdateDevice(dev['id'], 1, StatusDeviceTuya('master_state'), 0, 0)
                         else:
-                            UpdateDevice(dev['id'], 1, 'No data from device', 0, 0)
+                            UpdateDevice(dev['id'], 1, 'Gateway only', 0, 0)
 
                     if dev_type == ('co2sensor'):
                         if searchCode('temp_current', ResultValue):
