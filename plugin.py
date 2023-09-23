@@ -988,7 +988,7 @@ def onHandleThread(startup):
                                 options['SelectorStyle'] = '0'
                                 Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=13, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('lock_motor_state', StatusProperties):
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ('State'), DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
