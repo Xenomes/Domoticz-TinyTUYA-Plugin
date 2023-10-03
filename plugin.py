@@ -1531,6 +1531,7 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, str(currentcurrent), 0, 0)
                             UpdateDevice(dev['id'], 2, str(currentpower), 0, 0)
                             UpdateDevice(dev['id'], 3, str(currentvoltage), 0, 0)
+
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[4].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev['id']].Units[4].sValue if len(Devices[dev['id']].Units[4].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 4, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
