@@ -1131,7 +1131,6 @@ def onHandleThread(startup):
                             currentcurrent = int.from_bytes(decoded_data[2:5], byteorder='big') * 0.001
                             currentpower = int.from_bytes(decoded_data[5:8], byteorder='big')
                             leakagecurrent = StatusDeviceTuya('leakage_current')
-
                             UpdateDevice(dev['id'], 11, str(currentcurrent), 0, 0)
                             UpdateDevice(dev['id'], 12, str(currentpower), 0, 0)
                             UpdateDevice(dev['id'], 13, str(currentvoltage), 0, 0)
@@ -1525,6 +1524,10 @@ def onHandleThread(startup):
                             currentpower = int.from_bytes(decoded_data[5:8], byteorder='big')
                             leakagecurrent = StatusDeviceTuya('leakage_current')
 
+                            if product_id == 'ze8faryrxr0glqnn':
+                                if str(int.from_bytes(decoded_data[2:5], byteorder='big'))[-1:] == '0':
+                                    currentcurrent = 0 - currentcurrent
+                                    currentpower = 0 - currentpower
                             UpdateDevice(dev['id'], 1, str(currentcurrent), 0, 0)
                             UpdateDevice(dev['id'], 2, str(currentpower), 0, 0)
                             UpdateDevice(dev['id'], 3, str(currentvoltage), 0, 0)
