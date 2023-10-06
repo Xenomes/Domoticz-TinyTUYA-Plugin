@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.6.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.6.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.6.1</h2><br/>
+        <h2>TinyTUYA Plugin version 1.6.2</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -323,6 +323,22 @@ class BasePlugin:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
+                # Other Type of alarm with same code
+                if Command == 'Off' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'muffling', False)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'muffling', True)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
+                elif Command == 'Set Level' and Unit == 2:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'alarm_state', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 2, Level, 1, 0)
+                elif Command == 'Set Level' and Unit == 3:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'alarm_volume', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 3, Level, 1, 0)
+
 
             if dev_type == 'pirlight':
                 if Command == 'Off' and Unit == 2:
@@ -814,6 +830,34 @@ def onHandleThread(startup):
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '1'
                                 Domoticz.Unit(Name=dev['name'] + ' (AlarmPeriod)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                    # Other type of alarm with same code
+                    if createDevice(dev['id'], 1) and searchCode('muffling', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Muffling)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=8, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('alarm_state', FunctionProperties):
+                        Domoticz.Log('Create device Siren')
+                        for item in FunctionProperties:
+                            if item['code'] == 'alarm_state':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '1'
+                                Domoticz.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('alarm_volume', FunctionProperties):
+                        for item in FunctionProperties:
+                            if item['code'] == 'alarm_volume':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '1'
+                                Domoticz.Unit(Name=dev['name'] + ' (Volume)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=8, Used=1).Create()
 
                 if dev_type == 'powermeter':
                     if createDevice(dev['id'], 1) and searchCode('Current', ResultValue):
@@ -1457,6 +1501,31 @@ def onHandleThread(startup):
                                 if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
                                     Devices[dev['id']].Units[unit].Update()
+                        # Other type of Alarm with same code
+                        if searchCode('AlarmSwitch', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('AlarmSwitch')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            elif bool(currentstatus) == True:
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        if searchCode('alarm_state', ResultValue):
+                            currentmode = StatusDeviceTuya('alarm_state')
+                            for item in FunctionProperties:
+                                if item['code'] == 'alarm_state':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
+                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('alarm_volume', ResultValue):
+                            currentmode = StatusDeviceTuya('alarm_volume')
+                            for item in FunctionProperties:
+                                if item['code'] == 'alarm_volume':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
 
                     if dev_type == 'powermeter':
                         if searchCode('Current', ResultValue):
