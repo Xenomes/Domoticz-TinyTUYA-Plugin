@@ -406,13 +406,13 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 1, 'On', 1, 0)
                     UpdateDevice(DeviceID, 2, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 1:
-                    hvs = {'v':Level * 10}
+                    hvs = {'v':(21.25 + ((Level / 100) * 78.75)) * 10}
                     SendCommandCloud(DeviceID, 'colour_data', hvs)
                     SendCommandCloud(DeviceID, 'colour_switch', True)
                     UpdateDevice(DeviceID, 1, Color, 1, 0)
                 elif Command == 'Set Color' and Unit == 1: #
                     h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
-                    hvs = {'h':h, 's':s, 'v':Level * 10}
+                    hvs = {'h':h, 's':s, 'v':21.25 + (((Level / 100) * 78.75)  * 10)}
                     SendCommandCloud(DeviceID, 'colour_data', hvs)
                     SendCommandCloud(DeviceID, 'colour_switch', True)
                     UpdateDevice(DeviceID, 1, Color, 1, 0)
@@ -1961,9 +1961,6 @@ def onHandleThread(startup):
                             if (color['r'] != r or color['g'] != g or color['b'] != b ) or len(Devices[dev['id']].Units[1].Color) == 0:
                                 UpdateDevice(dev['id'], 1, colorupdate, 1, 0)
                                 UpdateDevice(dev['id'], 1, brightness_to_pct(StatusProperties, 'bright_value', int(inv_val(level / 10))), 1, 0)
-
-
-
 
                         if searchCode('colour_switch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('colour_switch')
