@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.6.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.6.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.6.2</h2><br/>
+        <h2>TinyTUYA Plugin version 1.6.3</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -446,6 +446,13 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'fan_speed', Level)
                     UpdateDevice(DeviceID, 4, 'On', 1, 0)
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
+            # if dev_type == 'smartlock':
+            #     if Command == 'Off' and Unit == 3:
+            #         SendCommandCloud(DeviceID, 'switch', False)
+            #         UpdateDevice(DeviceID, 1, 10, 0, 0)
+            #     elif Command == 'On' and Unit == 3:
+            #         SendCommandCloud(DeviceID, 'switch', True)
+            #         UpdateDevice(DeviceID, 1, 0, 1, 0)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
@@ -1062,7 +1069,6 @@ def onHandleThread(startup):
                         Domoticz.Log('Create device Starlight')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('colour_switch', FunctionProperties):
-                        Domoticz.Log('Create device Starlight')
                         Domoticz.Unit(Name=dev['name'] + ' (Colour)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('laser_switch', FunctionProperties) and searchCode('laser_bright', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Laser)', DeviceID=dev['id'], Unit=3, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
@@ -1088,11 +1094,29 @@ def onHandleThread(startup):
                                     options['SelectorStyle'] = '0'
                                     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
-
                 if dev_type == 'lightsensor':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device light sensor')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=246, Subtype=1, Switchtype=11, Used=1).Create()
+
+                if dev_type == 'smartlock':
+                    if createDevice(dev['id'], 1) and searchCode('lock_motor_state', StatusProperties):
+                        Domoticz.Log('Create device smart lock')
+                        Domoticz.Unit(Name=dev['name'] + ('State'), DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                    # if createDevice(dev['id'], 3):
+                    #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=19, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('alarm_lock', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'alarm_lock':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=13, Used=1).Create()
 
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
@@ -1643,7 +1667,7 @@ def onHandleThread(startup):
                         if searchCode('master_state', ResultValue):
                             UpdateDevice(dev['id'], 1, StatusDeviceTuya('master_state'), 0, 0)
                         else:
-                            UpdateDevice(dev['id'], 1, 'No data from device', 0, 0)
+                            UpdateDevice(dev['id'], 1, 'Gateway only', 0, 0)
 
                     if dev_type == ('co2sensor'):
                         if searchCode('temp_current', ResultValue):
@@ -1985,6 +2009,34 @@ def onHandleThread(startup):
                                 Domoticz.Debug(Devices[dev['id']].Units[4].sValue)
                                 UpdateDevice(dev['id'], 4, 'On', 1, 0)
                                 UpdateDevice(dev['id'], 4, currentdim, 1, 0)
+                    if dev_type == 'smartlock':
+                        if searchCode('lock_motor_state', ResultValue):
+                            currentstatus = StatusDeviceTuya('lock_motor_state')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            else:
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        # if searchCode('unlock_temporary', ResultValue):
+                        #     currentstatus = StatusDeviceTuya('unlock_temporary')
+                        #     if currentstatus == 0:
+                        #         UpdateDevice(dev['id'], 3, 'Off', 1, 0)
+                        #     else:
+                        #         UpdateDevice(dev['id'], 3, 'On', 0, 0)
+                        if searchCode('alarm_lock', ResultValue):
+                            currentmode = StatusDeviceTuya('alarm_lock')
+                            for item in StatusProperties:
+                                if item['code'] == 'alarm_lock':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
+                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('residual_electricity', ResultValue):
+                            currentbattery = StatusDeviceTuya('residual_electricity')
+                        for unit in Devices[dev['id']].Units:
+                            if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
+                                Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
+                                Devices[dev['id']].Units[unit].Update()
 
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
@@ -2071,6 +2123,8 @@ def DeviceType(category):
         result = 'lightsensor'
     elif category in {'xktyd'}:
         result = 'starlight'
+    elif category in {'ms'}:
+        result = 'smartlock'
     elif 'infrared_' in category: # keep it last
         result = 'infrared'
     else:
