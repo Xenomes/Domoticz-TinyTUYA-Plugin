@@ -374,13 +374,13 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'switch' + str(Unit) +'_value', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
-            if dev_type == 'smartlock':
-                if Command == 'Off' and Unit == 1:
-                    SendCommandCloud(DeviceID, 'switch', False)
-                    UpdateDevice(DeviceID, 1, 10, 0, 0)
-                elif Command == 'On' and Unit == 1:
-                    SendCommandCloud(DeviceID, 'switch', True)
-                    UpdateDevice(DeviceID, 1, 0, 1, 0)
+            # if dev_type == 'smartlock':
+            #     if Command == 'Off' and Unit == 3:
+            #         SendCommandCloud(DeviceID, 'switch', False)
+            #         UpdateDevice(DeviceID, 1, 10, 0, 0)
+            #     elif Command == 'On' and Unit == 3:
+            #         SendCommandCloud(DeviceID, 'switch', True)
+            #         UpdateDevice(DeviceID, 1, 0, 1, 0)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
@@ -972,9 +972,11 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=246, Subtype=1, Switchtype=11, Used=1).Create()
 
                 if dev_type == 'smartlock':
-                    if createDevice(dev['id'], 1):
+                    if createDevice(dev['id'], 1) and searchCode('lock_motor_state', StatusProperties):
                         Domoticz.Log('Create device smart lock')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=19, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ('State'), DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                    # if createDevice(dev['id'], 3):
+                    #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=19, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('alarm_lock', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'alarm_lock':
@@ -987,8 +989,6 @@ def onHandleThread(startup):
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
                                 Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=13, Used=1).Create()
-                    if createDevice(dev['id'], 3) and searchCode('lock_motor_state', StatusProperties):
-                        Domoticz.Unit(Name=dev['name'] + ('State'), DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
@@ -1794,12 +1794,18 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, float(currentbright),1, 0)
 
                     if dev_type == 'smartlock':
-                        if searchCode('unlock_temporary', ResultValue):
-                            currentstatus = StatusDeviceTuya('unlock_temporary')
-                            if currentstatus == 0:
-                                UpdateDevice(dev['id'], 1, 'Off', 1, 0)
+                        if searchCode('lock_motor_state', ResultValue):
+                            currentstatus = StatusDeviceTuya('lock_motor_state')
+                            if bool(currentstatus) == False:
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             else:
-                                UpdateDevice(dev['id'], 1, 'On', 0, 0)
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        # if searchCode('unlock_temporary', ResultValue):
+                        #     currentstatus = StatusDeviceTuya('unlock_temporary')
+                        #     if currentstatus == 0:
+                        #         UpdateDevice(dev['id'], 3, 'Off', 1, 0)
+                        #     else:
+                        #         UpdateDevice(dev['id'], 3, 'On', 0, 0)
                         if searchCode('alarm_lock', ResultValue):
                             currentmode = StatusDeviceTuya('alarm_lock')
                             for item in StatusProperties:
@@ -1809,12 +1815,6 @@ def onHandleThread(startup):
                                     mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('lock_motor_state', ResultValue):
-                            currentstatus = StatusDeviceTuya('lock_motor_state')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 3, 'Off', 0, 0)
-                            else:
-                                UpdateDevice(dev['id'], 3, 'On', 1, 0)
                         if searchCode('residual_electricity', ResultValue):
                             currentbattery = StatusDeviceTuya('residual_electricity')
                         for unit in Devices[dev['id']].Units:
