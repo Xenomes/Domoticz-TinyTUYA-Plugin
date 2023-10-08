@@ -432,7 +432,7 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 3, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
                     SendCommandCloud(DeviceID, 'laser_switch', True)
-                    SendCommandCloud(DeviceID, 'laser_bright', 21.25 + (((Level / 100) * 78.75)  * 10))
+                    SendCommandCloud(DeviceID, 'laser_bright', 21.25 + ((Level / 100) * 78.75)) # 21.25 + ((Level / 100) * 78.75) ) * 10
                     UpdateDevice(DeviceID, 3, 'On', 1, 0)
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 if Command == 'Off' and Unit == 4:
