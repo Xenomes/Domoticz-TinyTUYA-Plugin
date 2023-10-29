@@ -93,5 +93,6 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.6.1 | Add PJ2101A 1P WiFi Smart Meter device |
 | 1.6.2 | Add Smart Siren and boiler device |
 | 1.6.3 | Add Smart lock |
+| 1.6.4 | Add Dehumidifier |
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/xenomes)
