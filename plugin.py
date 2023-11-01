@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.6.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.6.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.6.4</h2><br/>
+        <h2>TinyTUYA Plugin version 1.6.5</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -479,6 +479,27 @@ class BasePlugin:
                 elif Command == 'On' and Unit == 5:
                     SendCommandCloud(DeviceID, 'switch', True)
                     UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+
+            if dev_type == 'vacuum':
+                if Command == 'Off' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'power_go', False)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'power_go', True)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+                elif Command == 'Set Level' and Unit == 3:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                elif Command == 'Set Level' and Unit == 4:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'suction', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                elif Command == 'Set Level' and Unit == 5:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'cistern', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
@@ -1194,6 +1215,67 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=7, Type=81, Subtype=1, Used=0).Create()
                     if createDevice(dev['id'], 8) and ((searchCode('temp_indoor', ResultValue) and searchCode('humidity_indoor', ResultValue))):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=8, Type=82, Subtype=5, Used=1).Create()
+
+                if dev_type == 'vacuum':
+                    if createDevice(dev['id'], 1) and searchCode('power_go', FunctionProperties):
+                        Domoticz.Log('Create device Robot vacuum')
+                        Domoticz.Unit(Name=dev['name'] + ' Running', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('switch_charge', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Charge)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('mode', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'mode':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create() #Image=7,
+                    if createDevice(dev['id'], 4) and searchCode('suction', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'suction':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Suction)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 5) and searchCode('cistern', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'cistern':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Cistern)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 6) and searchCode('status', ResultValue):
+                            Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=6, Type=243, Subtype=19, Used=1).Create()
+                    if createDevice(dev['id'], 7) and searchCode('electricity_left', ResultValue):
+                            Domoticz.Unit(Name=dev['name'] + ' (Electricity left)', DeviceID=dev['id'], Unit=7, Type=243, Subtype=6, Used=1).Create()
+                    if createDevice(dev['id'], 8) and searchCode('edge_brush', StatusProperties):
+                        options = {}
+                        options['Custom'] = '1;Hour'
+                        Domoticz.Unit(Name=dev['name'] + ' (Edge brush))', DeviceID=dev['id'], Unit=8, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 9) and searchCode('roll_brush', StatusProperties):
+                        options = {}
+                        options['Custom'] = '1;Hour'
+                        Domoticz.Unit(Name=dev['name'] + ' (Roll brush))', DeviceID=dev['id'], Unit=9, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 10) and searchCode('filter', StatusProperties):
+                        options = {}
+                        options['Custom'] = '1;Hour'
+                        Domoticz.Unit(Name=dev['name'] + ' (Filter))', DeviceID=dev['id'], Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 11) and searchCode('fault', ResultValue):
+                            Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=19, Used=1).Create()
 
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
@@ -2168,6 +2250,68 @@ def onHandleThread(startup):
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 8, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
 
+                    if dev_type == 'vacuum':
+                        currentstatus = StatusDeviceTuya('power_go')
+                        if bool(currentstatus) == False:
+                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                        elif bool(currentstatus) == True:
+                            UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        currentstatus = StatusDeviceTuya('switch_charge')
+                        if bool(currentstatus) == False:
+                            UpdateDevice(dev['id'], 2, 'Off', 0, 0)
+                        elif bool(currentstatus) == True:
+                            UpdateDevice(dev['id'], 2, 'On', 1, 0)
+                        if searchCode('mode', ResultValue):
+                            currentmode = StatusDeviceTuya('mode')
+                            for item in StatusProperties:
+                                if item['code'] == 'mode':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('suction', ResultValue):
+                            currentmode = StatusDeviceTuya('suction')
+                            for item in StatusProperties:
+                                if item['code'] == 'suction':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
+                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('cistern', ResultValue):
+                            currentmode = StatusDeviceTuya('cistern')
+                            for item in StatusProperties:
+                                if item['code'] == 'cistern':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[5].sValue):
+                                UpdateDevice(dev['id'], 5, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('status', ResultValue):
+                            UpdateDevice(dev['id'], 6, StatusDeviceTuya('status').capitalize(), 0, 0)
+                        if searchCode('electricity_left', ResultValue):
+                            UpdateDevice(dev['id'], 7, StatusDeviceTuya('electricity_left'), 0, 0)
+                        if searchCode('edge_brush', ResultValue):
+                            UpdateDevice(dev['id'], 8, StatusDeviceTuya('edge_brush'), 0, 0)
+                        if searchCode('roll_brush', ResultValue):
+                            UpdateDevice(dev['id'], 9, StatusDeviceTuya('roll_brush'), 0, 0)
+                        if searchCode('filter', ResultValue):
+                            UpdateDevice(dev['id'], 10, StatusDeviceTuya('filter'), 0, 0)
+                        # if searchCode('fault', ResultValue):
+                        #     UpdateDevice(dev['id'], 11, StatusDeviceTuya('fault'), 0, 0)
+                        if searchCode('fault', ResultValue):
+                            currentmode = StatusDeviceTuya('fault')
+                            for item in StatusProperties:
+                                if item['code'] == 'fault':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('label'))
+                            if str(mode[currentmode]).lower() != str(Devices[dev['id']].Units[11].sValue).lower():
+                                UpdateDevice(dev['id'], 11, str(mode[currentmode]).capitalize(), 0, 0)
+
+
+
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -2257,6 +2401,8 @@ def DeviceType(category):
         result = 'smartlock'
     elif category in {'cs'}:
         result = 'dehumidifier'
+    elif category in {'sd'}:
+        result = 'vacuum'
     elif 'infrared_' in category: # keep it last
         result = 'infrared'
     else:
