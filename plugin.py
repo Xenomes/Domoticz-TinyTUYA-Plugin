@@ -405,7 +405,10 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 1, 'On', 1, 0)
                     UpdateDevice(DeviceID, 2, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 1:
-                    hvs = {'v':Level * 10}
+                    Color = Devices[DeviceID].Units[1].Color
+                    if Color == '': Color ={"b":255,"cw":0,"g":255,"m":3,"r":255,"t":0,"ww":0}
+                    h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
+                    hvs = {'h':h, 's':s, 'v':Level * 10}
                     SendCommandCloud(DeviceID, 'colour_data', hvs)
                     SendCommandCloud(DeviceID, 'colour_switch', True)
                     UpdateDevice(DeviceID, 1, Color, 1, 0)
@@ -2215,19 +2218,17 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, 'On', 1, 0)
                         colortuya = StatusDeviceTuya('colour_data')
                         if currentstatus == True:
-                            Domoticz.Debug('Colordata = ' + str(Devices[dev['id']].Units[1].Color))
-                            Domoticz.Debug('Tuya colour_data = ' + str(StatusDeviceTuya('colour_data')))
-                            color = ast.literal_eval(Devices[dev['id']].Units[1].Color)
-                            Domoticz.Debug('Colordata = ' + str(color))
-                            h, s, v = StatusDeviceTuya('colour_data')
-                            r,g,b = hsv_to_rgb_v2(h, s, level)
+                            tuyacolor = ast.literal_eval(StatusDeviceTuya('colour_data'))
+                            color = Devices[dev['id']].Units[1].Color
+                            if color == '': color = {"b":255,"cw":0,"g":255,"m":3,"r":255,"t":0,"ww":0}
+                            h, s, v = tuyacolor['h'], tuyacolor['s'], tuyacolor['v']
+                            Domoticz.Debug('TEst: ' + str(v))
+                            r, g, b = hsv_to_rgb_v2(h, s, v)
                             colorupdate = {'b':b,'cw':0,'g':g,'m':3,'r':r,'t':0,'ww':0}
-                            Domoticz.Debug('levelupdate: ' + str(level))
-                            Domoticz.Debug('Colorupdate = ' + str(colorupdate))
                             # {"b":0,"cw":0,"g":3,"m":3,"r":255,"t":0,"ww":0}
-                            if (color['r'] != r or color['g'] != g or color['b'] != b ) or len(Devices[dev['id']].Units[1].Color) == 0:
+                            if (color['r'] != r or color['g'] != g or color['b'] != b ):
                                 UpdateDevice(dev['id'], 1, colorupdate, 1, 0)
-                                UpdateDevice(dev['id'], 1, brightness_to_pct(StatusProperties, 'bright_value', int(inv_val(level / 10))), 1, 0)
+                                UpdateDevice(dev['id'], 1, brightness_to_pct(StatusProperties, 'bright_value', int(v * 0.255)), 1, 0)
                         if searchCode('colour_switch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('colour_switch')
                             if bool(currentstatus) == False:
@@ -2677,9 +2678,9 @@ def hsv_to_rgb(h, s, v):
 
 def hsv_to_rgb_v2(h, s, v):
     r, g, b = colorsys.hsv_to_rgb(h / 360, s / 1000, v / 1000)
-    r = round(r * 1000)
-    g = round(g * 1000)
-    b = round(b * 1000)
+    r = round(r * 255)
+    g = round(g * 255)
+    b = round(b * 255)
     return r, g, b
 
 def inv_pct(v):
