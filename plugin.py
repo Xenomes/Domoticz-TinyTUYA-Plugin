@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.6.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.6.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.6.6</h2><br/>
+        <h2>TinyTUYA Plugin version 1.6.7</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -830,14 +830,36 @@ def onHandleThread(startup):
                         options['Custom'] = '1;mA'
                         Domoticz.Unit(Name=dev['name'] + ' (mA)', DeviceID=dev['id'], Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
 
-                if dev_type in ('temperaturehumiditysensor', 'smartir'):
-                    Domoticz.Log('Create device T&H Sensor')
+                if dev_type in ('sensor', 'smartir'):
+                    Domoticz.Log('Create Sensor device')
                     if createDevice(dev['id'], 1) and (searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0).Create()
                     if createDevice(dev['id'], 2) and (searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
                     if createDevice(dev['id'], 3) and ((searchCode('va_temperature', ResultValue) and searchCode('va_humidity', ResultValue)) or (searchCode('temp_current', ResultValue) and searchCode('humidity_value', ResultValue))):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('co2_value', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;ppm'
+                        Domoticz.Unit(Name=dev['name'] + ' (CO2)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 5) and searchCode('air_quality_index', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (Index)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=19, Used=1).Create()
+                    if createDevice(dev['id'], 6) and searchCode('ch2o_value', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;mg/m3'
+                        Domoticz.Unit(Name=dev['name'] + ' (CH2O)', DeviceID=dev['id'], Unit=6, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 7) and searchCode('voc_value', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;mg/m3'
+                        Domoticz.Unit(Name=dev['name'] + ' (VOC)', DeviceID=dev['id'], Unit=7, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 8) and searchCode('voc_value', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;µg/m3'
+                        Domoticz.Unit(Name=dev['name'] + ' (PM2.5)', DeviceID=dev['id'], Unit=8, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 9) and searchCode('voc_value', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;µg/m3'
+                        Domoticz.Unit(Name=dev['name'] + ' (PM10)', DeviceID=dev['id'], Unit=9, Type=243, Subtype=31, Options=options, Used=1).Create()
 
                 if createDevice(dev['id'], 1) and dev_type == 'doorbell':
                     if searchCode('basic_indicator', FunctionProperties):
@@ -1027,19 +1049,6 @@ def onHandleThread(startup):
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
                         else:
                             Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
-
-                if dev_type == ('co2sensor'):
-                    if createDevice(dev['id'], 1) and searchCode('temp_current', ResultValue):
-                        Domoticz.Log('Create device co2 Sensor')
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0).Create()
-                    if createDevice(dev['id'], 2) and searchCode('humidity_value', ResultValue):
-                        Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
-                    if createDevice(dev['id'], 3) and searchCode('temp_current', ResultValue) and searchCode('humidity_value', ResultValue):
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
-                    if createDevice(dev['id'], 4) and searchCode('co2_value', ResultValue):
-                        options = {}
-                        options['Custom'] = '1;ppm'
-                        Domoticz.Unit(Name=dev['name'] + ' (CO2)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=31, Options=options, Used=1).Create()
 
                 if dev_type == 'doorcontact':
                     if createDevice(dev['id'], 1):
@@ -1325,6 +1334,17 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Filter))', DeviceID=dev['id'], Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 11) and searchCode('fault', ResultValue):
                             Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=19, Used=1).Create()
+
+                if dev_type == 'airquality':
+                    # Device 1-3 and batery create by co2meter
+                    if createDevice(dev['id'], 3) and searchCode('status', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (Index)', DeviceID=dev['id'], Unit=6, Type=243, Subtype=19, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('co2_value', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;ppm'
+                        Domoticz.Unit(Name=dev['name'] + ' (CO2)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=31, Options=options, Used=1).Create()
+
+
 
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
@@ -1642,7 +1662,7 @@ def onHandleThread(startup):
                                     Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
                                     Devices[dev['id']].Units[unit].Update()
 
-                    if dev_type in ('temperaturehumiditysensor', 'smartir'):
+                    if dev_type in ('sensor', 'smartir'):
                         if searchCode('va_temperature', ResultValue):
                             currenttemp = StatusDeviceTuya('va_temperature')
                             if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
@@ -1667,6 +1687,31 @@ def onHandleThread(startup):
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
+                        if  searchCode('co2_value', ResultValue):
+                            currentco2 = StatusDeviceTuya('co2_value')
+                            if str(currentco2) != str(Devices[dev['id']].Units[4].nValue):
+                                UpdateDevice(dev['id'], 4, str(currentco2), 0, 0)
+                        if searchCode('air_quality_index', ResultValue):
+                            currentindex = StatusDeviceTuya('air_quality_index')
+                            if str(currentindex) != str(Devices[dev['id']].Units[5].sValue):
+                                UpdateDevice(dev['id'], 5, str(currentindex), 0, 0)
+                        if  searchCode('ch2o_value', ResultValue):
+                            currentch2o = StatusDeviceTuya('ch2o_value')
+                            if str(currentch2o) != str(Devices[dev['id']].Units[6].nValue):
+                                UpdateDevice(dev['id'], 6, str(currentch2o), 0, 0)
+                        if  searchCode('voc_value', ResultValue):
+                            currentvoc = StatusDeviceTuya('voc_value')
+                            if str(currentvoc) != str(Devices[dev['id']].Units[7].nValue):
+                                UpdateDevice(dev['id'], 7, str(currentvoc), 0, 0)
+                        if  searchCode('pm25_value', ResultValue):
+                            currentpm25 = StatusDeviceTuya('pm25_value')
+                            if str(currentpm25) != str(Devices[dev['id']].Units[8].nValue):
+                                UpdateDevice(dev['id'], 8, str(currentpm25), 0, 0)
+                        if  searchCode('pm10', ResultValue):
+                            currentpm10 = StatusDeviceTuya('pm10')
+                            if str(currentpm10) != str(Devices[dev['id']].Units[9].nValue):
+                                UpdateDevice(dev['id'], 9, str(currentpm10), 0, 0)
+
                         if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
                             if searchCode('battery_state', ResultValue):
                                 if StatusDeviceTuya('battery_state') == 'high':
@@ -1913,24 +1958,6 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, StatusDeviceTuya('master_state'), 0, 0)
                         else:
                             UpdateDevice(dev['id'], 1, 'Gateway only', 0, 0)
-
-                    if dev_type == ('co2sensor'):
-                        if searchCode('temp_current', ResultValue):
-                            currenttemp = StatusDeviceTuya('temp_current')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
-                                UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
-                        if  searchCode('humidity_value', ResultValue):
-                            currenthumi = StatusDeviceTuya('humidity_value')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                        if searchCode('temp_current', ResultValue) and searchCode('humidity_value', ResultValue):
-                            currentdomo = Devices[dev['id']].Units[3].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if  searchCode('co2_value', ResultValue):
-                            currentco2 = StatusDeviceTuya('co2_value')
-                            if str(currentco2) != str(Devices[dev['id']].Units[4].nValue):
-                                UpdateDevice(dev['id'], 4, str(currentco2), 0, 0)
 
                     if dev_type == 'doorcontact':
                         if searchCode('doorcontact_state', ResultValue):
@@ -2439,8 +2466,8 @@ def DeviceType(category):
         result = 'heater'
     elif category in {'wk', 'wkf', 'mjj', 'wkcz'}:
         result = 'thermostat'
-    elif category in {'wsdcg'}:
-        result = 'temperaturehumiditysensor'
+    elif category in {'wsdcg', 'co2bj', 'hjjcy'}:
+        result = 'sensor'
     elif category in {'rs'}:
         result = 'heatpump'
     elif category in {'sp'}:
@@ -2457,8 +2484,6 @@ def DeviceType(category):
         result = 'powermeter'
     elif category in {'wg2', 'wfcon'}:
         result = 'gateway'
-    elif category in {'co2bj'}:
-        result = 'co2sensor'
     elif category in {'mcs'}:
         result = 'doorcontact'
     elif category in {'gyd'}:
