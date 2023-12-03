@@ -864,7 +864,8 @@ def onHandleThread(startup):
                 if createDevice(dev['id'], 1) and dev_type == 'doorbell':
                     if searchCode('basic_indicator', FunctionProperties):
                         Domoticz.Log('Create device Doorbell')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
+                        # Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
 
                 if dev_type == 'fan':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
@@ -1735,13 +1736,14 @@ def onHandleThread(startup):
                                     Devices[dev['id']].Units[unit].Update()
 
                     if dev_type == 'doorbell':
-                        if searchCode('basic_indicator', ResultValue):
+                        if searchCode('doorbell_active', ResultValue):
                             datetimestamp = StatusDeviceTuya('doorbell_active')
-                            timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
-                            if (int(timestamp) - int(datetimestamp)) < 61:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                            else:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            UpdateDevice(dev['id'], 1, datetimestamp, 0, 0)
+                            # timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
+                            # if (int(timestamp) - int(datetimestamp)) < 61:
+                            #     UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            # else:
+                            #     UpdateDevice(dev['id'], 1, 'Off', 0, 0)
 
                     if dev_type == 'fan':
                         if searchCode('switch', FunctionProperties):
