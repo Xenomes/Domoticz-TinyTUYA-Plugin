@@ -1513,7 +1513,10 @@ def onHandleThread(startup):
 
                         if currentstatus == True and workmode == 'white':
                             if searchCode('temp_value', StatusProperties):
-                                color = ast.literal_eval(Devices[dev['id']].Units[1].Color)
+                                if len(Devices[dev['id']].Units[1].Color) != 0:
+                                    color = ast.literal_eval(Devices[dev['id']].Units[1].Color)
+                                else:
+                                    color = {'t':0}
                                 temptuya = {'b':0,'cw':0,'g':0,'m':2,'r':0,'t':int(inv_val(round(StatusDeviceTuya('temp_value')))),'ww':0}
                                 # Domoticz.Debug(temptuya['t'])
                                 # Domoticz.Debug(color['t'])
