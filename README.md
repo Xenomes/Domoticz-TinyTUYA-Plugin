@@ -6,6 +6,7 @@ Controls TUYA devices your network mainly on/off switches and Lights and in the 
 ## Installation
 
 The plugin make use of the project Tinytuya there for is a IoT Cloud Platform account needed, for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
+for the best compatibility, set your devices to 'DP instruction' in the device settings under iot.tuya.com.
 
 Python version 3.8 or higher required & Domoticz version 2022.2 or greater.
 
