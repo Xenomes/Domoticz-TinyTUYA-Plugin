@@ -2459,7 +2459,7 @@ def DumpConfigToLog():
 def DeviceType(category):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
-    if category in {'kg', 'cz', 'pc', 'dlq', 'bh', 'tdq', 'znjdq'}:
+    if category in {'kg', 'cz', 'pc', 'bh', 'tdq', 'znjdq'}:
         result = 'switch'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj'}:
         result = 'light'
@@ -2485,7 +2485,7 @@ def DeviceType(category):
         result = 'siren'
     elif category in {'wnykq'}:
         result = 'smartir'
-    elif category in {'zndb'}:
+    elif category in {'zndb', 'dlq'}:
         result = 'powermeter'
     elif category in {'wg2', 'wfcon'}:
         result = 'gateway'
