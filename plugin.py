@@ -1352,6 +1352,12 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
                         UpdateDevice(dev['id'], 1, 'Infrared devices are not able to contoled by the plugin (yet)', 0, 0)
 
+                if dev_type == 'multifunctionalarm':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Multifunction alarm: ' + str(dev['name']))
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
+                        UpdateDevice(dev['id'], 1, 'update wait', 0, 0)
+
                 if createDevice(dev['id'], 1):
                     Domoticz.Log('No controls found for device: ' + str(dev['name']))
                     Domoticz.Unit(Name=dev['name'] + ' (Unknown Device)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
@@ -2424,7 +2430,13 @@ def onHandleThread(startup):
                             if str(mode[currentmode]).lower() != str(Devices[dev['id']].Units[11].sValue).lower():
                                 UpdateDevice(dev['id'], 11, str(mode[currentmode]).capitalize(), 0, 0)
 
-
+                    if dev_type == 'multifunctionalarm':
+                        if searchCode('master_mode', ResultValue):
+                            currenttext = Devices[dev['id']].Units[1].sValue
+                            master_mode= StatusDeviceTuya('master_mode')
+                            if str(master_mode) != str(currenttext):
+                                UpdateDevice(dev['id'], 1, str(master_mode),1, 0)
+                                Domoticz.Log('Multifunction alarm: ' + str(master_mode))
 
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
@@ -2517,6 +2529,8 @@ def DeviceType(category):
         result = 'vacuum'
     elif 'infrared_' in category: # keep it last
         result = 'infrared'
+    elif category in {'mal'}:
+        result = 'multifunctionalarm'
     else:
         result = 'unknown'
     return result
