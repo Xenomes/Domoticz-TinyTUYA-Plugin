@@ -1344,19 +1344,17 @@ def onHandleThread(startup):
                         options['Custom'] = '1;ppm'
                         Domoticz.Unit(Name=dev['name'] + ' (CO2)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=31, Options=options, Used=1).Create()
 
-
+                if dev_type == 'multifunctionalarm':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Multifunction alarm: ' + str(dev['name']))
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
+                        UpdateDevice(dev['id'], 1, 'update wait', 0, 0)
 
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Infrared device: ' + str(dev['name']))
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
                         UpdateDevice(dev['id'], 1, 'Infrared devices are not able to contoled by the plugin (yet)', 0, 0)
-
-                if dev_type == 'multifunctionalarm':
-                    if createDevice(dev['id'], 1):
-                        Domoticz.Log('Multifunction alarm: ' + str(dev['name']))
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
-                        UpdateDevice(dev['id'], 1, 'update wait', 0, 0)
 
                 if createDevice(dev['id'], 1):
                     Domoticz.Log('No controls found for device: ' + str(dev['name']))
@@ -1948,7 +1946,6 @@ def onHandleThread(startup):
                             lastvalue = Devices[dev['id']].Units[3].sValue if len(Devices[dev['id']].Units[3].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 3, str(currentPower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentPower) * (lastupdate / 3600))) , 0, 0, 1)
 
-
                             UpdateDevice(dev['id'], 11, str(currentPowerA), 0, 0)
                             UpdateDevice(dev['id'], 12, str(currentCurrentA), 0, 0)
                             UpdateDevice(dev['id'], 13, str(currentDirectionA), 0, 0)
@@ -1960,7 +1957,6 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 23, str(currentDirectionB), 0, 0)
                             UpdateDevice(dev['id'], 24, str(currentForwardB), 0, 0)
                             UpdateDevice(dev['id'], 25, str(currentReverseB), 0, 0)
-
 
                     if dev_type == 'gateway':
                         if searchCode('master_state', ResultValue):
