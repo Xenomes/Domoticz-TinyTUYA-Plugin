@@ -98,6 +98,6 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.6.5 | Add Robot vacuum cleaner |
 | 1.6.6 | Add WIFI Dual Meter |
 | 1.6.7 | Add Air quality sensor multifunction alarm by fratton |
-| 1.6.8 | Add Air purifier |
+| 1.6.8 | Add Air purifier and unsupported circuit breaker (DIN rail switch) |
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/xenomes)
