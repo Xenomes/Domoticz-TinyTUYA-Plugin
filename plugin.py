@@ -2116,8 +2116,8 @@ def onHandleThread(startup):
                                     Devices[dev['id']].Units[unit].Update()
 
                     if dev_type == 'presence':
-                        if searchCode('watersensor_state', ResultValue):
-                            currentstatus = StatusDeviceTuya('watersensor_state')
+                        if searchCode('pir', ResultValue):
+                            currentstatus = StatusDeviceTuya('pir')
                             if currentstatus == 'none':
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif currentstatus == 'pir':
