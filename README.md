@@ -5,7 +5,8 @@ Controls TUYA devices your network mainly on/off switches and Lights and in the 
 
 ## Installation
 
-The plugin make use of the project Tinytuya there for is a IoT Cloud Platform account needed, for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
+The plugin make use of the project Tinytuya there for is a IoT Cloud Platform account needed, for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/12836816/Tuya.IoT.API.Setup.v2.pdf
+for the best compatibility, set your devices to 'DP instruction' in the device settings under iot.tuya.com.
 
 Python version 3.8 or higher required & Domoticz version 2022.2 or greater.
 
@@ -19,7 +20,7 @@ To install:
 ## Updating
 
 To update:
-* Upgrade the tinytuya library ```sudo pip3 install requests==2.23.0 charset-normalizer==3.0.1 tinytuya -U```
+* Upgrade the tinytuya library ```sudo pip3 install tinytuya -U```
 * Go in your Domoticz directory using a command line and open the plugins directory then the Domoticz-TinyTUYA-Plugin directory.
 * ```cd ~/domoticz/plugins/Domoticz-TinyTUYA-Plugin``` for most user or go to the Docker volume mount plugins/Domoticz-TinyTUYA-Plugin directory.
 * Run: ```git pull```
@@ -88,5 +89,15 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.5.6 | Fixed colour control and added Energy breaker switch|
 | 1.5.7 | Add water leak sensor and presence sensors |
 | 1.5.8 | Add Irrigation Control and smokesensor |
+| 1.5.9 | Add new switch device |
+| 1.6.0 | Add Starlight and Smart Wireless Switch M4 device |
+| 1.6.1 | Add PJ2101A 1P WiFi Smart Meter device |
+| 1.6.2 | Add Smart Siren and boiler device |
+| 1.6.3 | Add Smart lock |
+| 1.6.4 | Add Dehumidifier |
+| 1.6.5 | Add Robot vacuum cleaner |
+| 1.6.6 | Add WIFI Dual Meter |
+| 1.6.7 | Add Air quality sensor multifunction alarm by fratton |
+| 1.6.8 | Add Air purifier and unsupported circuit breaker (DIN rail switch) |
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/xenomes)
