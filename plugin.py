@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.6.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.6.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.6.8</h2><br/>
+        <h2>TinyTUYA Plugin version 1.6.9</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -243,6 +243,51 @@ class BasePlugin:
                 elif Command == 'Set Level':
                     SendCommandCloud(DeviceID, 'position', Level)
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
+
+            elif dev_type == 'smartheatpump' :
+                if searchCode('switch', function):
+                    switch = 'switch'
+                    if Command == 'Off' and Unit == 1:
+                        SendCommandCloud(DeviceID, switch, False)
+                        UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                    elif Command == 'On' and Unit == 1:
+                        SendCommandCloud(DeviceID, switch, True)
+                        UpdateDevice(DeviceID, 1, 'On', 1, 0)
+                if searchCode('ach_stemp', function):
+                    switch = 'ach_stemp'
+                    if Command == 'Set Level' and Unit  == 11:
+                        SendCommandCloud(DeviceID, switch, Level)
+                        UpdateDevice(DeviceID, 11, Level, 1, 0)
+                if searchCode('wth_stemp', function):
+                    switch = 'wth_stemp'
+                    if Command == 'Set Level' and Unit  == 12:
+                        SendCommandCloud(DeviceID, switch, Level)
+                        UpdateDevice(DeviceID, 12, Level, 1, 0)
+                if searchCode('aircond_temp_diff', function):
+                    switch = 'aircond_temp_diff'
+                    if Command == 'Set Level' and Unit  == 13:
+                        SendCommandCloud(DeviceID, switch, Level)
+                        UpdateDevice(DeviceID, 13, Level, 1, 0)
+                if searchCode('wth_temp_diff', function):
+                    switch = 'wth_temp_diff'
+                    if Command == 'Set Level' and Unit  == 14:
+                        SendCommandCloud(DeviceID, switch, Level)
+                        UpdateDevice(DeviceID, 14, Level, 1, 0)
+                if searchCode('acc_stemp', function):
+                    switch = 'acc_stemp'
+                    if Command == 'Set Level' and Unit  == 15:
+                        SendCommandCloud(DeviceID, switch, Level)
+                        UpdateDevice(DeviceID, 15, Level, 1, 0)
+                if searchCode('mode', function):
+                    if Command == 'Set Level' and Unit == 16:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 16, Level, 1, 0)
+                if searchCode('work_mode', function):
+                    if Command == 'Set Level' and Unit == 17:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'work_mode', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 17, Level, 1, 0)
 
             elif dev_type == 'thermostat' or dev_type == 'heater'or dev_type == 'heatpump':
                 if searchCode('switch_1', function):
@@ -791,6 +836,87 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
                     else:
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=14, Used=1).Create()
+
+                if dev_type == 'smartheatpump':
+                    if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
+                        Domoticz.Log('Create device Smartheatpump')
+                        Domoticz.Unit(Name=dev['name'] + ' (On/Off)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('intemp', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (INtemp)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('outtemp', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (OUTtemp)', DeviceID=dev['id'], Unit=3, Type=80, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('whjtemp', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (AMBtemp)', DeviceID=dev['id'], Unit=4, Type=80, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 5) and searchCode('cmptemp', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (COMPRtemp)', DeviceID=dev['id'], Unit=5, Type=80, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 6) and searchCode('wttemp', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (DHWtemp)', DeviceID=dev['id'], Unit=6, Type=80, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 7) and searchCode('hqtemp', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (rGAStemp)', DeviceID=dev['id'], Unit=7, Type=80, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 8) and searchCode('cmp_act_frep', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;Hz'
+                        Domoticz.Unit(Name=dev['name'] + ' (COMPfrq)', DeviceID=dev['id'], Unit=8, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 9) and searchCode('cmp_cur', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (COMPRcur)', DeviceID=dev['id'], Unit=9, Type=243, Subtype=23, Used=1).Create()
+                    if createDevice(dev['id'], 10) and searchCode('dc_fan_speed', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;Speed'
+                        Domoticz.Unit(Name=dev['name'] + ' (FANspeed)', DeviceID=dev['id'], Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 11) and searchCode('ach_stemp', ResultValue):
+                        options = {}
+                        options['ValueStep'] = '1'
+                        options['ValueMin'] = '15'
+                        options['ValueMax'] = '55'
+                        Domoticz.Unit(Name=dev['name'] + ' (HEATtemp)', DeviceID=dev['id'], Unit=11, Type=242, Subtype=1, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 12) and searchCode('wth_stemp', ResultValue):
+                        options = {}
+                        options['ValueStep'] = '1'
+                        options['ValueMin'] = '28'
+                        options['ValueMax'] = '60'
+                        Domoticz.Unit(Name=dev['name'] + ' (DHWtemp)', DeviceID=dev['id'], Unit=12, Type=242, Subtype=1, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 13) and searchCode('aircond_temp_diff', ResultValue):
+                        options = {}
+                        options['ValueStep'] = '1'
+                        options['ValueMin'] = '2'
+                        options['ValueMax'] = '18'
+                        Domoticz.Unit(Name=dev['name'] + ' (HE/COtemp-diff)', DeviceID=dev['id'], Unit=13, Type=242, Subtype=1, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 14) and searchCode('wth_temp_diff', ResultValue):
+                        options = {}
+                        options['ValueStep'] = '1'
+                        options['ValueMin'] = '2'
+                        options['ValueMax'] = '18'
+                        Domoticz.Unit(Name=dev['name'] + ' (DHWtemp-diff)', DeviceID=dev['id'], Unit=14, Type=242, Subtype=1, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 15) and searchCode('acc_stemp', ResultValue):
+                        options = {}
+                        options['ValueStep'] = '1'
+                        options['ValueMin'] = '7'
+                        options['ValueMax'] = '30'
+                        Domoticz.Unit(Name=dev['name'] + ' (ACCtemp)', DeviceID=dev['id'], Unit=15, Type=242, Subtype=1, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 16) and searchCode('mode', FunctionProperties):
+                        for item in FunctionProperties:
+                            if item['code'] == 'mode':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=16, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 17) and searchCode('work_mode', FunctionProperties):
+                        for item in FunctionProperties:
+                            if item['code'] == 'work_mode':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (WorkMode)', DeviceID=dev['id'], Unit=17, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                 if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                     if createDevice(dev['id'], 1):
@@ -1656,6 +1782,83 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Close', 1, 0)
                             elif currentstatus == 'stop':
                                 UpdateDevice(dev['id'], 1, 'Stop', 1, 0)
+
+                    if dev_type == 'smartheatpump':
+                        if searchCode('intemp', ResultValue):
+                            intemp = StatusDeviceTuya('intemp')
+                            if str(intemp) != str(Devices[dev['id']].Units[2].sValue):
+                                UpdateDevice(dev['id'], 2, intemp, 0, 0)
+                        if searchCode('outtemp', ResultValue):
+                            outtemp = StatusDeviceTuya('outtemp')
+                            if str(outtemp) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, outtemp, 0, 0)
+                        if searchCode('whjtemp', ResultValue):
+                            whjtemp = StatusDeviceTuya('whjtemp')
+                            if str(whjtemp) != str(Devices[dev['id']].Units[4].sValue):
+                                UpdateDevice(dev['id'], 4, whjtemp, 0, 0)
+                        if searchCode('cmptemp', ResultValue):
+                            cmptemp = StatusDeviceTuya('cmptemp')
+                            if str(cmptemp) != str(Devices[dev['id']].Units[5].sValue):
+                                UpdateDevice(dev['id'], 5, cmptemp, 0, 0)
+                        if searchCode('wttemp', ResultValue):
+                            wttemp = StatusDeviceTuya('wttemp')
+                            if str(wttemp) != str(Devices[dev['id']].Units[6].sValue):
+                                UpdateDevice(dev['id'], 6, wttemp, 0, 0)
+                        if searchCode('hqtemp', ResultValue):
+                            hqtemp = StatusDeviceTuya('hqtemp')
+                            if str(hqtemp) != str(Devices[dev['id']].Units[7].sValue):
+                                UpdateDevice(dev['id'], 7, hqtemp, 0, 0)
+                        if searchCode('cmp_act_frep', ResultValue):
+                            cmp_act_frep = StatusDeviceTuya('cmp_act_frep')
+                            if str(cmp_act_frep) != str(Devices[dev['id']].Units[8].sValue):
+                                UpdateDevice(dev['id'], 8, cmp_act_frep, 0, 0)
+                        if searchCode('cmp_cur', ResultValue):
+                            cmp_cur = StatusDeviceTuya('cmp_cur')
+                            if str(cmp_cur) != str(Devices[dev['id']].Units[9].sValue):
+                                UpdateDevice(dev['id'], 9, cmp_cur, 0, 0)
+                        if searchCode('dc_fan_speed', ResultValue):
+                            dc_fan_speed = StatusDeviceTuya('dc_fan_speed')
+                            if str(dc_fan_speed) != str(Devices[dev['id']].Units[10].sValue):
+                                UpdateDevice(dev['id'], 10, dc_fan_speed, 0, 0)
+                        if searchCode('ach_stemp', ResultValue):
+                            ach_stemp = StatusDeviceTuya('ach_stemp')
+                            if str(ach_stemp) != str(Devices[dev['id']].Units[11].sValue):
+                                UpdateDevice(dev['id'], 11, ach_stemp, 0, 0)
+                        if searchCode('wth_stemp', ResultValue):
+                            wth_stemp = StatusDeviceTuya('wth_stemp')
+                            if str(wth_stemp) != str(Devices[dev['id']].Units[12].sValue):
+                                UpdateDevice(dev['id'], 12, wth_stemp, 0, 0)
+                        if searchCode('aircond_temp_diff', ResultValue):
+                            aircond_temp_diff = StatusDeviceTuya('aircond_temp_diff')
+                            if str(aircond_temp_diff) != str(Devices[dev['id']].Units[13].sValue):
+                                UpdateDevice(dev['id'], 13, aircond_temp_diff, 0, 0)
+                        if searchCode('wth_temp_diff', ResultValue):
+                            wth_temp_diff = StatusDeviceTuya('wth_temp_diff')
+                            if str(wth_temp_diff) != str(Devices[dev['id']].Units[14].sValue):
+                                UpdateDevice(dev['id'], 14, wth_temp_diff, 0, 0)
+                        if searchCode('acc_stemp', ResultValue):
+                            acc_stemp = StatusDeviceTuya('acc_stemp')
+                            if str(acc_stemp) != str(Devices[dev['id']].Units[15].sValue):
+                                UpdateDevice(dev['id'], 15, acc_stemp, 0, 0)
+                        if searchCode('mode', ResultValue) and checkDevice(dev['id'],16):
+                            currentmode = StatusDeviceTuya('mode')
+                            for item in FunctionProperties:
+                                if item['code'] == 'mode':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[16].sValue):
+                                UpdateDevice(dev['id'], 16, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('work_mode', ResultValue) and checkDevice(dev['id'],17):
+                            currentmode = StatusDeviceTuya('work_mode')
+                            for item in FunctionProperties:
+                                if item['code'] == 'work_mode':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[17].sValue):
+                                UpdateDevice(dev['id'], 17, int(mode.index(str(currentmode)) * 10), 1, 0)
+                                ## a tak dále
 
                     if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                         if searchCode('switch', ResultValue):
@@ -2612,6 +2815,8 @@ def DeviceType(category):
         result = 'sensor'
     elif category in {'rs'}:
         result = 'heatpump'
+    elif category in {'znrb'}:
+        result = 'smartheatpump'
     elif category in {'sp'}:
         result = 'doorbell'
     elif category in {'fs'}:
