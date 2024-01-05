@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.6.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.7.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.6.9</h2><br/>
+        <h2>TinyTUYA Plugin version 1.7.0</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -134,6 +134,7 @@ class BasePlugin:
             #         properties[dev['id']] = tuya.getproperties(dev['id'])['result']
 
             function = properties[DeviceID]['functions']
+            status = properties[DeviceID]['status']
             if len(Color) != 0: Color = ast.literal_eval(Color)
 
             if dev_type == 'switch':
@@ -443,7 +444,12 @@ class BasePlugin:
             if dev_type == 'wswitch':
                 if Command == 'Set Level':
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                    SendCommandCloud(DeviceID, 'switch' + str(Unit) +'_value', mode[int(Level / 10)])
+                    if searchCode('switch' + str(Unit) + '_value', status):
+                        SendCommandCloud(DeviceID, 'switch' + str(Unit) + '_value', mode[int(Level / 10)])
+                    if searchCode('switch_type_' + str(Unit), status):
+                        SendCommandCloud(DeviceID, 'switch_type_' + str(Unit), mode[int(Level / 10)])
+                    if searchCode('switch_mode_' + str(Unit), status):
+                        SendCommandCloud(DeviceID, 'switch_mode_' + str(Unit), mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
             if dev_type == 'starlight':
@@ -1348,7 +1354,7 @@ def onHandleThread(startup):
                     #     Domoticz.Unit(Name=dev['name'] + ' single click (Switch 1)', DeviceID=dev['id'], Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     #     Domoticz.Unit(Name=dev['name'] + ' double click (Switch 1)', DeviceID=dev['id'], Unit=12, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     #     Domoticz.Unit(Name=dev['name'] + ' long press (Switch 1)', DeviceID=dev['id'], Unit=13, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    for x in range(1, 9):
+                    for x in range(1, 10):
                         if createDevice(dev['id'], x) and searchCode('switch' + str(x) + '_value', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'switch' + str(x) + '_value':
@@ -1360,7 +1366,31 @@ def onHandleThread(startup):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0'
-                                    Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                                    Domoticz.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], x) and searchCode('switch_type_' + str(x), StatusProperties):
+                            for item in StatusProperties:
+                                if item['code'] == 'switch_type_' + str(x):
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0'
+                                    Domoticz.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], x) and searchCode('switch_mode_' + str(x), StatusProperties):
+                            for item in StatusProperties:
+                                if item['code'] == 'switch_mode_' + str(x):
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0'
+                                    Domoticz.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                 if dev_type == 'lightsensor':
                     if createDevice(dev['id'], 1):
@@ -2505,8 +2535,9 @@ def onHandleThread(startup):
 
                     if dev_type == 'wswitch':
                         timestamp = int(time.mktime(time.localtime()) * 1000)
-                        if (int(timestamp) - int(t)) < 61000:
-                            for x in range(1, 9):
+                        Domoticz.Debug(int(timestamp) - int(t))
+                        if (int(timestamp) - int(t)) > 59000:
+                            for x in range(1, 10):
                                 if searchCode('switch' + str(x) + '_value', ResultValue):
                                     currentmode = StatusDeviceTuya('switch' + str(x) + '_value')
                                     for item in StatusProperties:
@@ -2514,8 +2545,26 @@ def onHandleThread(startup):
                                             the_values = json.loads(item['values'])
                                             mode = ['off']
                                             mode.extend(the_values.get('range'))
-                                if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
-                                    UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0)
+                                    if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
+                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0)
+                                if searchCode('switch_type_' + str(x), ResultValue):
+                                    currentmode = StatusDeviceTuya('switch_type_' + str(x))
+                                    for item in StatusProperties:
+                                        if item['code'] == 'switch_type_' + str(x):
+                                            the_values = json.loads(item['values'])
+                                            mode = ['off']
+                                            mode.extend(the_values.get('range'))
+                                    if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
+                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0)
+                                if searchCode('switch_mode_' + str(x), ResultValue):
+                                    currentmode = StatusDeviceTuya('switch_mode_' + str(x))
+                                    for item in StatusProperties:
+                                        if item['code'] == 'switch_mode_' + str(x):
+                                            the_values = json.loads(item['values'])
+                                            mode = ['off']
+                                            mode.extend(the_values.get('range'))
+                                    if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
+                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
                             if searchCode('battery_state', ResultValue):
                                 if StatusDeviceTuya('battery_state') == 'high':
