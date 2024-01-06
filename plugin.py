@@ -2544,7 +2544,7 @@ def onHandleThread(startup):
                                             mode = ['off']
                                             mode.extend(the_values.get('range'))
                                     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
-                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0)
+                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
                                 if searchCode('switch_type_' + str(x), ResultValue):
                                     currentmode = StatusDeviceTuya('switch_type_' + str(x))
                                     for item in StatusProperties:
@@ -2553,7 +2553,7 @@ def onHandleThread(startup):
                                             mode = ['off']
                                             mode.extend(the_values.get('range'))
                                     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
-                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0)
+                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
                                 if searchCode('switch_mode' + str(x), ResultValue):
                                     currentmode = StatusDeviceTuya('switch_mode' + str(x))
                                     for item in StatusProperties:
@@ -2562,7 +2562,7 @@ def onHandleThread(startup):
                                             mode = ['off']
                                             mode.extend(the_values.get('range'))
                                     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
-                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0)
+                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
                         if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
                             if searchCode('battery_state', ResultValue):
                                 if StatusDeviceTuya('battery_state') == 'high':
