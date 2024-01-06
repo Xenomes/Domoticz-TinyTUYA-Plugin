@@ -447,8 +447,8 @@ class BasePlugin:
                         SendCommandCloud(DeviceID, 'switch' + str(Unit) + '_value', mode[int(Level / 10)])
                     if searchCode('switch_type_' + str(Unit), status):
                         SendCommandCloud(DeviceID, 'switch_type_' + str(Unit), mode[int(Level / 10)])
-                    if searchCode('switch_mode' + str(Unit), status):
-                        SendCommandCloud(DeviceID, 'switch_mode' + str(Unit), mode[int(Level / 10)])
+                    if searchCode('switch_mode_' + str(Unit), status):
+                        SendCommandCloud(DeviceID, 'switch_mode_' + str(Unit), mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
             if dev_type == 'starlight':
@@ -1378,9 +1378,9 @@ def onHandleThread(startup):
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0'
                                     Domoticz.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
-                        if createDevice(dev['id'], x) and searchCode('switch_mode' + str(x), StatusProperties):
+                        if createDevice(dev['id'], x) and searchCode('switch_mode_' + str(x), StatusProperties):
                             for item in StatusProperties:
-                                if item['code'] == 'switch_mode' + str(x):
+                                if item['code'] == 'switch_mode_' + str(x):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     mode.extend(the_values.get('range'))
@@ -2544,7 +2544,7 @@ def onHandleThread(startup):
                                             mode = ['off']
                                             mode.extend(the_values.get('range'))
                                     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
-                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
+                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0)
                                 if searchCode('switch_type_' + str(x), ResultValue):
                                     currentmode = StatusDeviceTuya('switch_type_' + str(x))
                                     for item in StatusProperties:
@@ -2553,16 +2553,16 @@ def onHandleThread(startup):
                                             mode = ['off']
                                             mode.extend(the_values.get('range'))
                                     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
-                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
-                                if searchCode('switch_mode' + str(x), ResultValue):
-                                    currentmode = StatusDeviceTuya('switch_mode' + str(x))
+                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0)
+                                if searchCode('switch_mode_' + str(x), ResultValue):
+                                    currentmode = StatusDeviceTuya('switch_mode_' + str(x))
                                     for item in StatusProperties:
-                                        if item['code'] == 'switch_mode' + str(x):
+                                        if item['code'] == 'switch_mode_' + str(x):
                                             the_values = json.loads(item['values'])
                                             mode = ['off']
                                             mode.extend(the_values.get('range'))
                                     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
-                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
+                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
                             if searchCode('battery_state', ResultValue):
                                 if StatusDeviceTuya('battery_state') == 'high':
