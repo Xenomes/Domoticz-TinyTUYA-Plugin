@@ -13,7 +13,6 @@
         <ul style="list-style-type:square">
             <li>Auto-detection of devices on network</li>
             <li>On/Off control, state and available status display</li>
-            <li>Scene activation support</li>
         </ul>
         <h3>Devices</h3>
         <ul style="list-style-type:square">
@@ -25,7 +24,7 @@
         <li>A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID. (This id is used to detect all the other devices) </li>
         <li>The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.<br/></li>
         </ul>
-        Is your subscription to cloud development plan expired, you can extend it <a href="https://iot.tuya.com/cloud/products/apply-extension"> HERE</a><br/>
+        Is your subscription to cloud development plan expired, you can extend it <a href="https://iot.tuya.com/cloud/products/apply-extension">HERE</a><br/>
 
     </description>
     <params>
@@ -448,8 +447,8 @@ class BasePlugin:
                         SendCommandCloud(DeviceID, 'switch' + str(Unit) + '_value', mode[int(Level / 10)])
                     if searchCode('switch_type_' + str(Unit), status):
                         SendCommandCloud(DeviceID, 'switch_type_' + str(Unit), mode[int(Level / 10)])
-                    if searchCode('switch_mode_' + str(Unit), status):
-                        SendCommandCloud(DeviceID, 'switch_mode_' + str(Unit), mode[int(Level / 10)])
+                    if searchCode('switch_mode' + str(Unit), status):
+                        SendCommandCloud(DeviceID, 'switch_mode' + str(Unit), mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
             if dev_type == 'starlight':
@@ -1379,9 +1378,9 @@ def onHandleThread(startup):
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0'
                                     Domoticz.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
-                        if createDevice(dev['id'], x) and searchCode('switch_mode_' + str(x), StatusProperties):
+                        if createDevice(dev['id'], x) and searchCode('switch_mode' + str(x), StatusProperties):
                             for item in StatusProperties:
-                                if item['code'] == 'switch_mode_' + str(x):
+                                if item['code'] == 'switch_mode' + str(x):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     mode.extend(the_values.get('range'))
@@ -2535,8 +2534,7 @@ def onHandleThread(startup):
 
                     if dev_type == 'wswitch':
                         timestamp = int(time.mktime(time.localtime()) * 1000)
-                        Domoticz.Debug(int(timestamp) - int(t))
-                        if (int(timestamp) - int(t)) > 59000:
+                        if (int(timestamp) - int(t)) < 61000:
                             for x in range(1, 10):
                                 if searchCode('switch' + str(x) + '_value', ResultValue):
                                     currentmode = StatusDeviceTuya('switch' + str(x) + '_value')
@@ -2556,10 +2554,10 @@ def onHandleThread(startup):
                                             mode.extend(the_values.get('range'))
                                     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
                                         UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0)
-                                if searchCode('switch_mode_' + str(x), ResultValue):
-                                    currentmode = StatusDeviceTuya('switch_mode_' + str(x))
+                                if searchCode('switch_mode' + str(x), ResultValue):
+                                    currentmode = StatusDeviceTuya('switch_mode' + str(x))
                                     for item in StatusProperties:
-                                        if item['code'] == 'switch_mode_' + str(x):
+                                        if item['code'] == 'switch_mode' + str(x):
                                             the_values = json.loads(item['values'])
                                             mode = ['off']
                                             mode.extend(the_values.get('range'))
