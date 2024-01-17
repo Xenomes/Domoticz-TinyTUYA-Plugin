@@ -102,5 +102,6 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.6.9 | Add Smartheatpump by doucha2 |
 | 1.7.0 | Add Scene remote
 | 1.7.1 | Add Switch Robot and lux meter
+| 1.7.2 | Add Smart Kettle
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/xenomes)

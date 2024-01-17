@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.7.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.7.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.7.1</h2><br/>
+        <h2>TinyTUYA Plugin version 1.7.2</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -16,16 +16,15 @@
         </ul>
         <h3>Devices</h3>
         <ul style="list-style-type:square">
-            <li>All devices that have on/off state should be supported</li>
+            <li>AMany devices are supported.</li>
         </ul>
         <h3>Configuration</h3>
         <ul style="list-style-type:square">
-        <li>Enter your Region, Access ID/Client ID, Access Secret/Client Secret and a Search deviceID from your Tuya IOT Account, keep the setting 'Data Timeout' disabled.</li>
-        <li>A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID. (This id is used to detect all the other devices) </li>
-        <li>The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.<br/></li>
+        <li>Enter your Region, Access ID/Client ID, Access Secret/Client Secret, and a Search deviceID from your Tuya IOT Account. Keep the 'Data Timeout' setting disabled.</li>
+        <li>A deviceID can be found in your Tuya IOT account. Go to Cloud => your project => Devices => Select one of your device IDs. (This ID is used to detect all the other devices.)</li>
+        <li>Complete the initial setup of your devices using the app, and this plugin will automatically detect and use the same settings to find and add the devices into Domoticz.<br/></li>
         </ul>
-        Is your subscription to cloud development plan expired, you can extend it <a href="https://iot.tuya.com/cloud/products/apply-extension">HERE</a><br/>
-
+        If your subscription to the cloud development plan has expired, you can extend it&nbsp;<a href="https://iot.tuya.com/cloud/products/apply-extension">HERE</a><br/>
     </description>
     <params>
         <param field="Mode1" label="Region" width="150px" required="true" default="EU">
@@ -98,7 +97,7 @@ class BasePlugin:
             devs = Devices
             for dev in devs:
                 # Delete device is not reconised
-                if Devices[dev].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
+                if Devices[dev].Units[1].sValue == 'This device is not recognized. Please edit and run the debug_discovery with Python from the tools directory and recreate an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.':
                     Devices[dev].Units[1].Delete()
         except:
             Domoticz.Log('onStop called')
@@ -566,7 +565,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'switch', False)
                     UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 1:
-                    SendCommandCloud(DeviceID, 'poswitchwer_go', True)
+                    SendCommandCloud(DeviceID, 'switch', True)
                     UpdateDevice(DeviceID, Unit, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
@@ -576,6 +575,14 @@ class BasePlugin:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
+
+            if dev_type == 'smartkettle':
+                if Command == 'Off' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'start', False)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'start', True)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
@@ -1014,6 +1021,12 @@ def onHandleThread(startup):
                         options = {}
                         options['Custom'] = '1;µg/m3'
                         Domoticz.Unit(Name=dev['name'] + ' (PM10)', DeviceID=dev['id'], Unit=9, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 10) and searchCode('bright_value', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;lux'
+                        Domoticz.Unit(Name=dev['name'] + ' (Lux)', DeviceID=dev['id'], Unit=10, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
+                    if createDevice(dev['id'], 11) and searchCode('switch', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Switch)', DeviceID=dev['id'], Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
                 if createDevice(dev['id'], 1) and dev_type == 'doorbell':
                     if searchCode('basic_indicator', FunctionProperties):
@@ -1581,16 +1594,34 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 6) and searchCode('air_quality', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (Index)', DeviceID=dev['id'], Unit=6, Type=243, Subtype=19, Used=1).Create()
 
+
+                if dev_type == 'smartkettle':
+                    if createDevice(dev['id'], 1) and searchCode('start', FunctionProperties):
+                        Domoticz.Log('Create device Smart Kettle')
+                        Domoticz.Unit(Name=dev['name'] + ' (Start)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('status', FunctionProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'status':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Infrared device: ' + str(dev['name']))
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
-                        UpdateDevice(dev['id'], 1, 'Infrared devices are not able to contoled by the plugin (yet)', 0, 0)
+                        UpdateDevice(dev['id'], 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
 
                 if createDevice(dev['id'], 1):
                     Domoticz.Log('No controls found for device: ' + str(dev['name']))
                     Domoticz.Unit(Name=dev['name'] + ' (Unknown Device)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
-                    UpdateDevice(dev['id'], 1, 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.', 0, 0)
+                    UpdateDevice(dev['id'], 1, 'This device is not recognized. Please edit and run the debug_discovery with Python from the tools directory and recreate an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.', 0, 0)
 
                 # Set extra info
                 setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'ip': deviceinfo['ip'], 'product_id': dev['product_id'], 'version': deviceinfo['version']})  #, 'scalemode': scalemode})
@@ -1598,7 +1629,7 @@ def onHandleThread(startup):
 
             # Check device is removed
             if dev['id'] not in str(Devices) or len(Devices) == 0:
-                raise Exception('Device not found in Domoticz! Device is removed or Accept New Hardware not enabled?')
+                raise Exception('Device not found in Domoticz! Has the device been removed, or is the "Accept New Hardware" option not enabled?')
 
             #update devices in Domoticz
             if run == 1:
@@ -1649,44 +1680,19 @@ def onHandleThread(startup):
                     if dev_type == 'switch':
                         if searchCode('switch_1', FunctionProperties):
                             currentstatus = StatusDeviceTuya('switch_1')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         elif searchCode('switch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('switch')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
 
-                        if searchCode('switch_2', FunctionProperties):
-                            currentstatus = StatusDeviceTuya('switch_2')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 2, 'On', 1, 0)
-
-                        if searchCode('switch_3', FunctionProperties):
-                            currentstatus = StatusDeviceTuya('switch_3')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 3, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 3, 'On', 1, 0)
-
-                        if searchCode('switch_4', FunctionProperties):
-                            currentstatus = StatusDeviceTuya('switch_4')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 4, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 4, 'On', 1, 0)
-
-                        if searchCode('switch_5', FunctionProperties):
-                            currentstatus = StatusDeviceTuya('switch_5')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 5, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 5, 'On', 1, 0)
+                        for switch_number in range(2, 5):
+                            switch_type = f'switch_{switch_number}'
+                            if searchCode(switch_type, FunctionProperties):
+                                current_status = StatusDeviceTuya(switch_type)
+                                state_to_set = 'On' if bool(current_status) else 'Off'
+                                UpdateDevice(dev['id'], switch_number, state_to_set, int(bool(current_status)), 0)
 
                         if searchCode('cur_current', ResultValue):
                             currentcurrent = StatusDeviceTuya('cur_current')
@@ -1750,10 +1756,8 @@ def onHandleThread(startup):
                             currentstatus = StatusDeviceTuya('switch_led')
                         else:
                             currentstatus = StatusDeviceTuya('led_switch')
-                        if bool(currentstatus) == False:
-                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif bool(currentstatus) == True:
-                            UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         workmode = StatusDeviceTuya('work_mode')
                         BrightnessControl = False
                         if searchCode('bright_value', StatusProperties):
@@ -1925,10 +1929,8 @@ def onHandleThread(startup):
                     if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                         if searchCode('switch', ResultValue):
                             currentstatus = StatusDeviceTuya('switch')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('temp_current', ResultValue) or searchCode('upper_temp', ResultValue) or searchCode('c_temperature', ResultValue):
                             if searchCode('temp_current', ResultValue):
                                 currenttemp = StatusDeviceTuya('temp_current')
@@ -1975,22 +1977,16 @@ def onHandleThread(startup):
 
                         if searchCode('window_check', ResultValue):
                             currentstatus = StatusDeviceTuya('window_check')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 5, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 5, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 5, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('child_lock', ResultValue):
                             currentstatus = StatusDeviceTuya('child_lock')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 6, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 6, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 6, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('eco', ResultValue):
                             currentstatus = StatusDeviceTuya('eco')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 7, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 7, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 7, state_to_set, int(bool(currentstatus)), 0)
                         battery_device()
 
                     if dev_type in ('sensor', 'smartir'):
@@ -2042,32 +2038,36 @@ def onHandleThread(startup):
                             currentpm10 = StatusDeviceTuya('pm10')
                             if str(currentpm10) != str(Devices[dev['id']].Units[9].nValue):
                                 UpdateDevice(dev['id'], 9, str(currentpm10), 0, 0)
+                        if  searchCode('bright_value', ResultValue):
+                            currentlux = StatusDeviceTuya('bright_value')
+                            if str(currentlux) != str(Devices[dev['id']].Units[10].nValue):
+                                UpdateDevice(dev['id'], 10, str(currentlux), 0, 0)
+                        if searchCode('switch', ResultValue):
+                            currentstatus = StatusDeviceTuya('switch')
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 11, state_to_set, int(bool(currentstatus)), 0)
+
                         battery_device()
 
                     if dev_type == 'doorbell':
                         if searchCode('basic_indicator', ResultValue):
                             datetimestamp = StatusDeviceTuya('doorbell_active')
                             timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
-                            if (int(timestamp) - int(datetimestamp)) < 61:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                            else:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
+                            currentstatus = (int(timestamp) - int(datetimestamp)) < 61
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
 
                     if dev_type == 'fan':
                         if searchCode('switch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('switch')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
 
                     if dev_type == 'fanlight':
                         if searchCode('fan_switch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('fan_switch')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 2, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 2, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('fan_speed', ResultValue):
                             currentmode = StatusDeviceTuya('fan_speed')
                             for item in FunctionProperties:
@@ -2091,10 +2091,8 @@ def onHandleThread(startup):
                     if dev_type == 'siren':
                         if searchCode('AlarmSwitch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('AlarmSwitch')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('Alarmtype', ResultValue):
                             currentmode = StatusDeviceTuya('Alarmtype')
                             for item in FunctionProperties:
@@ -2117,10 +2115,8 @@ def onHandleThread(startup):
                         # Other type of Alarm with same code
                         if searchCode('AlarmSwitch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('AlarmSwitch')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('alarm_state', ResultValue):
                             currentmode = StatusDeviceTuya('alarm_state')
                             for item in FunctionProperties:
@@ -2255,10 +2251,8 @@ def onHandleThread(startup):
                     if dev_type == 'powermeter' and searchCode('switch_1', StatusProperties):
                         if searchCode('switch_1', FunctionProperties):
                             currentstatus = StatusDeviceTuya('switch_1')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('cur_current', ResultValue):
                             currentcurrent = StatusDeviceTuya('cur_current')
                             UpdateDevice(dev['id'], 2, str(currentcurrent), 0, 0)
@@ -2280,19 +2274,15 @@ def onHandleThread(startup):
                     if dev_type == 'doorcontact':
                         if searchCode('doorcontact_state', ResultValue):
                             currentstatus = StatusDeviceTuya('doorcontact_state')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                     battery_device()
 
                     if dev_type == 'pirlight':
                         if searchCode('switch_pir', FunctionProperties):
                             currentstatus = StatusDeviceTuya('switch_pir')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 2, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 2, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('device_mode', ResultValue):
                             currentmode = StatusDeviceTuya('device_mode')
                             for item in FunctionProperties:
@@ -2343,22 +2333,16 @@ def onHandleThread(startup):
                     if dev_type == 'garagedooropener':
                         if searchCode('switch_1', FunctionProperties):
                             currentstatus = StatusDeviceTuya('switch_1')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('doorcontact_state', ResultValue):
                             currentstatus = StatusDeviceTuya('doorcontact_state')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 2, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 2, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('door_control_1', ResultValue):
                             currentstatus = StatusDeviceTuya('door_control_1')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 3, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 3, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 3, state_to_set, int(bool(currentstatus)), 0)
 
                     if dev_type == 'feeder':
                         if searchCode('manual_feed', ResultValue):
@@ -2392,18 +2376,14 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('light', FunctionProperties):
                             currentstatus = StatusDeviceTuya('light')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 5, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 5, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 5, state_to_set, int(bool(currentstatus)), 0)
 
                     if dev_type == 'waterleak':
                         if searchCode('watersensor_state', ResultValue):
                             currentstatus = StatusDeviceTuya('watersensor_state')
-                            if currentstatus == 'normal':
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif currentstatus == 'alarm':
-                                    UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, int(mode.index(str(currentmode)) * 10), 1, 0)
                     battery_device()
@@ -2414,16 +2394,15 @@ def onHandleThread(startup):
                             if currentstatus == 'none':
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif currentstatus == 'pir':
-                                    UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+
                     battery_device()
 
                     if dev_type == 'irrigation':
                         if searchCode('switch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('switch')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('work_state', ResultValue):
                             currentmode = StatusDeviceTuya('work_state')
                             for item in StatusProperties:
@@ -2474,11 +2453,10 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, float(currentbright),1, 0)
 
                     if dev_type == 'starlight':
-                        currentstatus = StatusDeviceTuya('switch_led')
-                        if bool(currentstatus) == False:
-                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif bool(currentstatus) == True:
-                            UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        if searchCode('switch_led', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('switch_led')
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         colortuya = StatusDeviceTuya('colour_data')
                         if currentstatus == True:
                             tuyacolor = ast.literal_eval(StatusDeviceTuya('colour_data'))
@@ -2494,10 +2472,8 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, brightness_to_pct(StatusProperties, 'bright_value', int(v * 0.255)), 1, 0)
                         if searchCode('colour_switch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('colour_switch')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 2, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('laser_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('laser_switch')
                             currentdim = brightness_to_pct(StatusProperties, 'laser_bright', int(StatusDeviceTuya('laser_bright')))
@@ -2519,10 +2495,8 @@ def onHandleThread(startup):
                     if dev_type == 'smartlock':
                         if searchCode('lock_motor_state', ResultValue):
                             currentstatus = StatusDeviceTuya('lock_motor_state')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            else:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         # if searchCode('unlock_temporary', ResultValue):
                         #     currentstatus = StatusDeviceTuya('unlock_temporary')
                         #     if currentstatus == 0:
@@ -2541,11 +2515,10 @@ def onHandleThread(startup):
                         battery_device()
 
                     if dev_type == 'dehumidifier':
-                        currentstatus = StatusDeviceTuya('switch')
-                        if bool(currentstatus) == False:
-                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif bool(currentstatus) == True:
-                            UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                        if searchCode('switch', ResultValue):
+                            currentstatus = StatusDeviceTuya('switch')
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('dehumidify_set_value', ResultValue):
                             currentmode = StatusDeviceTuya('dehumidify_set_value')
                             for item in FunctionProperties:
@@ -2574,11 +2547,10 @@ def onHandleThread(startup):
                                     mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        currentstatus = StatusDeviceTuya('anion')
-                        if bool(currentstatus) == False:
-                            UpdateDevice(dev['id'], 5, 'Off', 0, 0)
-                        elif bool(currentstatus) == True:
-                            UpdateDevice(dev['id'], 5, 'On', 1, 0)
+                        if searchCode('anion', ResultValue):
+                            currentstatus = StatusDeviceTuya('anion')
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 5, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('temp_indoor', ResultValue):
                             currenttemp = StatusDeviceTuya('temp_indoor')
                             if str(currenttemp) != str(Devices[dev['id']].Units[6].sValue):
@@ -2593,16 +2565,14 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 8, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
 
                     if dev_type == 'vacuum':
-                        currentstatus = StatusDeviceTuya('power_go')
-                        if bool(currentstatus) == False:
-                            UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                        elif bool(currentstatus) == True:
-                            UpdateDevice(dev['id'], 1, 'On', 1, 0)
-                        currentstatus = StatusDeviceTuya('switch_charge')
-                        if bool(currentstatus) == False:
-                            UpdateDevice(dev['id'], 2, 'Off', 0, 0)
-                        elif bool(currentstatus) == True:
-                            UpdateDevice(dev['id'], 2, 'On', 1, 0)
+                        if searchCode('power_go', ResultValue):
+                            currentstatus = StatusDeviceTuya('power_go')
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
+                        if searchCode('switch_charge', ResultValue):
+                            currentstatus = StatusDeviceTuya('switch_charge')
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 2, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('mode', ResultValue):
                             currentmode = StatusDeviceTuya('mode')
                             for item in StatusProperties:
@@ -2663,10 +2633,8 @@ def onHandleThread(startup):
                     if dev_type == 'purifier':
                         if searchCode('switch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('switch')
-                            if bool(currentstatus) == False:
-                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            elif bool(currentstatus) == True:
-                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         if  searchCode('pm25', ResultValue):
                             currentpm25 = StatusDeviceTuya('pm25')
                             if str(currentpm25) != str(Devices[dev['id']].Units[2].nValue):
@@ -2695,6 +2663,21 @@ def onHandleThread(startup):
                             currentindex = StatusDeviceTuya('air_quality').capitalize()
                             if str(currentindex) != str(Devices[dev['id']].Units[6].sValue):
                                 UpdateDevice(dev['id'], 6, str(currentindex), 0, 0)
+
+                    if dev_type == 'smartkettle':
+                        if searchCode('start', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('start')
+                            state_to_set = 'On' if bool(currentstatus) else 'Off'
+                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
+                        if searchCode('status', ResultValue):
+                            currentmode = StatusDeviceTuya('status')
+                            for item in StatusProperties:
+                                if item['code'] == 'status':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
+                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
 
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
@@ -2727,7 +2710,7 @@ def DumpConfigToLog():
 def DeviceType(category):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
-    if category in {'kg', 'cz', 'pc', 'bh', 'tdq', 'znjdq', 'szjqr'}:
+    if category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr'}:
         result = 'switch'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj'}:
         result = 'light'
@@ -2791,6 +2774,8 @@ def DeviceType(category):
         result = 'multifunctionalarm'
     elif category in {'kj'}:
         result = 'purifier'
+    elif category in {'bh'}:
+        result = 'smartkettle'
     elif 'infrared_' in category: # keep it last
         result = 'infrared'
     else:
