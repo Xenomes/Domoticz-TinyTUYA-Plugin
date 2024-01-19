@@ -97,6 +97,8 @@ class BasePlugin:
             devs = Devices
             for dev in devs:
                 # Delete device is not reconised
+                if Devices[dev].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
+                    Devices[dev].Units[1].Delete()
                 if Devices[dev].Units[1].sValue == 'This device is not recognized. Please edit and run the debug_discovery with Python from the tools directory and recreate an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.':
                     Devices[dev].Units[1].Delete()
         except:
@@ -583,6 +585,9 @@ class BasePlugin:
                 elif Command == 'On' and Unit == 1:
                     SendCommandCloud(DeviceID, 'start', True)
                     UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+                elif Command == 'Set Level' and Unit  == 4:
+                    SendCommandCloud(DeviceID, 'cook_temperature', Level)
+                    UpdateDevice(DeviceID, 4, Level, 1, 0)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
@@ -876,34 +881,54 @@ def onHandleThread(startup):
                         options['Custom'] = '1;Speed'
                         Domoticz.Unit(Name=dev['name'] + ' (FANspeed)', DeviceID=dev['id'], Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 11) and searchCode('ach_stemp', ResultValue):
-                        options = {}
-                        options['ValueStep'] = '1'
-                        options['ValueMin'] = '15'
-                        options['ValueMax'] = '55'
+                        for item in StatusProperties:
+                            if item['code'] == 'cook_temperature':
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = the_values.get('step')
+                                options['ValueMin'] = the_values.get('min')
+                                options['ValueMax'] = the_values.get('max')
+                                options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (HEATtemp)', DeviceID=dev['id'], Unit=11, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 12) and searchCode('wth_stemp', ResultValue):
-                        options = {}
-                        options['ValueStep'] = '1'
-                        options['ValueMin'] = '28'
-                        options['ValueMax'] = '60'
+                        for item in StatusProperties:
+                            if item['code'] == 'cook_temperature':
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = the_values.get('step')
+                                options['ValueMin'] = the_values.get('min')
+                                options['ValueMax'] = the_values.get('max')
+                                options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (DHWtemp)', DeviceID=dev['id'], Unit=12, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 13) and searchCode('aircond_temp_diff', ResultValue):
-                        options = {}
-                        options['ValueStep'] = '1'
-                        options['ValueMin'] = '2'
-                        options['ValueMax'] = '18'
+                        for item in StatusProperties:
+                            if item['code'] == 'cook_temperature':
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = the_values.get('step')
+                                options['ValueMin'] = the_values.get('min')
+                                options['ValueMax'] = the_values.get('max')
+                                options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (HE/COtemp-diff)', DeviceID=dev['id'], Unit=13, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 14) and searchCode('wth_temp_diff', ResultValue):
-                        options = {}
-                        options['ValueStep'] = '1'
-                        options['ValueMin'] = '2'
-                        options['ValueMax'] = '18'
+                        for item in StatusProperties:
+                            if item['code'] == 'cook_temperature':
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = the_values.get('step')
+                                options['ValueMin'] = the_values.get('min')
+                                options['ValueMax'] = the_values.get('max')
+                                options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (DHWtemp-diff)', DeviceID=dev['id'], Unit=14, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 15) and searchCode('acc_stemp', ResultValue):
-                        options = {}
-                        options['ValueStep'] = '1'
-                        options['ValueMin'] = '7'
-                        options['ValueMax'] = '30'
+                        for item in StatusProperties:
+                            if item['code'] == 'cook_temperature':
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = the_values.get('step')
+                                options['ValueMin'] = the_values.get('min')
+                                options['ValueMax'] = the_values.get('max')
+                                options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (ACCtemp)', DeviceID=dev['id'], Unit=15, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 16) and searchCode('mode', FunctionProperties):
                         for item in FunctionProperties:
@@ -941,7 +966,15 @@ def onHandleThread(startup):
                         if createDevice(dev['id'], 2):
                             Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev['id'], 3):
-                            Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Used=1).Create()
+                            for item in StatusProperties:
+                                if item['code'] == 'cook_temperature':
+                                    the_values = json.loads(item['values'])
+                                    options = {}
+                                    options['ValueStep'] = the_values.get('step')
+                                    options['ValueMin'] = the_values.get('min')
+                                    options['ValueMax'] = the_values.get('max')
+                                    options['ValueUnit'] = the_values.get('unit')
+                            Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('mode', FunctionProperties) and product_id != 'al8g1qdamyu5cfcc':
                         if dev_type == 'thermostat':
                             image = 16
@@ -1549,7 +1582,7 @@ def onHandleThread(startup):
                         options['Custom'] = '1;Hour'
                         Domoticz.Unit(Name=dev['name'] + ' (Filter))', DeviceID=dev['id'], Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 11) and searchCode('fault', ResultValue):
-                            Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=19, Used=1).Create()
+                            Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                 if dev_type == 'multifunctionalarm':
                     if createDevice(dev['id'], 1):
@@ -1596,10 +1629,10 @@ def onHandleThread(startup):
 
 
                 if dev_type == 'smartkettle':
-                    if createDevice(dev['id'], 1) and searchCode('start', FunctionProperties):
+                    if createDevice(dev['id'], 1) and searchCode('start', StatusProperties):
                         Domoticz.Log('Create device Smart Kettle')
                         Domoticz.Unit(Name=dev['name'] + ' (Start)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    if createDevice(dev['id'], 2) and searchCode('status', FunctionProperties):
+                    if createDevice(dev['id'], 2) and searchCode('status', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'status':
                                 the_values = json.loads(item['values'])
@@ -1610,7 +1643,23 @@ def onHandleThread(startup):
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
-                                Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                                Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 3) and (searchCode('temperature', ResultValue)):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=3, Type=80, Subtype=5, Used=0).Create()
+                    if createDevice(dev['id'], 4) and (searchCode('cook_temperature', ResultValue)):
+                        # options={'ValueStep':'0.5', ' ValueMin':'-200', 'ValueMax':'200', 'ValueUnit':'°C'}
+                        for item in StatusProperties:
+                            if item['code'] == 'cook_temperature':
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = the_values.get('step')
+                                Domoticz.Debug(the_values.get('step'))
+                                options['ValueMin'] = the_values.get('min')
+                                options['ValueMax'] = the_values.get('max')
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Cook Temperature)', DeviceID=dev['id'], Unit=4, Type=242, Subtype=1, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 5) and searchCode('fault', ResultValue):
+                            Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
@@ -2678,6 +2727,16 @@ def onHandleThread(startup):
                                     mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('temperature', ResultValue):
+                            currenttemp = StatusDeviceTuya('temperature')
+                            if str(currenttemp) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, currenttemp, 0, 0)
+                        if searchCode('cook_temperature', ResultValue):
+                            currenttemp_set = StatusDeviceTuya('cook_temperature')
+                            if str(currenttemp_set) != str(Devices[dev['id']].Units[4].sValue):
+                                    UpdateDevice(dev['id'], 4, currenttemp_set, 0, 0)
+                        if searchCode('fault', ResultValue):
+                            UpdateDevice(dev['id'], 5, StatusDeviceTuya('fault'), 0, 0)
 
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))

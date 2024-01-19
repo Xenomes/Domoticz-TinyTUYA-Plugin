@@ -20,6 +20,36 @@ DEVICEID = "xxxxxxxxxxxxxxxxxxxx"
 
 # NO NEED TO CHANGE ANYTHING BELOW
 
+if APIKEY == "xxxxxxxxxxxxxxxxxxxx" or APISECRET == "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" or DEVICEID == "xxxxxxxxxxxxxxxxxxxx":
+        print("""Tuya Plugin Configuration Error:
+
+ERROR: Invalid or missing values for Tuya account configuration.
+
+Please ensure the following information is correctly provided:
+
+REGION: [Enter your Tuya region, e.g., us, eu, cn]
+APIKEY: [Enter your Tuya API key]
+APISECRET: [Enter your Tuya API secret]
+DEVICEID: [Enter your Tuya device ID]
+
+Instructions:
+1. REGION: Specify the Tuya region associated with your account (e.g., us, eu, cn).
+2. APIKEY: Enter the correct Tuya API key linked to your account.
+3. APISECRET: Provide the correct Tuya API secret corresponding to your API key.
+4. DEVICEID: Specify the correct Tuya device ID for your device.
+
+Example:
+REGION: us
+APIKEY: abcdef1234567890
+APISECRET: xyz7890123456789
+DEVICEID: tuya_device_001
+
+Ensure accurate information before attempting to configure the Tuya plugin again.
+
+If issues persist, please reach out to Tuya support for assistance.
+""")
+        exit()
+
 # Connect to Tuya Cloud
 try:
         c = tinytuya.Cloud(
