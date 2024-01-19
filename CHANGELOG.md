@@ -1,3 +1,5 @@
+# Changelog
+
 | Version | Information|
 | ----- | ---------- |
 | 1.0.0 | Initial upload version |
@@ -53,6 +55,7 @@
 | 1.6.7 | Add Air quality sensor multifunction alarm by fratton |
 | 1.6.8 | Add Air purifier and unsupported circuit breaker (DIN rail switch) |
 | 1.6.9 | Add Smartheatpump by doucha2 |
-| 1.7.0 | Add Scene remote
-| 1.7.1 | Add Switch Robot and lux meter
-| 1.7.2 | Add Smart Kettle and update Thermostat to 2024.1+
+| 1.7.0 | Add Scene remote |
+| 1.7.1 | Add Switch Robot and lux meter |
+| 1.7.2 | Add Smart Kettle and update Thermostat to 2024.1+ |
+| 1.7.3 | Add SETTI+ weather station |
