@@ -1072,7 +1072,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + '_ext2 (Humidity)', DeviceID=dev['id'], Unit=32, Type=81, Subtype=1, Used=0).Create()
                     if createDevice(dev['id'], 33) and ((searchCode('sub2_temp', ResultValue) and searchCode('sub2_hum', ResultValue))):
                         Domoticz.Unit(Name=dev['name'] + '_ext2 (Temperature + Humidity)', DeviceID=dev['id'], Unit=33, Type=82, Subtype=5, Used=1).Create()
-                    if createDevice(dev['id'], 41) and (searchCode('sub2_temp', ResultValue)):
+                    if createDevice(dev['id'], 41) and (searchCode('sub3_temp', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + '_ext3 (Temperature)', DeviceID=dev['id'], Unit=41, Type=80, Subtype=5, Used=0).Create()
                     if createDevice(dev['id'], 42) and (searchCode('sub3_hum', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + '_ext3 (Humidity)', DeviceID=dev['id'], Unit=42, Type=81, Subtype=1, Used=0).Create()
