@@ -2158,7 +2158,7 @@ def onHandleThread(startup):
                             if str(currenthumi) != str(Devices[dev['id']].Units[42].nValue):
                                 UpdateDevice(dev['id'], 42, 0, currenthumi, 0)
                         if searchCode('sub3_temp', ResultValue) and searchCode('sub3_hum', ResultValue):
-                            currentdomo = Devices[dev['id']].Units[33].sValue
+                            currentdomo = Devices[dev['id']].Units[43].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 43, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
                         battery_device()
