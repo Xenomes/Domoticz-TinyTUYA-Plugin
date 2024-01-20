@@ -1076,7 +1076,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + '_ext3 (Temperature)', DeviceID=dev['id'], Unit=41, Type=80, Subtype=5, Used=0).Create()
                     if createDevice(dev['id'], 42) and (searchCode('sub3_hum', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + '_ext3 (Humidity)', DeviceID=dev['id'], Unit=42, Type=81, Subtype=1, Used=0).Create()
-                    if createDevice(dev['id'], 43) and ((searchCode('sub3_temp', ResultValue) and searchCode('sub2_hum', ResultValue))):
+                    if createDevice(dev['id'], 43) and ((searchCode('sub3_temp', ResultValue) and searchCode('sub3_hum', ResultValue))):
                         Domoticz.Unit(Name=dev['name'] + '_ext3 (Temperature + Humidity)', DeviceID=dev['id'], Unit=43, Type=82, Subtype=5, Used=1).Create()
 
                 if createDevice(dev['id'], 1) and dev_type == 'doorbell':
@@ -2150,14 +2150,14 @@ def onHandleThread(startup):
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 33, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
                         if searchCode('sub3_temp', ResultValue):
-                            currenttemp = StatusDeviceTuya('sub2_temp')
+                            currenttemp = StatusDeviceTuya('sub3_temp')
                             if str(currenttemp) != str(Devices[dev['id']].Units[41].sValue):
                                 UpdateDevice(dev['id'], 41, currenttemp, 0, 0)
                         if  searchCode('sub3_hum', ResultValue):
-                            currenthumi = StatusDeviceTuya('sub2_hum')
+                            currenthumi = StatusDeviceTuya('sub3_hum')
                             if str(currenthumi) != str(Devices[dev['id']].Units[42].nValue):
                                 UpdateDevice(dev['id'], 42, 0, currenthumi, 0)
-                        if searchCode('sub3_temp', ResultValue) and searchCode('sub2_hum', ResultValue):
+                        if searchCode('sub3_temp', ResultValue) and searchCode('sub3_hum', ResultValue):
                             currentdomo = Devices[dev['id']].Units[33].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 43, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
