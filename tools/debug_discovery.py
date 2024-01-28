@@ -45,8 +45,6 @@ APISECRET: xyz7890123456789
 DEVICEID: tuya_device_001
 
 Ensure accurate information before attempting to configure the Tuya plugin again.
-
-If issues persist, please reach out to Tuya support for assistance.
 """)
         exit()
 
