@@ -1799,7 +1799,7 @@ def onHandleThread(startup):
                             currenttemp = StatusDeviceTuya('temp_current')
                             if str(currenttemp) != str(Devices[dev['id']].Units[16].sValue):
                                 UpdateDevice(dev['id'], 16, currenttemp, 0, 0)
-                    battery_device()
+                        battery_device()
 
                     if dev_type == 'dimmer':
                         if searchCode('switch_led_1', StatusProperties):
@@ -2390,7 +2390,7 @@ def onHandleThread(startup):
                             currentstatus = StatusDeviceTuya('doorcontact_state')
                             state_to_set = 'On' if bool(currentstatus) else 'Off'
                             UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
-                    battery_device()
+                        battery_device()
 
                     if dev_type == 'pirlight':
                         if searchCode('switch_pir', FunctionProperties):
@@ -2431,7 +2431,7 @@ def onHandleThread(startup):
                             elif int(currentstatus) > 0:
                                 UpdateDevice(dev['id'], 1, 'On', 1, 0)
                             UpdateDevice(dev['id'], 2, currentstatus, 0, 0)
-                    battery_device()
+                        battery_device()
                         # if searchCode('PIR', ResultValue):
                         #     currentmode = StatusDeviceTuya('PIR')
                         #     for item in StatusProperties:
@@ -2500,7 +2500,7 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, int(mode.index(str(currentmode)) * 10), 1, 0)
-                    battery_device()
+                        battery_device()
 
                     if dev_type == 'presence':
                         if searchCode('pir', ResultValue):
@@ -2510,7 +2510,7 @@ def onHandleThread(startup):
                             elif currentstatus == 'pir':
                                 UpdateDevice(dev['id'], 1, 'On', 1, 0)
 
-                    battery_device()
+                        battery_device()
 
                     if dev_type == 'irrigation':
                         if searchCode('switch', FunctionProperties):
@@ -2526,7 +2526,7 @@ def onHandleThread(startup):
                                     mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
-                    battery_device()
+                        battery_device()
 
                     if dev_type == 'wswitch':
                         timestamp = int(time.mktime(time.localtime()) * 1000)
@@ -2559,7 +2559,7 @@ def onHandleThread(startup):
                                             mode.extend(the_values.get('range'))
                                     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
                                         UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
-                    battery_device()
+                        battery_device()
 
                     if dev_type == 'lightsensor':
                         if searchCode('bright_value', ResultValue):
