@@ -145,9 +145,6 @@ class BasePlugin:
                     elif Command == 'On':
                         SendCommandCloud(DeviceID, 'switch', True)
                         UpdateDevice(DeviceID, Unit, 'On', 1, 0)
-                    elif Command == 'Set Level':
-                        SendCommandCloud(DeviceID, 'switch', True)
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 if not searchCode('switch', function):
                     if Command == 'Off':
                         SendCommandCloud(DeviceID, 'switch_' + str(Unit), False)
@@ -155,18 +152,13 @@ class BasePlugin:
                     elif Command == 'On':
                         SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
                         UpdateDevice(DeviceID, Unit, 'On', 1, 0)
-                    elif Command == 'Set Level':
-                        SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
             elif dev_type in ('dimmer'):
                 if Command == 'Off':
                     SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), False)
                     UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
-                elif Command == 'On':
-                    SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), True)
-                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
                 elif Command == 'Set Level':
+                    SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), True)
                     SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
