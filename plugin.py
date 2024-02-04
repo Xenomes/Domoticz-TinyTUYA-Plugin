@@ -145,9 +145,6 @@ class BasePlugin:
                     elif Command == 'On':
                         SendCommandCloud(DeviceID, 'switch', True)
                         UpdateDevice(DeviceID, Unit, 'On', 1, 0)
-                    elif Command == 'Set Level':
-                        SendCommandCloud(DeviceID, 'switch', True)
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 if not searchCode('switch', function):
                     if Command == 'Off':
                         SendCommandCloud(DeviceID, 'switch_' + str(Unit), False)
@@ -155,9 +152,6 @@ class BasePlugin:
                     elif Command == 'On':
                         SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
                         UpdateDevice(DeviceID, Unit, 'On', 1, 0)
-                    elif Command == 'Set Level':
-                        SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
             elif dev_type in ('dimmer'):
                 if Command == 'Off':
@@ -586,6 +580,24 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'cook_temperature', Level)
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
 
+            if dev_type == 'infrared_ac':
+                if Command == 'Off' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'PowerOff', 'PowerOff')
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                elif Command == 'On' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'PowerOn', 'PowerOn')
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
+                elif Command == 'Set Level' and Unit  == 2:
+                    SendCommandCloud(DeviceID, 'T', Level)
+                    UpdateDevice(DeviceID, 2, Level, 1, 0)
+                elif Command == 'Set Level' and Unit == 3:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'M', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 3, Level, 1, 0)
+                elif Command == 'Set Level' and Unit == 4:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'F', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 4, Level, 1, 0)
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
 
@@ -697,7 +709,8 @@ def onHandleThread(startup):
                 i = 0
                 while len(devs) == 0 and i < 4:
                     devs = tuya.getdevices()
-                    Domoticz.Log('No device data returned for Tuya. Trying again!')
+                    if i > 0:
+                        Domoticz.Log('No device data returned for Tuya. Trying again!')
                     i += 1
                 if i > 4:
                     raise Exception('No device data returned for Tuya. Check if subscription cloud development plan has expired!')
@@ -1532,6 +1545,59 @@ def onHandleThread(startup):
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+
+                if dev_type == 'infrared_ac':
+                    if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create device Infrared AC')
+                        Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('temp', StatusProperties):
+                            Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=2, Type=242, Subtype=1, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('mode', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'mode':
+                                the_values = json.loads(item['values'])
+                                mode = ['0']
+                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    mode.extend([str(num)])
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('wind', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'wind':
+                                the_values = json.loads(item['values'])
+                                mode = ['0']
+                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    mode.extend([str(num)])
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                                Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+
+                # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
+                #     for item in StatusProperties:
+                #         if item['code'] == 'PIR':
+                #             the_values = json.loads(item['values'])
+                #             mode = ['off']
+                #             mode.extend(the_values.get('range'))
+                #             options = {}
+                #             options['LevelOffHidden'] = 'true'
+                #             options['LevelActions'] = ''
+                #             options['LevelNames'] = '|'.join(mode)
+                #             options['SelectorStyle'] = '0'
+                #             Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+
+                # if dev_type == 'climate':
+                #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
+                # if dev_type == 'lock':
+                #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                                Domoticz.Unit(Name=dev['name'] + ' (mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         Domoticz.Unit(Name=dev['name'] + ' (mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('anion', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (anion)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -2902,6 +2968,8 @@ def DeviceType(category):
         result = 'purifier'
     elif category in {'bh'}:
         result = 'smartkettle'
+    elif category in {'infrared_ac'}:
+        result = 'infrared_ac'
     elif 'infrared_' in category: # keep it last
         result = 'infrared'
     else:
@@ -2960,9 +3028,13 @@ def SendCommandCloud(ID, CommandName, Status):
 
     # Domoticz.Debug("actual_function_name:" + str(actual_function_name))
     # Domoticz.Debug("actual_status:" + str(actual_status))
+    if actual_function_name in ('PowerOff', 'PowerOn'):
+        uri='devices/'
+    else:
+        uri='iot-03/devices/'
     if testData != True:
-        tuya.sendcommand(ID, {'commands': [{'code': actual_function_name, 'value': actual_status}]})
-    Domoticz.Debug('Command send to tuya :' + str(ID) + ", " + str({'commands': [{'code': actual_function_name, 'value': actual_status}]}))
+        tuya.sendcommand(ID, {'commands': [{'code': actual_function_name, 'value': actual_status}]}, uri)
+    Domoticz.Debug('Command send to tuya :' + str(ID) + ", " + str({'commands': [{'code': actual_function_name, 'value': actual_status}]}) + ", " + str(uri))
 
 def pct_to_brightness(device_functions, actual_function_name, pct):
     if device_functions and actual_function_name:
