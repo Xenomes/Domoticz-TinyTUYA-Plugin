@@ -53,6 +53,6 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.7.3 | Add SETTI+ weather station |
 | 1.7.4 | Bug fixing |
 
-The full Change log [a relative link](CHANGELOG.md)
+ [The full Change log](CHANGELOG.md)
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/xenomes)

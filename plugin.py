@@ -7,7 +7,7 @@
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.7.4</h2><br/>
+        <h2>TinyTUYA Plugin version 1.7.4a</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -895,9 +895,9 @@ def onHandleThread(startup):
                             if item['code'] == 'ach_stemp':
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = the_values.get('step')
-                                options['ValueMin'] = the_values.get('min')
-                                options['ValueMax'] = the_values.get('max')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (HEATtemp)', DeviceID=dev['id'], Unit=11, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 12) and searchCode('wth_stemp', ResultValue):
@@ -905,9 +905,9 @@ def onHandleThread(startup):
                             if item['code'] == 'wth_stemp':
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = the_values.get('step')
-                                options['ValueMin'] = the_values.get('min')
-                                options['ValueMax'] = the_values.get('max')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (DHWtemp)', DeviceID=dev['id'], Unit=12, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 13) and searchCode('aircond_temp_diff', ResultValue):
@@ -915,9 +915,9 @@ def onHandleThread(startup):
                             if item['code'] == 'aircond_temp_diff':
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = the_values.get('step')
-                                options['ValueMin'] = the_values.get('min')
-                                options['ValueMax'] = the_values.get('max')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (HE/COtemp-diff)', DeviceID=dev['id'], Unit=13, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 14) and searchCode('wth_temp_diff', ResultValue):
@@ -925,9 +925,9 @@ def onHandleThread(startup):
                             if item['code'] == 'wth_temp_diff':
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = the_values.get('step')
-                                options['ValueMin'] = the_values.get('min')
-                                options['ValueMax'] = the_values.get('max')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (DHWtemp-diff)', DeviceID=dev['id'], Unit=14, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 15) and searchCode('acc_stemp', ResultValue):
@@ -935,9 +935,9 @@ def onHandleThread(startup):
                             if item['code'] == 'acc_stemp':
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = the_values.get('step')
-                                options['ValueMin'] = the_values.get('min')
-                                options['ValueMax'] = the_values.get('max')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (ACCtemp)', DeviceID=dev['id'], Unit=15, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 16) and searchCode('mode', FunctionProperties):
@@ -983,9 +983,9 @@ def onHandleThread(startup):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = the_values.get('step')
-                                options['ValueMin'] = the_values.get('min')
-                                options['ValueMax'] = the_values.get('max')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('mode', FunctionProperties) and product_id != 'al8g1qdamyu5cfcc':
@@ -1736,9 +1736,9 @@ def onHandleThread(startup):
                             if item['code'] == 'cook_temperature':
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = the_values.get('step')
-                                options['ValueMin'] = the_values.get('min')
-                                options['ValueMax'] = the_values.get('max')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (Cook Temperature)', DeviceID=dev['id'], Unit=4, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('fault', ResultValue):
