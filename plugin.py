@@ -141,10 +141,10 @@ class BasePlugin:
                 if searchCode('switch', function):
                     if Command == 'Off':
                         SendCommandCloud(DeviceID, 'switch', False)
-                        # UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
+                        UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                     elif Command == 'On':
                         SendCommandCloud(DeviceID, 'switch', True)
-                        # UpdateDevice(DeviceID, Unit, 'On', 1, 0)
+                        UpdateDevice(DeviceID, Unit, 'On', 1, 0)
                 if not searchCode('switch', function):
                     if Command == 'Off':
                         SendCommandCloud(DeviceID, 'switch_' + str(Unit), False)
