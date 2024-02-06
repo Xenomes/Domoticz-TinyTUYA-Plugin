@@ -59,3 +59,4 @@
 | 1.7.1 | Add Switch Robot and lux meter |
 | 1.7.2 | Add Smart Kettle and update Thermostat to 2024.1+ |
 | 1.7.3 | Add SETTI+ weather station |
+| 1.7.4 | Bug fixing |
