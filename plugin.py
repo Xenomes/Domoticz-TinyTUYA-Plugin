@@ -285,6 +285,8 @@ class BasePlugin:
             elif dev_type == 'thermostat' or dev_type == 'heater'or dev_type == 'heatpump':
                 if searchCode('switch_1', function):
                     switch = 'switch_1'
+                elif searchCode('Power', function):
+                    switch = 'Power'
                 else:
                     switch = 'switch'
                 if searchCode('temp_set', function):
@@ -295,6 +297,12 @@ class BasePlugin:
                     switch3 = 'temperature_c'
                 elif searchCode('TempSet', function):
                     switch3 = 'TempSet'
+                if searchCode('mode', function):
+                    switch4 = 'mode'
+                elif searchCode('Mode', function):
+                    switch4 = 'Mode'
+                elif searchCode('work_mode', function):
+                    switch4 = 'work_mode'
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, switch, False)
                     UpdateDevice(DeviceID, 1, 'Off', 0, 0)
@@ -306,7 +314,7 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                    SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
+                    SendCommandCloud(DeviceID, switch4, mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
                 if Command == 'Off' and Unit == 5:
                     SendCommandCloud(DeviceID, 'window_check', False)
@@ -970,13 +978,13 @@ def onHandleThread(startup):
                 if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device Thermostat/heater/heatpump')
-                        if searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties):
+                        if searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties) or searchCode('Power', FunctionProperties):
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         else:
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=0).Create()
                     if createDevice(dev['id'], 2) and (searchCode('temp_current', StatusProperties) or searchCode('upper_temp', StatusProperties) or searchCode('c_temperature', StatusProperties) or searchCode('TempCurrent', StatusProperties)):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=1).Create()
-                    if createDevice(dev['id'], 3) and (searchCode('set_temp', FunctionProperties) or searchCode('temp_set', FunctionProperties)):
+                    if createDevice(dev['id'], 3) and (searchCode('set_temp', FunctionProperties) or searchCode('temp_set', FunctionProperties) or searchCode('temperature_c', FunctionProperties) or searchCode('TempSet', FunctionProperties)):
                         if searchCode('temp_set', FunctionProperties):
                             temp = 'temp_set'
                         elif searchCode('set_temp', FunctionProperties):
@@ -994,7 +1002,7 @@ def onHandleThread(startup):
                                 options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Options=options, Used=1).Create()
-                    if createDevice(dev['id'], 4) and searchCode('mode', FunctionProperties) and product_id != 'al8g1qdamyu5cfcc':
+                    if createDevice(dev['id'], 4) and (searchCode('mode', FunctionProperties) or searchCode('Mode', FunctionProperties) or searchCode('work_mode', FunctionProperties)) and product_id != 'al8g1qdamyu5cfcc':
                         if dev_type == 'thermostat':
                             image = 16
                         elif dev_type == 'heater':
@@ -1004,6 +1012,8 @@ def onHandleThread(startup):
                         for item in FunctionProperties:
                             if searchCode('work_mode', FunctionProperties):
                                 mode = 'work_mode'
+                            elif searchCode('Mode', FunctionProperties):
+                                mode = 'Mode'
                             else:
                                 mode = 'mode'
                             if item['code'] == mode:
@@ -2065,8 +2075,13 @@ def onHandleThread(startup):
                                 ## a tak dále
 
                     if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
-                        if searchCode('switch', ResultValue):
-                            currentstatus = StatusDeviceTuya('switch')
+                        if searchCode('switch', ResultValue) or searchCode('switch_1', ResultValue) or searchCode('Power', ResultValue):
+                            if searchCode('switch', ResultValue):
+                                currentstatus = StatusDeviceTuya('switch')
+                            elif searchCode('switch_1', ResultValue):
+                                currentstatus = StatusDeviceTuya('switch_1')
+                            elif searchCode('Power', ResultValue):
+                                currentstatus = StatusDeviceTuya('switch_1')
                             state_to_set = 'On' if bool(currentstatus) else 'Off'
                             UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
                         if searchCode('temp_current', ResultValue) or searchCode('upper_temp', ResultValue) or searchCode('c_temperature', ResultValue) or searchCode('TempCurrent', ResultValue):
@@ -2093,10 +2108,16 @@ def onHandleThread(startup):
                                 currenttemp_set = StatusDeviceTuya('TempSet')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[3].sValue):
                                     UpdateDevice(dev['id'], 3, currenttemp_set, 0, 0)
-                        if searchCode('mode', ResultValue) and checkDevice(dev['id'],4):
-                            currentmode = StatusDeviceTuya('mode')
+                        if (searchCode('work_mode', ResultValue) or searchCode('mode', ResultValue) or searchCode('Mode', ResultValue))and checkDevice(dev['id'],4):
+                            if searchCode('work_mode', ResultValue):
+                                modetype = 'work_mode'
+                            elif searchCode('Mode', ResultValue):
+                                modetype = 'Mode'
+                            elif searchCode('mode', ResultValue):
+                                modetype = 'mode'
+                            currentmode = StatusDeviceTuya(modetype)
                             for item in FunctionProperties:
-                                if item['code'] == 'mode':
+                                if item['code'] == modetype:
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     mode.extend(the_values.get('range'))
