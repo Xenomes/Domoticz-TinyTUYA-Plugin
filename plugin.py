@@ -7,7 +7,7 @@
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.7.4a</h2><br/>
+        <h2>TinyTUYA Plugin version 1.7.4b</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -293,6 +293,8 @@ class BasePlugin:
                     switch3 = 'set_temp'
                 elif searchCode('temperature_c', function):
                     switch3 = 'temperature_c'
+                elif searchCode('TempSet', function):
+                    switch3 = 'TempSet'
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, switch, False)
                     UpdateDevice(DeviceID, 1, 'Off', 0, 0)
@@ -972,13 +974,17 @@ def onHandleThread(startup):
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         else:
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=0).Create()
-                    if createDevice(dev['id'], 2) and (searchCode('temp_current', StatusProperties) or searchCode('upper_temp', StatusProperties) or searchCode('c_temperature', StatusProperties)):
+                    if createDevice(dev['id'], 2) and (searchCode('temp_current', StatusProperties) or searchCode('upper_temp', StatusProperties) or searchCode('c_temperature', StatusProperties) or searchCode('TempCurrent', StatusProperties)):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 3) and (searchCode('set_temp', FunctionProperties) or searchCode('temp_set', FunctionProperties)):
-                        if searchCode('set_temp', FunctionProperties):
-                            temp = 'set_temp'
-                        else:
+                        if searchCode('temp_set', FunctionProperties):
                             temp = 'temp_set'
+                        elif searchCode('set_temp', FunctionProperties):
+                            temp = 'set_temp'
+                        elif searchCode('temperature_c', FunctionProperties):
+                            temp = 'temperature_c'
+                        elif searchCode('TempSet', FunctionProperties):
+                            temp = 'TempSet'
                         for item in StatusProperties:
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
@@ -2063,24 +2069,28 @@ def onHandleThread(startup):
                             currentstatus = StatusDeviceTuya('switch')
                             state_to_set = 'On' if bool(currentstatus) else 'Off'
                             UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
-                        if searchCode('temp_current', ResultValue) or searchCode('upper_temp', ResultValue) or searchCode('c_temperature', ResultValue):
+                        if searchCode('temp_current', ResultValue) or searchCode('upper_temp', ResultValue) or searchCode('c_temperature', ResultValue) or searchCode('TempCurrent', ResultValue):
                             if searchCode('temp_current', ResultValue):
                                 currenttemp = StatusDeviceTuya('temp_current')
                             elif searchCode('upper_temp', ResultValue):
                                 currenttemp = StatusDeviceTuya('upper_temp')
                             elif searchCode('c_temperature', ResultValue):
                                 currenttemp = StatusDeviceTuya('c_temperature')
+                            elif searchCode('TempCurrent', ResultValue):
+                                currenttemp = StatusDeviceTuya('TempCurrent')
                             else:
                                 currenttemp = 0
                             if str(currenttemp) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, currenttemp, 0, 0)
-                        if searchCode('temp_set', ResultValue) or searchCode('set_temp', ResultValue) or searchCode('temperature_c', ResultValue):
+                        if searchCode('temp_set', ResultValue) or searchCode('set_temp', ResultValue) or searchCode('temperature_c', ResultValue) or searchCode('TempSet', ResultValue):
                             if searchCode('temp_set', ResultValue):
                                 currenttemp_set = StatusDeviceTuya('temp_set')
                             elif searchCode('set_temp', ResultValue):
                                 currenttemp_set = StatusDeviceTuya('set_temp')
                             elif searchCode('temperature_c', ResultValue):
                                 currenttemp_set = StatusDeviceTuya('temperature_c')
+                            elif searchCode('TempSet', ResultValue):
+                                currenttemp_set = StatusDeviceTuya('TempSet')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[3].sValue):
                                     UpdateDevice(dev['id'], 3, currenttemp_set, 0, 0)
                         if searchCode('mode', ResultValue) and checkDevice(dev['id'],4):
@@ -2237,10 +2247,11 @@ def onHandleThread(startup):
                             #     UpdateDevice(dev['id'], 1, 'On', 1, 0)
                             # else:
                             #     UpdateDevice(dev['id'], 1, 'Off', 0, 0)
-                            timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
-                            currentstatus = (int(timestamp) - int(datetimestamp)) < 61
-                            state_to_set = 'On' if bool(currentstatus) else 'Off'
-                            UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
+                            if datetimestamp == '' or datetimestamp == None:
+                                timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
+                                currentstatus = (int(timestamp) - int(datetimestamp)) < 61
+                                state_to_set = 'On' if bool(currentstatus) else 'Off'
+                                UpdateDevice(dev['id'], 1, state_to_set, int(bool(currentstatus)), 0)
 
                     if dev_type == 'fan':
                         if searchCode('switch', FunctionProperties):
