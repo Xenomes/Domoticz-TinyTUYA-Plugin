@@ -60,3 +60,4 @@
 | 1.7.2 | Add Smart Kettle and update Thermostat to 2024.1+ |
 | 1.7.3 | Add SETTI+ weather station |
 | 1.7.4 | Bug fixing |
+| 1.7.5 | Update for Debian Bookworm Python 3.11.2 |
