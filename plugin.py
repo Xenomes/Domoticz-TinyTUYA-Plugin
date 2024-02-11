@@ -141,22 +141,22 @@ class BasePlugin:
                 if searchCode('switch', function):
                     if Command == 'Off':
                         SendCommandCloud(DeviceID, 'switch', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                     elif Command == 'On':
                         SendCommandCloud(DeviceID, 'switch', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        UpdateDevice(DeviceID, Unit, 'On', 1, 0)
                 if not searchCode('switch', function):
                     if Command == 'Off':
                         SendCommandCloud(DeviceID, 'switch_' + str(Unit), False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                     elif Command == 'On':
                         SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        UpdateDevice(DeviceID, Unit, 'On', 1, 0)
 
             elif dev_type in ('dimmer'):
                 if Command == 'Off':
                     SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), False)
-                    UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                 elif Command == 'Set Level':
                     SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), True)
                     SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
@@ -166,10 +166,10 @@ class BasePlugin:
                 switch = 'led_switch' if searchCode('led_switch', function) else 'switch_led'
                 if Command == 'Off':
                     SendCommandCloud(DeviceID, switch, False)
-                    UpdateDevice(DeviceID, 1, False, 0, 0)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
                 elif Command == 'On':
                     SendCommandCloud(DeviceID, switch, True)
-                    UpdateDevice(DeviceID, 1, True, 1, 0)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
                 elif Command == 'Set Level':
                     if searchCode('bright_value_v2', function):
                         SendCommandCloud(DeviceID, switch, True)
@@ -242,10 +242,10 @@ class BasePlugin:
                     switch = 'switch'
                     if Command == 'Off' and Unit == 1:
                         SendCommandCloud(DeviceID, switch, False)
-                        UpdateDevice(DeviceID, 1, False, 0, 0)
+                        UpdateDevice(DeviceID, 1, 'Off', 0, 0)
                     elif Command == 'On' and Unit == 1:
                         SendCommandCloud(DeviceID, switch, True)
-                        UpdateDevice(DeviceID, 1, True, 1, 0)
+                        UpdateDevice(DeviceID, 1, 'On', 1, 0)
                 if searchCode('ach_stemp', function):
                     switch = 'ach_stemp'
                     if Command == 'Set Level' and Unit  == 11:
@@ -305,10 +305,10 @@ class BasePlugin:
                     switch4 = 'work_mode'
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, switch, False)
-                    UpdateDevice(DeviceID, 1, False, 0, 0)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 1:
                     SendCommandCloud(DeviceID, switch, True)
-                    UpdateDevice(DeviceID, 1, True, 1, 0)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit  == 3:
                     SendCommandCloud(DeviceID, switch3, Level)
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
@@ -318,38 +318,38 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
                 if Command == 'Off' and Unit == 5:
                     SendCommandCloud(DeviceID, 'window_check', False)
-                    UpdateDevice(DeviceID, 5, False, 0, 0)
+                    UpdateDevice(DeviceID, 5, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 5:
                     SendCommandCloud(DeviceID, 'window_check', True)
-                    UpdateDevice(DeviceID, 5, True, 1, 0)
+                    UpdateDevice(DeviceID, 5, 'On', 1, 0)
                 if Command == 'Off' and Unit == 6:
                     SendCommandCloud(DeviceID, 'child_lock', False)
-                    UpdateDevice(DeviceID, 6, False, 0, 0)
+                    UpdateDevice(DeviceID, 6, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 6:
                     SendCommandCloud(DeviceID, 'child_lock', True)
-                    UpdateDevice(DeviceID, 6, True, 1, 0)
+                    UpdateDevice(DeviceID, 6, 'On', 1, 0)
                 if Command == 'Off' and Unit == 7:
                     SendCommandCloud(DeviceID, 'eco', False)
-                    UpdateDevice(DeviceID, 7, False, 0, 0)
+                    UpdateDevice(DeviceID, 7, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 7:
                     SendCommandCloud(DeviceID, 'eco', True)
-                    UpdateDevice(DeviceID, 7, True, 1, 0)
+                    UpdateDevice(DeviceID, 7, 'On', 1, 0)
 
             if dev_type == 'fan':
                 if Command == 'Off':
                     SendCommandCloud(DeviceID, 'switch', False)
-                    UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                 elif Command == 'On':
                     SendCommandCloud(DeviceID, 'switch', True)
-                    UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
 
             if dev_type == 'fanlight':
                 if Command == 'Off' and Unit == 2:
                     SendCommandCloud(DeviceID, 'fan_switch', False)
-                    UpdateDevice(DeviceID, 2, False, 0, 0)
+                    UpdateDevice(DeviceID, 2, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 2:
                     SendCommandCloud(DeviceID, 'fan_switch', True)
-                    UpdateDevice(DeviceID, 2, True, 1, 0)
+                    UpdateDevice(DeviceID, 2, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'fan_speed', int(mode[int(Level / 10)]))
@@ -362,18 +362,18 @@ class BasePlugin:
             if dev_type == 'powermeter' :
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch_1', False)
-                    UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch_1', True)
-                    UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
 
             if dev_type == 'siren':
                 if Command == 'Off':
                     SendCommandCloud(DeviceID, 'AlarmSwitch', False)
-                    UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                 elif Command == 'On':
                     SendCommandCloud(DeviceID, 'AlarmSwitch', True)
-                    UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 2:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
@@ -385,10 +385,10 @@ class BasePlugin:
                 # Other Type of alarm with same code
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'muffling', False)
-                    UpdateDevice(DeviceID, 1, False, 0, 0)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 1:
                     SendCommandCloud(DeviceID, 'muffling', True)
-                    UpdateDevice(DeviceID, 1, True, 1, 0)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 2:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'alarm_state', mode[int(Level / 10)])
@@ -401,10 +401,10 @@ class BasePlugin:
             if dev_type == 'pirlight':
                 if Command == 'Off' and Unit == 2:
                     SendCommandCloud(DeviceID, 'switch_pir', False)
-                    UpdateDevice(DeviceID, 2, False, 0, 0)
+                    UpdateDevice(DeviceID, 2, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 2:
                     SendCommandCloud(DeviceID, 'switch_pir', True)
-                    UpdateDevice(DeviceID, 2, True, 1, 0)
+                    UpdateDevice(DeviceID, 2, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'device_mode', mode[int(Level / 10)])
@@ -417,18 +417,18 @@ class BasePlugin:
             if dev_type == 'garagedooropener':
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch_1', False)
-                    UpdateDevice(DeviceID, 1, False, 0, 0)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch_1', True)
-                    UpdateDevice(DeviceID, 1, True, 1, 0)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
 
             if dev_type == 'feeder':
                 if Command == 'Off' and Unit == 5:
                     SendCommandCloud(DeviceID, 'light', False)
-                    UpdateDevice(DeviceID, 5, False, 0, 0)
+                    UpdateDevice(DeviceID, 5, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 5:
                     SendCommandCloud(DeviceID, 'light', True)
-                    UpdateDevice(DeviceID, 5, True, 1, 0)
+                    UpdateDevice(DeviceID, 5, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 1:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
@@ -437,10 +437,10 @@ class BasePlugin:
             if dev_type == 'irrigation':
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch', False)
-                    UpdateDevice(DeviceID, 1, False, 0, 0)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch', True)
-                    UpdateDevice(DeviceID, 1, True, 1, 0)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
 
             if dev_type == 'wswitch':
                 if Command == 'Set Level':
@@ -457,13 +457,13 @@ class BasePlugin:
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch_led', False)
                     SendCommandCloud(DeviceID, 'colour_switch', False)
-                    UpdateDevice(DeviceID, 1, False, 0, 0)
-                    UpdateDevice(DeviceID, 2, False, 0, 0)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
+                    UpdateDevice(DeviceID, 2, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch_led', True)
                     SendCommandCloud(DeviceID, 'colour_switch', True)
-                    UpdateDevice(DeviceID, 1, True, 1, 0)
-                    UpdateDevice(DeviceID, 2, True, 1, 0)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
+                    UpdateDevice(DeviceID, 2, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 1:
                     Color = Devices[DeviceID].Units[1].Color
                     if Color == '': Color ={"b":255,"cw":0,"g":255,"m":3,"r":255,"t":0,"ww":0}
@@ -480,33 +480,33 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 1, Color, 1, 0)
                 if Command == 'Off' and Unit == 2:
                     SendCommandCloud(DeviceID, 'colour_switch', False)
-                    UpdateDevice(DeviceID, 2, False, 0, 0)
-                    UpdateDevice(DeviceID, 1, False, 0, 0)
+                    UpdateDevice(DeviceID, 2, 'Off', 0, 0)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 2:
                     SendCommandCloud(DeviceID, 'colour_switch', True)
-                    UpdateDevice(DeviceID, 2, True, 1, 0)
-                    UpdateDevice(DeviceID, 1, True, 1, 0)
+                    UpdateDevice(DeviceID, 2, 'On', 1, 0)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
                 if Command == 'Off' and Unit == 3:
                     SendCommandCloud(DeviceID, 'laser_switch', False)
-                    UpdateDevice(DeviceID, 3, False, 0, 0)
+                    UpdateDevice(DeviceID, 3, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 3:
                     SendCommandCloud(DeviceID, 'laser_switch', True)
-                    UpdateDevice(DeviceID, 3, True, 1, 0)
+                    UpdateDevice(DeviceID, 3, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
                     SendCommandCloud(DeviceID, 'laser_switch', True)
                     SendCommandCloud(DeviceID, 'laser_bright', 21.25 + ((Level / 100) * 78.75)) # 21.25 + ((Level / 100) * 78.75) ) * 10
-                    UpdateDevice(DeviceID, 3, True, 1, 0)
+                    UpdateDevice(DeviceID, 3, 'On', 1, 0)
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 if Command == 'Off' and Unit == 4:
                     SendCommandCloud(DeviceID, 'fan_switch', False)
-                    UpdateDevice(DeviceID, 4, False, 0, 0)
+                    UpdateDevice(DeviceID, 4, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 4:
                     SendCommandCloud(DeviceID, 'fan_switch', True)
-                    UpdateDevice(DeviceID, 4, True, 1, 0)
+                    UpdateDevice(DeviceID, 4, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
                     SendCommandCloud(DeviceID, 'fan_switch', True)
                     SendCommandCloud(DeviceID, 'fan_speed', Level)
-                    UpdateDevice(DeviceID, 4, True, 1, 0)
+                    UpdateDevice(DeviceID, 4, 'On', 1, 0)
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
 
             # if dev_type == 'smartlock':
@@ -520,10 +520,10 @@ class BasePlugin:
             if dev_type == 'dehumidifier':
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch', False)
-                    UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch', True)
-                    UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 2:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
@@ -538,18 +538,18 @@ class BasePlugin:
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 if Command == 'Off' and Unit == 5:
                     SendCommandCloud(DeviceID, 'switch', False)
-                    UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 5:
                     SendCommandCloud(DeviceID, 'switch', True)
-                    UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
 
             if dev_type == 'vacuum':
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'power_go', False)
-                    UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 1:
                     SendCommandCloud(DeviceID, 'power_go', True)
-                    UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
@@ -566,10 +566,10 @@ class BasePlugin:
             if dev_type == 'purifier':
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch', False)
-                    UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch', True)
-                    UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
@@ -582,10 +582,10 @@ class BasePlugin:
             if dev_type == 'smartkettle':
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'start', False)
-                    UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    UpdateDevice(DeviceID, Unit, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 1:
                     SendCommandCloud(DeviceID, 'start', True)
-                    UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    UpdateDevice(DeviceID, Unit, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit  == 4:
                     SendCommandCloud(DeviceID, 'cook_temperature', Level)
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
@@ -593,10 +593,10 @@ class BasePlugin:
             if dev_type == 'infrared_ac':
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'PowerOff', 'PowerOff')
-                    UpdateDevice(DeviceID, 1, False, 0, 0)
+                    UpdateDevice(DeviceID, 1, 'Off', 0, 0)
                 elif Command == 'On' and Unit == 1:
                     SendCommandCloud(DeviceID, 'PowerOn', 'PowerOn')
-                    UpdateDevice(DeviceID, 1, True, 1, 0)
+                    UpdateDevice(DeviceID, 1, 'On', 1, 0)
                 elif Command == 'Set Level' and Unit  == 2:
                     SendCommandCloud(DeviceID, 'T', Level)
                     UpdateDevice(DeviceID, 2, Level, 1, 0)
@@ -1039,8 +1039,6 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 7) and searchCode('child_lock', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Eco)', DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    if createDevice(dev['id'], 8) and (searchCode('temp_floor', StatusProperties)):
-                        Domoticz.Unit(Name=dev['name'] + ' (Floor Temperature)', DeviceID=dev['id'], Unit=8, Type=80, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 11) and ((searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'A') or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
                     if createDevice(dev['id'], 12) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue)):
@@ -1785,7 +1783,7 @@ def onHandleThread(startup):
             if run == 1:
                 Domoticz.Log('Update devices in Domoticz')
             if bool(online) == False and Devices[dev['id']].TimedOut == 0:
-                UpdateDevice(dev['id'], 1, False, 0, 1)
+                UpdateDevice(dev['id'], 1, 'Off', 0, 1)
             elif online == True and Devices[dev['id']].TimedOut == 1:
                 UpdateDevice(dev['id'], 1, None, 0, 0)
             elif bool(online) == True and Devices[dev['id']].TimedOut == 0:
@@ -1889,7 +1887,7 @@ def onHandleThread(startup):
                             currentstatus = StatusDeviceTuya('switch_led_1')
                             currentdim = brightness_to_pct(StatusProperties, 'bright_value_1', int(StatusDeviceTuya('bright_value_1')))
                             if bool(currentstatus) == False or currentdim == 0:
-                                UpdateDevice(dev['id'], 1, False, 0, 0)
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif bool(currentstatus) == True and  currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, str(currentdim), 1, 0)
 
@@ -1897,7 +1895,7 @@ def onHandleThread(startup):
                             currentstatus = StatusDeviceTuya('switch_led_2')
                             currentdim = brightness_to_pct(StatusProperties, 'bright_value_2', int(StatusDeviceTuya('bright_value_2')))
                             if bool(currentstatus) == False or currentdim == 0:
-                                UpdateDevice(dev['id'], 2, False, 0, 0)
+                                UpdateDevice(dev['id'], 2, 'Off', 0, 0)
                             elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, str(currentdim), 1, 0)
 
@@ -1924,12 +1922,12 @@ def onHandleThread(startup):
                                 colortuya = StatusDeviceTuya('colour_data_v2')
                         if BrightnessControl == False:
                             if (bool(currentstatus) == False and bool(nValue) != False):
-                                UpdateDevice(dev['id'], 1, False, 0, 0)
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif (bool(currentstatus) == True and bool(nValue) != True):
-                                UpdateDevice(dev['id'], 1, True, 1, 0)
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
                         if BrightnessControl == True:
                             if (bool(currentstatus) == False and bool(nValue) != False) or (int(dimtuya) == 0 and bool(nValue) != False):
-                                UpdateDevice(dev['id'], 1, False, 0, 0)
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif (bool(currentstatus) == True and bool(nValue) != True) or (str(dimtuya) != str(sValue) and bool(nValue) != False):
                                 UpdateDevice(dev['id'], 1, str(dimtuya), 1, 0)
 
@@ -2152,10 +2150,6 @@ def onHandleThread(startup):
                             currentstatus = StatusDeviceTuya('eco')
                             state_to_set = 'On' if bool(currentstatus) else 'Off'
                             UpdateDevice(dev['id'], 7, state_to_set, int(bool(currentstatus)), 0)
-                        if searchCode('temp_floor', ResultValue):
-                            currenttemp = StatusDeviceTuya('temp_floor')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[8].sValue):
-                                UpdateDevice(dev['id'], 8, str(currenttemp), 0, 0)
                         battery_device()
 
                     if dev_type in ('sensor', 'smartir'):
@@ -2271,9 +2265,9 @@ def onHandleThread(startup):
                             # UpdateDevice(dev['id'], 1, datetimestamp, 0, 0)
                             # timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
                             # if (int(timestamp) - int(datetimestamp)) < 61:
-                            #     UpdateDevice(dev['id'], 1, True, 1, 0)
+                            #     UpdateDevice(dev['id'], 1, 'On', 1, 0)
                             # else:
-                            #     UpdateDevice(dev['id'], 1, False, 0, 0)
+                            #     UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             if datetimestamp == '' or datetimestamp == None:
                                 timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
                                 currentstatus = (int(timestamp) - int(datetimestamp)) < 61
@@ -2529,16 +2523,16 @@ def onHandleThread(startup):
                         if searchCode('smoke_sensor_status', ResultValue):
                             currentstatus = StatusDeviceTuya('smoke_sensor_status')
                             if currentstatus == 'normal':
-                                UpdateDevice(dev['id'], 1, False, 0, 0)
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif currentstatus == 'alarm':
-                                UpdateDevice(dev['id'], 1, True, 1, 0)
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
                             UpdateDevice(dev['id'], 2, currentstatus, 0, 0)
                         if searchCode('PIR', ResultValue):
                             currentstatus = StatusDeviceTuya('PIR')
                             if int(currentstatus) == 0:
-                                UpdateDevice(dev['id'], 1, False, 0, 0)
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif int(currentstatus) > 0:
-                                UpdateDevice(dev['id'], 1, True, 1, 0)
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
                             UpdateDevice(dev['id'], 2, currentstatus, 0, 0)
                         battery_device()
                         # if searchCode('PIR', ResultValue):
@@ -2615,9 +2609,9 @@ def onHandleThread(startup):
                         if searchCode('pir', ResultValue):
                             currentstatus = StatusDeviceTuya('pir')
                             if currentstatus == 'none':
-                                UpdateDevice(dev['id'], 1, False, 0, 0)
+                                UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif currentstatus == 'pir':
-                                UpdateDevice(dev['id'], 1, True, 1, 0)
+                                UpdateDevice(dev['id'], 1, 'On', 1, 0)
 
                         battery_device()
 
@@ -2700,17 +2694,17 @@ def onHandleThread(startup):
                             currentstatus = StatusDeviceTuya('laser_switch')
                             currentdim = brightness_to_pct(StatusProperties, 'laser_bright', int(StatusDeviceTuya('laser_bright')))
                             if bool(currentstatus) == False or currentdim == 0:
-                                UpdateDevice(dev['id'], 3, False, 0, 0)
+                                UpdateDevice(dev['id'], 3, 'Off', 0, 0)
                             elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, True, 1, 0)
+                                UpdateDevice(dev['id'], 3, 'On', 1, 0)
                                 UpdateDevice(dev['id'], 3, str(currentdim), 1, 0)
                         if searchCode('fan_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('fan_switch')
                             currentdim = brightness_to_pct(StatusProperties, 'fan_speed', int(StatusDeviceTuya('fan_speed')))
                             if bool(currentstatus) == False or currentdim == 0:
-                                UpdateDevice(dev['id'], 4, False, 0, 0)
+                                UpdateDevice(dev['id'], 4, 'Off', 0, 0)
                             elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, True, 1, 0)
+                                UpdateDevice(dev['id'], 4, 'On', 1, 0)
                                 UpdateDevice(dev['id'], 4, str(currentdim), 1, 0)
 
                     if dev_type == 'smartlock':
@@ -2721,9 +2715,9 @@ def onHandleThread(startup):
                         # if searchCode('unlock_temporary', ResultValue):
                         #     currentstatus = StatusDeviceTuya('unlock_temporary')
                         #     if currentstatus == 0:
-                        #         UpdateDevice(dev['id'], 3, False, 1, 0)
+                        #         UpdateDevice(dev['id'], 3, 'Off', 1, 0)
                         #     else:
-                        #         UpdateDevice(dev['id'], 3, True, 0, 0)
+                        #         UpdateDevice(dev['id'], 3, 'On', 0, 0)
                         if searchCode('alarm_lock', ResultValue):
                             currentmode = StatusDeviceTuya('alarm_lock')
                             for item in StatusProperties:
