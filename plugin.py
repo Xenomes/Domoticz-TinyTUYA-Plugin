@@ -1039,6 +1039,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 7) and searchCode('child_lock', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Eco)', DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 8) and searchCode('temp_floor', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=8, Type=80, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 11) and ((searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'A') or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
                     if createDevice(dev['id'], 12) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue)):
@@ -2150,6 +2152,10 @@ def onHandleThread(startup):
                             currentstatus = StatusDeviceTuya('eco')
                             state_to_set = 'On' if bool(currentstatus) else 'Off'
                             UpdateDevice(dev['id'], 7, state_to_set, int(bool(currentstatus)), 0)
+                        if searchCode('temp_floor', ResultValue):
+                            currenttemp = StatusDeviceTuya('temp_floor')
+                            if str(currenttemp) != str(Devices[dev['id']].Units[8].sValue):
+                                UpdateDevice(dev['id'], 8, currenttemp, 0, 0)
                         battery_device()
 
                     if dev_type in ('sensor', 'smartir'):
