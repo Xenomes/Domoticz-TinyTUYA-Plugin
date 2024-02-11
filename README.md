@@ -8,51 +8,23 @@ Controls TUYA devices your network mainly on/off switches and Lights and in the 
 The plugin make use of the project Tinytuya there for is a IoT Cloud Platform account needed, for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/12836816/Tuya.IoT.API.Setup.v2.pdf
 for the best compatibility, set your devices to 'DP instruction' in the device settings under iot.tuya.com.
 
-### Native Domoticz
 Python version 3.8 or higher required & Domoticz version 2022.2 or greater.
 
 To install:
 * Go in your Domoticz directory using a command line and open the plugins directory.
-* ```cd ~/domoticz/plugins``` for most user plugins directory.
+* ```cd ~/domoticz/plugins``` for most user or go to the Docker volume mount plugins directory.
 * The plugin required Python library tinytuya ```sudo pip3 install requests==2.23.0 charset-normalizer==3.0.1 tinytuya -U```
 * Run: ```git clone https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git```
 * Restart Domoticz.
 
-### Domoticz Docker
-To install:
-* Go in your Domoticz Docker directory using a command line and open the plugins directory.
-* Run: ```git clone https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git```
-* Add to your customstart.sh file the next lines after the 'apt-get -qq update' command.
-```
-echo 'install tinytuya'
-apt install libffi-dev build-essential pkg-config libssl-dev -y
-pip3 install cryptography==3.4.8 requests==2.23.0 charset-normalizer==3.0.1 tinytuya -U
-```
-* Rebuilt the Domoticz Docker container.
-```
-docker compose down
-docker compose up -d
-```
-* Monitor the install this can take some time. ```docker logs -f domoticz```
-
 ## Updating
+
 To update:
-### Native Domoticz
 * Upgrade the tinytuya library ```sudo pip3 install tinytuya -U```
 * Go in your Domoticz directory using a command line and open the plugins directory then the Domoticz-TinyTUYA-Plugin directory.
 * ```cd ~/domoticz/plugins/Domoticz-TinyTUYA-Plugin``` for most user or go to the Docker volume mount plugins/Domoticz-TinyTUYA-Plugin directory.
 * Run: ```git pull```
 * Restart Domoticz.
-
-### Domoticz Docker
-* Go in your Domoticz Docker directory using a command line and open the plugins directory.
-* Run: ```git pull```
-* Rebuilt the Domoticz Docker container.
-```
-docker compose down
-docker compose up -d
-```
-* Monitor the install this can take some time. ```docker logs -f domoticz```
 
 ## Subscription expired
 Is your subscription to cloud development plan expired, you can extend it <a href="https://iot.tuya.com/cloud/products/apply-extension"> HERE</a><br/>
@@ -80,7 +52,6 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.7.2 | Add Smart Kettle and update Thermostat to 2024.1+ |
 | 1.7.3 | Add SETTI+ weather station |
 | 1.7.4 | Bug fixing |
-| 1.7.5 | Update for Debian Bookworm Python 3.11.2 |
 
  [The full Change log](CHANGELOG.md)
 

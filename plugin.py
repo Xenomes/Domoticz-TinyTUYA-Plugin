@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.7.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.7.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.7.4c</h2><br/>
+        <h2>TinyTUYA Plugin version 1.7.4b</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -859,7 +859,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 14) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Used=1).Create()
-                        #UpdateDevice(dev['id'], 14, str('0;0'), 0, 0, 1)
+                        #UpdateDevice(dev['id'], 14, '0;0', 0, 0, 1)
                     if createDevice(dev['id'], 15) and (searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'mA' or searchCode('leakage_current', ResultValue)):
                         options = {}
                         options['Custom'] = '1;mA'
@@ -1047,7 +1047,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 14) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Used=1).Create()
-                        #UpdateDevice(dev['id'], 14, str('0;0'), 0, 0, 1)
+                        #UpdateDevice(dev['id'], 14, '0;0', 0, 0, 1)
                     if createDevice(dev['id'], 15) and (searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'mA' or searchCode('leakage_current', ResultValue)):
                         options = {}
                         options['Custom'] = '1;mA'
@@ -1840,7 +1840,7 @@ def onHandleThread(startup):
                             if searchCode(switch_type, FunctionProperties):
                                 current_status = StatusDeviceTuya(switch_type)
                                 state_to_set = 'On' if bool(current_status) else 'Off'
-                                UpdateDevice(dev['id'], str(switch_number), state_to_set, int(bool(current_status)), 0)
+                                UpdateDevice(dev['id'], switch_number, state_to_set, int(bool(current_status)), 0)
 
                         if searchCode('cur_current', ResultValue):
                             currentcurrent = StatusDeviceTuya('cur_current')
@@ -1879,7 +1879,7 @@ def onHandleThread(startup):
                         if searchCode('temp_current', ResultValue):
                             currenttemp = StatusDeviceTuya('temp_current')
                             if str(currenttemp) != str(Devices[dev['id']].Units[16].sValue):
-                                UpdateDevice(dev['id'], 16, str(currenttemp), 0, 0)
+                                UpdateDevice(dev['id'], 16, currenttemp, 0, 0)
                         battery_device()
 
                     if dev_type == 'dimmer':
@@ -1889,7 +1889,7 @@ def onHandleThread(startup):
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif bool(currentstatus) == True and  currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[1].sValue):
-                                UpdateDevice(dev['id'], 1, str(currentdim), 1, 0)
+                                UpdateDevice(dev['id'], 1, currentdim, 1, 0)
 
                         if searchCode('switch_led_2', StatusProperties):
                             currentstatus = StatusDeviceTuya('switch_led_2')
@@ -1897,7 +1897,7 @@ def onHandleThread(startup):
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 2, 'Off', 0, 0)
                             elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, str(currentdim), 1, 0)
+                                UpdateDevice(dev['id'], 2, currentdim, 1, 0)
 
                     if dev_type in ('light','fanlight'):
                         if searchCode('switch_led', StatusProperties):
@@ -1929,7 +1929,7 @@ def onHandleThread(startup):
                             if (bool(currentstatus) == False and bool(nValue) != False) or (int(dimtuya) == 0 and bool(nValue) != False):
                                 UpdateDevice(dev['id'], 1, 'Off', 0, 0)
                             elif (bool(currentstatus) == True and bool(nValue) != True) or (str(dimtuya) != str(sValue) and bool(nValue) != False):
-                                UpdateDevice(dev['id'], 1, str(dimtuya), 1, 0)
+                                UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
 
                         if currentstatus == True and workmode == 'white':
                             if searchCode('temp_value', StatusProperties):
@@ -1943,8 +1943,8 @@ def onHandleThread(startup):
                                 # Domoticz.Debug('temptuya: ' + str(temptuya))
                                 if int((temptuya['t'])) != int(color['t']):
                                     # Domoticz.Debug(str((temptuya['t'])) + ' ' + str(color['t']))
-                                    UpdateDevice(dev['id'], 1, str(dimtuya), 1, 0)
-                                    UpdateDevice(dev['id'], 1, str(temptuya), 1, 0)
+                                    UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
+                                    UpdateDevice(dev['id'], 1, temptuya, 1, 0)
 
                         if currentstatus == True and workmode == 'colour':
                             # Domoticz.Debug('Colordata = ' + str(Devices[dev['id']].Units[1].Color))
@@ -1975,11 +1975,11 @@ def onHandleThread(startup):
                         if searchCode('position', StatusProperties):
                             currentposition = StatusDeviceTuya('position')
                             if str(currentposition) == '0':
-                                UpdateDevice(dev['id'], 1, str(currentposition), 1, 0)
+                                UpdateDevice(dev['id'], 1, currentposition, 1, 0)
                             if str(currentposition) == '100':
-                                UpdateDevice(dev['id'], 1, str(currentposition), 0, 0)
+                                UpdateDevice(dev['id'], 1, currentposition, 0, 0)
                             if str(currentposition) != str(Devices[dev['id']].Units[1].sValue):
-                                UpdateDevice(dev['id'], 1, str(currentposition), 2, 0)
+                                UpdateDevice(dev['id'], 1, currentposition, 2, 0)
                         if searchCode('mach_operate', StatusProperties):
                             currentstatus = StatusDeviceTuya('control')
                             if currentstatus == 'close':
@@ -2001,59 +2001,59 @@ def onHandleThread(startup):
                         if searchCode('intemp', ResultValue):
                             intemp = StatusDeviceTuya('intemp')
                             if str(intemp) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, str(intemp), 0, 0)
+                                UpdateDevice(dev['id'], 2, intemp, 0, 0)
                         if searchCode('outtemp', ResultValue):
                             outtemp = StatusDeviceTuya('outtemp')
                             if str(outtemp) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, str(outtemp), 0, 0)
+                                UpdateDevice(dev['id'], 3, outtemp, 0, 0)
                         if searchCode('whjtemp', ResultValue):
                             whjtemp = StatusDeviceTuya('whjtemp')
                             if str(whjtemp) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, str(whjtemp), 0, 0)
+                                UpdateDevice(dev['id'], 4, whjtemp, 0, 0)
                         if searchCode('cmptemp', ResultValue):
                             cmptemp = StatusDeviceTuya('cmptemp')
                             if str(cmptemp) != str(Devices[dev['id']].Units[5].sValue):
-                                UpdateDevice(dev['id'], 5, str(cmptemp), 0, 0)
+                                UpdateDevice(dev['id'], 5, cmptemp, 0, 0)
                         if searchCode('wttemp', ResultValue):
                             wttemp = StatusDeviceTuya('wttemp')
                             if str(wttemp) != str(Devices[dev['id']].Units[6].sValue):
-                                UpdateDevice(dev['id'], 6, str(wttemp), 0, 0)
+                                UpdateDevice(dev['id'], 6, wttemp, 0, 0)
                         if searchCode('hqtemp', ResultValue):
                             hqtemp = StatusDeviceTuya('hqtemp')
                             if str(hqtemp) != str(Devices[dev['id']].Units[7].sValue):
-                                UpdateDevice(dev['id'], 7, str(hqtemp), 0, 0)
+                                UpdateDevice(dev['id'], 7, hqtemp, 0, 0)
                         if searchCode('cmp_act_frep', ResultValue):
                             cmp_act_frep = StatusDeviceTuya('cmp_act_frep')
                             if str(cmp_act_frep) != str(Devices[dev['id']].Units[8].sValue):
-                                UpdateDevice(dev['id'], 8, str(cmp_act_frep), 0, 0)
+                                UpdateDevice(dev['id'], 8, cmp_act_frep, 0, 0)
                         if searchCode('cmp_cur', ResultValue):
                             cmp_cur = StatusDeviceTuya('cmp_cur')
                             if str(cmp_cur) != str(Devices[dev['id']].Units[9].sValue):
-                                UpdateDevice(dev['id'], 9, str(cmp_cur), 0, 0)
+                                UpdateDevice(dev['id'], 9, cmp_cur, 0, 0)
                         if searchCode('dc_fan_speed', ResultValue):
                             dc_fan_speed = StatusDeviceTuya('dc_fan_speed')
                             if str(dc_fan_speed) != str(Devices[dev['id']].Units[10].sValue):
-                                UpdateDevice(dev['id'], 10, str(dc_fan_speed), 0, 0)
+                                UpdateDevice(dev['id'], 10, dc_fan_speed, 0, 0)
                         if searchCode('ach_stemp', ResultValue):
                             ach_stemp = StatusDeviceTuya('ach_stemp')
                             if str(ach_stemp) != str(Devices[dev['id']].Units[11].sValue):
-                                UpdateDevice(dev['id'], 11, str(ach_stemp), 0, 0)
+                                UpdateDevice(dev['id'], 11, ach_stemp, 0, 0)
                         if searchCode('wth_stemp', ResultValue):
                             wth_stemp = StatusDeviceTuya('wth_stemp')
                             if str(wth_stemp) != str(Devices[dev['id']].Units[12].sValue):
-                                UpdateDevice(dev['id'], 12, str(wth_stemp), 0, 0)
+                                UpdateDevice(dev['id'], 12, wth_stemp, 0, 0)
                         if searchCode('aircond_temp_diff', ResultValue):
                             aircond_temp_diff = StatusDeviceTuya('aircond_temp_diff')
                             if str(aircond_temp_diff) != str(Devices[dev['id']].Units[13].sValue):
-                                UpdateDevice(dev['id'], 13, str(aircond_temp_diff), 0, 0)
+                                UpdateDevice(dev['id'], 13, aircond_temp_diff, 0, 0)
                         if searchCode('wth_temp_diff', ResultValue):
                             wth_temp_diff = StatusDeviceTuya('wth_temp_diff')
                             if str(wth_temp_diff) != str(Devices[dev['id']].Units[14].sValue):
-                                UpdateDevice(dev['id'], 14, str(wth_temp_diff), 0, 0)
+                                UpdateDevice(dev['id'], 14, wth_temp_diff, 0, 0)
                         if searchCode('acc_stemp', ResultValue):
                             acc_stemp = StatusDeviceTuya('acc_stemp')
                             if str(acc_stemp) != str(Devices[dev['id']].Units[15].sValue):
-                                UpdateDevice(dev['id'], 15, str(acc_stemp), 0, 0)
+                                UpdateDevice(dev['id'], 15, acc_stemp, 0, 0)
                         if searchCode('mode', ResultValue) and checkDevice(dev['id'],16):
                             currentmode = StatusDeviceTuya('mode')
                             for item in FunctionProperties:
@@ -2096,7 +2096,7 @@ def onHandleThread(startup):
                             else:
                                 currenttemp = 0
                             if str(currenttemp) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, str(currenttemp), 0, 0)
+                                UpdateDevice(dev['id'], 2, currenttemp, 0, 0)
                         if searchCode('temp_set', ResultValue) or searchCode('set_temp', ResultValue) or searchCode('temperature_c', ResultValue) or searchCode('TempSet', ResultValue):
                             if searchCode('temp_set', ResultValue):
                                 currenttemp_set = StatusDeviceTuya('temp_set')
@@ -2107,7 +2107,7 @@ def onHandleThread(startup):
                             elif searchCode('TempSet', ResultValue):
                                 currenttemp_set = StatusDeviceTuya('TempSet')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, str(currenttemp_set), 0, 0)
+                                    UpdateDevice(dev['id'], 3, currenttemp_set, 0, 0)
                         if (searchCode('work_mode', ResultValue) or searchCode('mode', ResultValue) or searchCode('Mode', ResultValue))and checkDevice(dev['id'],4):
                             if searchCode('work_mode', ResultValue):
                                 modetype = 'work_mode'
@@ -2156,27 +2156,27 @@ def onHandleThread(startup):
                         if searchCode('va_temperature', ResultValue):
                             currenttemp = StatusDeviceTuya('va_temperature')
                             if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
-                                UpdateDevice(dev['id'], 1, str(currenttemp), 0, 0)
+                                UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
                         if searchCode('local_temp', ResultValue):
                             currenttemp = StatusDeviceTuya('local_temp')
                             if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
-                                UpdateDevice(dev['id'], 1, str(currenttemp), 0, 0)
+                                UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
                         if searchCode('temp_current', ResultValue):
                             currenttemp = StatusDeviceTuya('temp_current')
                             if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
-                                UpdateDevice(dev['id'], 1, str(currenttemp), 0, 0)
+                                UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
                         if  searchCode('va_humidity', ResultValue):
                             currenthumi = StatusDeviceTuya('va_humidity')
                             if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                UpdateDevice(dev['id'], 2, 0, str(currenthumi), 0)
+                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
                         if  searchCode('humidity_value', ResultValue):
                             currenthumi = StatusDeviceTuya('humidity_value')
                             if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                UpdateDevice(dev['id'], 2, 0, str(currenthumi), 0)
+                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
                         if  searchCode('local_hum', ResultValue):
                             currenthumi = StatusDeviceTuya('local_hum')
                             if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                UpdateDevice(dev['id'], 2, 0, str(currenthumi), 0)
+                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
                         if searchCode('va_temperature', ResultValue) and searchCode('va_humidity', ResultValue):
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -2224,11 +2224,11 @@ def onHandleThread(startup):
                         if searchCode('sub1_temp', ResultValue):
                             currenttemp = StatusDeviceTuya('sub1_temp')
                             if str(currenttemp) != str(Devices[dev['id']].Units[21].sValue):
-                                UpdateDevice(dev['id'], 21, str(currenttemp), 0, 0)
+                                UpdateDevice(dev['id'], 21, currenttemp, 0, 0)
                         if  searchCode('sub1_hum', ResultValue):
                             currenthumi = StatusDeviceTuya('sub1_hum')
                             if str(currenthumi) != str(Devices[dev['id']].Units[22].nValue):
-                                UpdateDevice(dev['id'], 22, 0, str(currenthumi), 0)
+                                UpdateDevice(dev['id'], 22, 0, currenthumi, 0)
                         if searchCode('sub1_temp', ResultValue) and searchCode('sub1_hum', ResultValue):
                             currentdomo = Devices[dev['id']].Units[23].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -2236,11 +2236,11 @@ def onHandleThread(startup):
                         if searchCode('sub2_temp', ResultValue):
                             currenttemp = StatusDeviceTuya('sub2_temp')
                             if str(currenttemp) != str(Devices[dev['id']].Units[31].sValue):
-                                UpdateDevice(dev['id'], 31, str(currenttemp), 0, 0)
+                                UpdateDevice(dev['id'], 31, currenttemp, 0, 0)
                         if  searchCode('sub2_hum', ResultValue):
                             currenthumi = StatusDeviceTuya('sub2_hum')
                             if str(currenthumi) != str(Devices[dev['id']].Units[32].nValue):
-                                UpdateDevice(dev['id'], 32, 0, str(currenthumi), 0)
+                                UpdateDevice(dev['id'], 32, 0, currenthumi, 0)
                         if searchCode('sub2_temp', ResultValue) and searchCode('sub2_hum', ResultValue):
                             currentdomo = Devices[dev['id']].Units[33].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -2248,11 +2248,11 @@ def onHandleThread(startup):
                         if searchCode('sub3_temp', ResultValue):
                             currenttemp = StatusDeviceTuya('sub3_temp')
                             if str(currenttemp) != str(Devices[dev['id']].Units[41].sValue):
-                                UpdateDevice(dev['id'], 41, str(currenttemp), 0, 0)
+                                UpdateDevice(dev['id'], 41, currenttemp, 0, 0)
                         if  searchCode('sub3_hum', ResultValue):
                             currenthumi = StatusDeviceTuya('sub3_hum')
                             if str(currenthumi) != str(Devices[dev['id']].Units[42].nValue):
-                                UpdateDevice(dev['id'], 42, 0, str(currenthumi), 0)
+                                UpdateDevice(dev['id'], 42, 0, currenthumi, 0)
                         if searchCode('sub3_temp', ResultValue) and searchCode('sub3_hum', ResultValue):
                             currentdomo = Devices[dev['id']].Units[43].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -2484,7 +2484,7 @@ def onHandleThread(startup):
 
                     if dev_type == 'gateway':
                         if searchCode('master_state', ResultValue):
-                            UpdateDevice(dev['id'], 1, str(StatusDeviceTuya('master_state')), 0, 0)
+                            UpdateDevice(dev['id'], 1, StatusDeviceTuya('master_state'), 0, 0)
                         else:
                             UpdateDevice(dev['id'], 1, 'Gateway only', 0, 0)
 
@@ -2667,7 +2667,7 @@ def onHandleThread(startup):
                     if dev_type == 'lightsensor':
                         if searchCode('bright_value', ResultValue):
                             currentbright= StatusDeviceTuya('bright_value')
-                            UpdateDevice(dev['id'], 1, str(currentbright),1, 0)
+                            UpdateDevice(dev['id'], 1, float(currentbright),1, 0)
 
                     if dev_type == 'starlight':
                         if searchCode('switch_led', FunctionProperties):
@@ -2685,7 +2685,7 @@ def onHandleThread(startup):
                             # {"b":0,"cw":0,"g":3,"m":3,"r":255,"t":0,"ww":0}
                             if (color['r'] != r or color['g'] != g or color['b'] != b ):
                                 UpdateDevice(dev['id'], 1, colorupdate, 1, 0)
-                                UpdateDevice(dev['id'], 1, str(brightness_to_pct(StatusProperties, 'bright_value', int(v * 0.255))), 1, 0)
+                                UpdateDevice(dev['id'], 1, brightness_to_pct(StatusProperties, 'bright_value', int(v * 0.255)), 1, 0)
                         if searchCode('colour_switch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('colour_switch')
                             state_to_set = 'On' if bool(currentstatus) else 'Off'
@@ -2697,7 +2697,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 3, 'Off', 0, 0)
                             elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, 'On', 1, 0)
-                                UpdateDevice(dev['id'], 3, str(currentdim), 1, 0)
+                                UpdateDevice(dev['id'], 3, currentdim, 1, 0)
                         if searchCode('fan_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('fan_switch')
                             currentdim = brightness_to_pct(StatusProperties, 'fan_speed', int(StatusDeviceTuya('fan_speed')))
@@ -2705,7 +2705,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 4, 'Off', 0, 0)
                             elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, 'On', 1, 0)
-                                UpdateDevice(dev['id'], 4, str(currentdim), 1, 0)
+                                UpdateDevice(dev['id'], 4, currentdim, 1, 0)
 
                     if dev_type == 'smartlock':
                         if searchCode('lock_motor_state', ResultValue):
@@ -2769,11 +2769,11 @@ def onHandleThread(startup):
                         if searchCode('temp_indoor', ResultValue):
                             currenttemp = StatusDeviceTuya('temp_indoor')
                             if str(currenttemp) != str(Devices[dev['id']].Units[6].sValue):
-                                UpdateDevice(dev['id'], 6, str(currenttemp), 0, 0)
+                                UpdateDevice(dev['id'], 6, currenttemp, 0, 0)
                         if  searchCode('humidity_indoor', ResultValue):
                             currenthumi = StatusDeviceTuya('humidity_indoor')
                             if str(currenthumi) != str(Devices[dev['id']].Units[7].nValue):
-                                UpdateDevice(dev['id'], 7, 0, str(currenthumi), 0)
+                                UpdateDevice(dev['id'], 7, 0, currenthumi, 0)
                         if searchCode('temp_indoor', ResultValue) and searchCode('humidity_indoor', ResultValue):
                             currentdomo = Devices[dev['id']].Units[8].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -2816,17 +2816,17 @@ def onHandleThread(startup):
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[5].sValue):
                                 UpdateDevice(dev['id'], 5, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('status', ResultValue):
-                            UpdateDevice(dev['id'], 6, str(StatusDeviceTuya('status').capitalize()), 0, 0)
+                            UpdateDevice(dev['id'], 6, StatusDeviceTuya('status').capitalize(), 0, 0)
                         if searchCode('electricity_left', ResultValue):
-                            UpdateDevice(dev['id'], 7, str(StatusDeviceTuya('electricity_left')), 0, 0)
+                            UpdateDevice(dev['id'], 7, StatusDeviceTuya('electricity_left'), 0, 0)
                         if searchCode('edge_brush', ResultValue):
-                            UpdateDevice(dev['id'], 8, str(StatusDeviceTuya('edge_brush')), 0, 0)
+                            UpdateDevice(dev['id'], 8, StatusDeviceTuya('edge_brush'), 0, 0)
                         if searchCode('roll_brush', ResultValue):
-                            UpdateDevice(dev['id'], 9, str(StatusDeviceTuya('roll_brush')), 0, 0)
+                            UpdateDevice(dev['id'], 9, StatusDeviceTuya('roll_brush'), 0, 0)
                         if searchCode('filter', ResultValue):
-                            UpdateDevice(dev['id'], 10, str(StatusDeviceTuya('filter')), 0, 0)
+                            UpdateDevice(dev['id'], 10, StatusDeviceTuya('filter'), 0, 0)
                         # if searchCode('fault', ResultValue):
-                        #     UpdateDevice(dev['id'], 11, str(StatusDeviceTuya('fault')), 0, 0)
+                        #     UpdateDevice(dev['id'], 11, StatusDeviceTuya('fault'), 0, 0)
                         if searchCode('fault', ResultValue):
                             currentmode = StatusDeviceTuya('fault')
                             for item in StatusProperties:
@@ -2873,7 +2873,7 @@ def onHandleThread(startup):
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('filter', ResultValue):
-                            UpdateDevice(dev['id'], 5, str(StatusDeviceTuya('filter')), 0, 0)
+                            UpdateDevice(dev['id'], 5, StatusDeviceTuya('filter'), 0, 0)
                         if searchCode('air_quality', ResultValue):
                             currentindex = StatusDeviceTuya('air_quality').capitalize()
                             if str(currentindex) != str(Devices[dev['id']].Units[6].sValue):
@@ -2896,13 +2896,13 @@ def onHandleThread(startup):
                         if searchCode('temperature', ResultValue):
                             currenttemp = StatusDeviceTuya('temperature')
                             if str(currenttemp) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, str(currenttemp), 0, 0)
+                                UpdateDevice(dev['id'], 3, currenttemp, 0, 0)
                         if searchCode('cook_temperature', ResultValue):
                             currenttemp_set = StatusDeviceTuya('cook_temperature')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[4].sValue):
-                                    UpdateDevice(dev['id'], 4, str(currenttemp_set), 0, 0)
+                                    UpdateDevice(dev['id'], 4, currenttemp_set, 0, 0)
                         if searchCode('fault', ResultValue):
-                            UpdateDevice(dev['id'], 5, str(StatusDeviceTuya('fault')), 0, 0)
+                            UpdateDevice(dev['id'], 5, StatusDeviceTuya('fault'), 0, 0)
 
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
