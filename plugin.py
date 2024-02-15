@@ -359,7 +359,15 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'fan_direction', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
 
-            if dev_type == 'powermeter' :
+            if dev_type == 'powermeter' and searchCode('switch', function):
+                if Command == 'Off' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'switch', False)
+                    UpdateDevice(DeviceID, Unit, False, 0, 0)
+                elif Command == 'On' and Unit == 1:
+                    SendCommandCloud(DeviceID, 'switch', True)
+                    UpdateDevice(DeviceID, Unit, True, 1, 0)
+
+            if dev_type == 'powermeter' and searchCode('switch_1', function):
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch_1', False)
                     UpdateDevice(DeviceID, Unit, False, 0, 0)
@@ -1209,8 +1217,8 @@ def onHandleThread(startup):
                                 options['SelectorStyle'] = '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Volume)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=8, Used=1).Create()
 
-                if dev_type == 'powermeter':
-                    if createDevice(dev['id'], 1) and searchCode('Current', ResultValue):
+                if dev_type == 'powermeter' and searchCode('Current', ResultValue):
+                    if createDevice(dev['id'], 1) :
                         Domoticz.Log('Create device Powermeter')
                         Domoticz.Unit(Name=dev['name'] + ' (3P A)', DeviceID=dev['id'], Unit=1, Type=89, Subtype=1, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('Current', ResultValue):
@@ -1236,8 +1244,8 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 32) and searchCode('ActivePowerC', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' L3 (kWh)', DeviceID=dev['id'], Unit=32, Type=243, Subtype=29, Used=1).Create()
 
-                if dev_type == 'powermeter':
-                    if createDevice(dev['id'], 1) and searchCode('phase_a', ResultValue):
+                if dev_type == 'powermeter' and searchCode('phase_a', ResultValue):
+                    if createDevice(dev['id'], 1):
                         Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=23, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('phase_a', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (W)', DeviceID=dev['id'], Unit=2, Type=248, Subtype=1, Used=1).Create()
@@ -1292,8 +1300,8 @@ def onHandleThread(startup):
                         options['Custom'] = '1;kWh'
                         Domoticz.Unit(Name=dev['name'] + ' B Reverse (kWh)', DeviceID=dev['id'], Unit=25, Type=243, Subtype=31, Options=options, Used=1).Create()
 
-                if dev_type == 'powermeter' and searchCode('switch_1', StatusProperties):
-                    if  createDevice(dev['id'], 1) and searchCode('switch_1', StatusProperties):
+                if dev_type == 'powermeter' and (searchCode('switch_1', StatusProperties) or searchCode('switch', StatusProperties)):
+                    if  createDevice(dev['id'], 1) and (searchCode('switch_1', StatusProperties) or searchCode('switch', StatusProperties)):
                         Domoticz.Log('Create device Switch')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('cur_current', StatusProperties):
@@ -1305,17 +1313,7 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 4) and searchCode('cur_voltage', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('fault', StatusProperties):
-                        for item in FunctionProperties:
-                            if item['code'] == 'fault':
-                                the_values = json.loads(item['values'])
-                                mode = ['off']
-                                mode.extend(the_values.get('range'))
-                                options = {}
-                                options['LevelOffHidden'] = 'true'
-                                options['LevelActions'] = ''
-                                options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
-                        Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                 if dev_type == 'gateway':
                     if createDevice(dev['id'], 1):
@@ -2457,9 +2455,12 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 24, str(currentForwardB), 0, 0)
                             UpdateDevice(dev['id'], 25, str(currentReverseB), 0, 0)
 
-                    if dev_type == 'powermeter' and searchCode('switch_1', StatusProperties):
-                        if searchCode('switch_1', FunctionProperties):
-                            currentstatus = StatusDeviceTuya('switch_1')
+                    if dev_type == 'powermeter' and (searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties)):
+                        if searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties):
+                            if searchCode('switch_1', FunctionProperties):
+                                currentstatus = StatusDeviceTuya('switch_1')
+                            else:
+                                currentstatus = StatusDeviceTuya('switch')
                             UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
                         if searchCode('cur_current', ResultValue):
                             currentcurrent = StatusDeviceTuya('cur_current')
@@ -2472,6 +2473,10 @@ def onHandleThread(startup):
                         if searchCode('cur_voltage', ResultValue):
                             currentvoltage = StatusDeviceTuya('cur_voltage')
                             UpdateDevice(dev['id'], 4, str(currentvoltage), 0, 0)
+                        if searchCode('fault', ResultValue):
+                            currentmode = StatusDeviceTuya('fault')
+                            if str(currentmode).lower() != str(Devices[dev['id']].Units[5].sValue).lower():
+                                UpdateDevice(dev['id'], 5, str(currentmode).capitalize(), 0, 0)
 
                     if dev_type == 'gateway':
                         if searchCode('master_state', ResultValue):
