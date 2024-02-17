@@ -75,11 +75,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 1.7.2 | Add Smart Kettle and update Thermostat to 2024.1+ |
 | 1.7.3 | Add SETTI+ weather station |
 | 1.7.4 | Bug fixing |
 | 1.7.5 | Update for Debian Bookworm Python 3.11.2 |
 | 1.7.6 | Add WiFi Din Rail Switch with power metering |
+| 1.7.7 | Add Airconditioner |
 
  [The full Change log](CHANGELOG.md)
 

@@ -62,3 +62,4 @@
 | 1.7.4 | Bug fixing |
 | 1.7.5 | Make compatible with Bookworm |
 | 1.7.6 | Add WiFi Din Rail Switch with power metering |
+| 1.7.7 | Add Airconditioner |
