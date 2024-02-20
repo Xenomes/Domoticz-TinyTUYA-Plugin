@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.7.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.7.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.7.7</h2><br/>
+        <h2>TinyTUYA Plugin version 1.7.8</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -281,6 +281,16 @@ class BasePlugin:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandCloud(DeviceID, 'work_mode', mode[int(Level / 10)])
                         UpdateDevice(DeviceID, 17, Level, 1, 0)
+                if searchCode('temp_set', function):
+                    switch = 'temp_set'
+                    if Command == 'Set Level' and Unit  == 19:
+                        SendCommandCloud(DeviceID, switch, Level)
+                        UpdateDevice(DeviceID, 19, Level, 1, 0)
+                if searchCode('water_set', function):
+                    switch = 'water_set'
+                    if Command == 'Set Level' and Unit  == 20:
+                        SendCommandCloud(DeviceID, switch, Level)
+                        UpdateDevice(DeviceID, 20, Level, 1, 0)
 
             elif dev_type == 'thermostat' or dev_type == 'heater'or dev_type == 'heatpump':
                 if searchCode('switch_1', function):
@@ -749,15 +759,18 @@ def onHandleThread(startup):
 
                 properties = {}
                 for dev in devs:
-                    properties[dev['id']] = tuya.getproperties(dev['id'])['result']
                     try:
-                        properties[dev['id']]['functions']
+                        properties[dev['id']] = tuya.getproperties(dev['id'])['result']
+                        try:
+                            properties[dev['id']]['functions']
+                        except:
+                            properties[dev['id']]['functions'] = []
+                        try:
+                            properties[dev['id']]['status']
+                        except:
+                            properties[dev['id']]['status'] = []
                     except:
-                        properties[dev['id']]['functions'] = []
-                    try:
-                        properties[dev['id']]['status']
-                    except:
-                        properties[dev['id']]['status'] = []
+                        Domoticz.Log('No device data returned for Tuya! Check if subscription cloud plan has expired!')
 
             Domoticz.Log('Scanning for tuya devices on network...')
             if testData == False:
@@ -913,7 +926,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (FANspeed)', DeviceID=dev['id'], Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 11) and searchCode('ach_stemp', ResultValue):
                         for item in StatusProperties:
-                            if item['code'] == 'ach_stemp':
+                            temp = 'ach_stemp'
+                            if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
                                 options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
@@ -923,7 +937,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (HEATtemp)', DeviceID=dev['id'], Unit=11, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 12) and searchCode('wth_stemp', ResultValue):
                         for item in StatusProperties:
-                            if item['code'] == 'wth_stemp':
+                            temp = 'wth_stemp'
+                            if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
                                 options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
@@ -933,7 +948,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (DHWtemp)', DeviceID=dev['id'], Unit=12, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 13) and searchCode('aircond_temp_diff', ResultValue):
                         for item in StatusProperties:
-                            if item['code'] == 'aircond_temp_diff':
+                            temp = 'aircond_temp_diff'
+                            if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
                                 options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
@@ -943,7 +959,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (HE/COtemp-diff)', DeviceID=dev['id'], Unit=13, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 14) and searchCode('wth_temp_diff', ResultValue):
                         for item in StatusProperties:
-                            if item['code'] == 'wth_temp_diff':
+                            temp = 'wth_temp_diff'
+                            if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
                                 options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
@@ -953,7 +970,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (DHWtemp-diff)', DeviceID=dev['id'], Unit=14, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 15) and searchCode('acc_stemp', ResultValue):
                         for item in StatusProperties:
-                            if item['code'] == 'acc_stemp':
+                            temp = 'acc_stemp'
+                            if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
                                 options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
@@ -985,6 +1003,30 @@ def onHandleThread(startup):
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
                         Domoticz.Unit(Name=dev['name'] + ' (WorkMode)', DeviceID=dev['id'], Unit=17, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 18) and searchCode('temp_current', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=18, Type=80, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 19) and searchCode('temp_set', FunctionProperties):
+                        for item in FunctionProperties:
+                            temp = 'temp_set'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=19, Type=242, Subtype=1, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 20) and searchCode('water_set', FunctionProperties):
+                        for item in FunctionProperties:
+                            temp = 'water_set'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Water Thermostat)', DeviceID=dev['id'], Unit=20, Type=242, Subtype=1, Options=options, Used=1).Create()
 
                 if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                     if createDevice(dev['id'], 1):
@@ -1764,7 +1806,8 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 4) and (searchCode('cook_temperature', ResultValue)):
                         # options={'ValueStep':'0.5', ' ValueMin':'-200', 'ValueMax':'200', 'ValueUnit':'°C'}
                         for item in StatusProperties:
-                            if item['code'] == 'cook_temperature':
+                            temp = 'cook_temperature'
+                            if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
                                 options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
@@ -1956,6 +1999,19 @@ def onHandleThread(startup):
                                     # Domoticz.Debug(str((temptuya['t'])) + ' ' + str(color['t']))
                                     UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
                                     UpdateDevice(dev['id'], 1, temptuya, 1, 0)
+                            if searchCode('temp_value_v2', StatusProperties):
+                                if len(Devices[dev['id']].Units[1].Color) != 0:
+                                    color = ast.literal_eval(Devices[dev['id']].Units[1].Color)
+                                else:
+                                    color = {'t':0}
+                                temptuya = {'b':0,'cw':0,'g':0,'m':2,'r':0,'t':int(round(StatusDeviceTuya('temp_value_v2') / 10)),'ww':0}
+                                # Domoticz.Debug(temptuya['t'])
+                                # Domoticz.Debug(color['t'])
+                                # Domoticz.Debug('temptuya: ' + str(temptuya))
+                                if int((temptuya['t'])) != int(color['t']):
+                                    # Domoticz.Debug(str((temptuya['t'])) + ' ' + str(color['t']))
+                                    UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
+                                    UpdateDevice(dev['id'], 1, temptuya, 1, 0)
 
                         if currentstatus == True and workmode == 'colour':
                             # Domoticz.Debug('Colordata = ' + str(Devices[dev['id']].Units[1].Color))
@@ -2083,7 +2139,18 @@ def onHandleThread(startup):
                                     mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[17].sValue):
                                 UpdateDevice(dev['id'], 17, int(mode.index(str(currentmode)) * 10), 1, 0)
-                                ## a tak dále
+                        if searchCode('temp_current', ResultValue):
+                            temp = StatusDeviceTuya('temp_current')
+                            if str(temp) != str(Devices[dev['id']].Units[18].sValue):
+                                UpdateDevice(dev['id'], 18, temp, 0, 0)
+                        if searchCode('temp_set', ResultValue):
+                            satemp = StatusDeviceTuya('temp_set')
+                            if str(satemp) != str(Devices[dev['id']].Units[19].sValue):
+                                UpdateDevice(dev['id'], 19, satemp, 0, 0)
+                        if searchCode('water_set', ResultValue):
+                            swtemp = StatusDeviceTuya('water_set')
+                            if str(swtemp) != str(Devices[dev['id']].Units[20].sValue):
+                                UpdateDevice(dev['id'], 20, swtemp, 0, 0)
 
                     if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                         if searchCode('switch', ResultValue) or searchCode('switch_1', ResultValue) or searchCode('Power', ResultValue):
@@ -3021,7 +3088,7 @@ def UpdateDevice(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate = 0):
             if type(sValue) == int or type(sValue) == float:
                 Devices[ID].Units[Unit].LastLevel = sValue
             elif type(sValue) == dict:
-                Devices[ID].Units[Unit].Color = json.dumps(sValue)
+                Devices[ID].Units[Unit].Color = sValue
             Devices[ID].Units[Unit].nValue = nValue
             Devices[ID].TimedOut = TimedOut
             Devices[ID].Units[Unit].Update(Log=True)
@@ -3166,6 +3233,9 @@ def get_scale(device_functions, actual_function_name, raw):
 
     if product_id == 'IAYz2WK1th0cMLmL':
         result = float(raw / 2)
+    if product_id == 'g9m7honkxjweukvt' and actual_function_name == 'temp_current':
+        result = float(raw / 10)
+
 
     return result
 
