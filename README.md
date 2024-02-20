@@ -75,11 +75,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 1.7.4 | Bug fixing |
 | 1.7.5 | Update for Debian Bookworm Python 3.11.2 |
 | 1.7.6 | Add WiFi Din Rail Switch with power metering |
 | 1.7.7 | Add Airconditioner |
 | 1.7.8 | Add Intelligent triple heat pump |
+| 1.7.9 | Add Illumination sensor |
 
  [The full Change log](CHANGELOG.md)
 
