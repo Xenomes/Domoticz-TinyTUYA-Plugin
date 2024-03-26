@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.7.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.7.9</h2><br/>
+        <h2>TinyTUYA Plugin version 1.8.0</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -286,11 +286,19 @@ class BasePlugin:
                     if Command == 'Set Level' and Unit  == 19:
                         SendCommandCloud(DeviceID, switch, Level)
                         UpdateDevice(DeviceID, 19, Level, 1, 0)
-                if searchCode('water_set', function):
-                    switch = 'water_set'
-                    if Command == 'Set Level' and Unit  == 20:
-                        SendCommandCloud(DeviceID, switch, Level)
-                        UpdateDevice(DeviceID, 20, Level, 1, 0)
+                # if searchCode('water_set', function):
+                #     switch = 'water_set'
+                #     if Command == 'Set Level' and Unit  == 20:
+                #         SendCommandCloud(DeviceID, switch, Level)
+                #         UpdateDevice(DeviceID, 20, Level, 1, 0)
+                if searchCode('compressor_state', function):
+                    switch = 'compressor_state'
+                    if Command == 'Off' and Unit == 24:
+                        SendCommandCloud(DeviceID, switch, False)
+                        UpdateDevice(DeviceID, 24, False, 0, 0)
+                    elif Command == 'On' and Unit == 24:
+                        SendCommandCloud(DeviceID, switch, True)
+                        UpdateDevice(DeviceID, 24, True, 1, 0)
 
             elif dev_type == 'thermostat' or dev_type == 'heater'or dev_type == 'heatpump':
                 if searchCode('switch_1', function):
@@ -1003,8 +1011,10 @@ def onHandleThread(startup):
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
                         Domoticz.Unit(Name=dev['name'] + ' (WorkMode)', DeviceID=dev['id'], Unit=17, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
-                    if createDevice(dev['id'], 18) and searchCode('temp_current', ResultValue):
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=18, Type=80, Subtype=5, Used=1).Create()
+                    if not(createDevice(dev['id'], 18)):
+                    # if createDevice(dev['id'], 18) and searchCode('temp_current', ResultValue):
+                        # Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=18, Type=80, Subtype=5, Used=1).Create()
+                        Devices[dev['id']].Unit['18'].delete()
                     if createDevice(dev['id'], 19) and searchCode('temp_set', FunctionProperties):
                         for item in FunctionProperties:
                             temp = 'temp_set'
@@ -1016,17 +1026,29 @@ def onHandleThread(startup):
                                 options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=19, Type=242, Subtype=1, Options=options, Used=1).Create()
-                    if createDevice(dev['id'], 20) and searchCode('water_set', FunctionProperties):
-                        for item in FunctionProperties:
-                            temp = 'water_set'
-                            if item['code'] == temp:
-                                the_values = json.loads(item['values'])
-                                options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
-                        Domoticz.Unit(Name=dev['name'] + ' (Water Thermostat)', DeviceID=dev['id'], Unit=20, Type=242, Subtype=1, Options=options, Used=1).Create()
+                    if not(createDevice(dev['id'], 20)):
+                    # if createDevice(dev['id'], 20) and searchCode('water_set', FunctionProperties):
+                        # for item in FunctionProperties:
+                        #     temp = 'water_set'
+                        #     if item['code'] == temp:
+                        #         the_values = json.loads(item['values'])
+                        #         options = {}
+                        #         options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                        #         options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                        #         options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                        #         options['ValueUnit'] = the_values.get('unit')
+                        # Domoticz.Unit(Name=dev['name'] + ' (Water Thermostat)', DeviceID=dev['id'], Unit=20, Type=242, Subtype=1, Options=options, Used=1).Create()
+                        Devices[dev['id']].Unit['20'].delete()
+                    if createDevice(dev['id'], 21) and searchCode('temp_top', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temp Top)', DeviceID=dev['id'], Unit=21, Type=80, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 22) and searchCode('temp_bottom', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temp Bottom)', DeviceID=dev['id'], Unit=22, Type=80, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 23) and searchCode('switch', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Defrost)', DeviceID=dev['id'], Unit=23, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 24) and searchCode('water_flow', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;L/Min'
+                        Domoticz.Unit(Name=dev['name'] + ' (L/Min)', DeviceID=dev['id'], Unit=24, Type=243, Subtype=31, Options=options, Used=1).Create()
 
                 if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                     if createDevice(dev['id'], 1):
@@ -2139,18 +2161,32 @@ def onHandleThread(startup):
                                     mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[17].sValue):
                                 UpdateDevice(dev['id'], 17, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('temp_current', ResultValue):
-                            temp = StatusDeviceTuya('temp_current')
-                            if str(temp) != str(Devices[dev['id']].Units[18].sValue):
-                                UpdateDevice(dev['id'], 18, temp, 0, 0)
+                        # if searchCode('temp_current', ResultValue):
+                        #     temp = StatusDeviceTuya('temp_current')
+                        #     if str(temp) != str(Devices[dev['id']].Units[18].sValue):
+                        #         UpdateDevice(dev['id'], 18, temp, 0, 0)
                         if searchCode('temp_set', ResultValue):
                             satemp = StatusDeviceTuya('temp_set')
                             if str(satemp) != str(Devices[dev['id']].Units[19].sValue):
                                 UpdateDevice(dev['id'], 19, satemp, 0, 0)
-                        if searchCode('water_set', ResultValue):
-                            swtemp = StatusDeviceTuya('water_set')
-                            if str(swtemp) != str(Devices[dev['id']].Units[20].sValue):
-                                UpdateDevice(dev['id'], 20, swtemp, 0, 0)
+                        # if searchCode('water_set', ResultValue):
+                        #     swtemp = StatusDeviceTuya('water_set')
+                        #     if str(swtemp) != str(Devices[dev['id']].Units[20].sValue):
+                        #         UpdateDevice(dev['id'], 20, swtemp, 0, 0)
+                        if searchCode('temp_top', ResultValue):
+                            temp = StatusDeviceTuya('temp_top')
+                            if str(temp) != str(Devices[dev['id']].Units[21].sValue):
+                                UpdateDevice(dev['id'], 21, temp, 0, 0)
+                        if searchCode('temp_bottom', ResultValue):
+                            temp = StatusDeviceTuya('temp_bottom')
+                            if str(temp) != str(Devices[dev['id']].Units[22].sValue):
+                                UpdateDevice(dev['id'], 22, temp, 0, 0)
+                        if searchCode('compressor_state', ResultValue):
+                            currentstatus = StatusDeviceTuya('compressor_state')
+                            UpdateDevice(dev['id'], 23, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('water_flow', ResultValue):
+                            current = StatusDeviceTuya('water_flow')
+                            UpdateDevice(dev['id'], 24, str(current), 0, 0)
 
                     if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                         if searchCode('switch', ResultValue) or searchCode('switch_1', ResultValue) or searchCode('Power', ResultValue):

@@ -65,3 +65,4 @@
 | 1.7.7 | Add Airconditioner |
 | 1.7.8 | Add Intelligent triple heat pump |
 | 1.7.9 | Add Illumination sensor |
+| 1.8.0 | Modify Intelligent triple heat pump |
