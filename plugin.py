@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.8.0</h2><br/>
+        <h2>TinyTUYA Plugin version 1.8.1</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -464,12 +464,52 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
 
             if dev_type == 'irrigation':
+                if searchCode('switch_1', function):
+                    switch = 'switch_1'
+                else:
+                    switch = 'switch'
                 if Command == 'Off' and Unit == 1:
-                    SendCommandCloud(DeviceID, 'switch', False)
+                    SendCommandCloud(DeviceID, switch, False)
                     UpdateDevice(DeviceID, 1, False, 0, 0)
                 elif Command == 'On' and Unit == 1:
-                    SendCommandCloud(DeviceID, 'switch', True)
+                    SendCommandCloud(DeviceID, switch, True)
                     UpdateDevice(DeviceID, 1, True, 1, 0)
+                if Command == 'Off' and Unit == 3:
+                    SendCommandCloud(DeviceID, 'areaone', False)
+                    UpdateDevice(DeviceID, 3, False, 0, 0)
+                elif Command == 'On' and Unit == 3:
+                    SendCommandCloud(DeviceID, 'areaone', True)
+                    UpdateDevice(DeviceID, 3, True, 1, 0)
+                if Command == 'Off' and Unit == 4:
+                    SendCommandCloud(DeviceID, 'areatwo', False)
+                    UpdateDevice(DeviceID, 4, False, 0, 0)
+                elif Command == 'On' and Unit == 4:
+                    SendCommandCloud(DeviceID, 'areatwo', True)
+                    UpdateDevice(DeviceID, 4, True, 1, 0)
+                if Command == 'Off' and Unit == 5:
+                    SendCommandCloud(DeviceID, 'areathree', False)
+                    UpdateDevice(DeviceID, 5, False, 0, 0)
+                elif Command == 'On' and Unit == 5:
+                    SendCommandCloud(DeviceID, 'areathree', True)
+                    UpdateDevice(DeviceID, 5, True, 1, 0)
+                if Command == 'Off' and Unit == 6:
+                    SendCommandCloud(DeviceID, 'areafour', False)
+                    UpdateDevice(DeviceID, 6, False, 0, 0)
+                elif Command == 'On' and Unit == 6:
+                    SendCommandCloud(DeviceID, 'areafour', True)
+                    UpdateDevice(DeviceID, 6, True, 1, 0)
+                if Command == 'Off' and Unit == 7:
+                    SendCommandCloud(DeviceID, 'areafive', False)
+                    UpdateDevice(DeviceID, 7, False, 0, 0)
+                elif Command == 'On' and Unit == 7:
+                    SendCommandCloud(DeviceID, 'areafive', True)
+                    UpdateDevice(DeviceID, 7, True, 1, 0)
+                if Command == 'Off' and Unit == 8:
+                    SendCommandCloud(DeviceID, 'areasix', False)
+                    UpdateDevice(DeviceID, 8, False, 0, 0)
+                elif Command == 'On' and Unit == 8:
+                    SendCommandCloud(DeviceID, 'areasix', True)
+                    UpdateDevice(DeviceID, 8, True, 1, 0)
 
             if dev_type == 'wswitch':
                 if Command == 'Set Level':
@@ -1505,9 +1545,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
 
                 if dev_type == 'irrigation':
-                    if createDevice(dev['id'], 1):
-                        Domoticz.Log('Create device Irrigation')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                    if createDevice(dev['id'], 1) and (searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties)):
+                        Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('work_state', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'work_state':
@@ -1520,6 +1559,18 @@ def onHandleThread(startup):
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
                         Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=22, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('areaone', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Area One)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('areatwo', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Area Two)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                    if createDevice(dev['id'], 5) and searchCode('areathree', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Area Three)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                    if createDevice(dev['id'], 6) and searchCode('areafour', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Area Four)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                    if createDevice(dev['id'], 7) and searchCode('areafive', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Area Five)', DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                    if createDevice(dev['id'], 8) and searchCode('areasix', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Area Six)', DeviceID=dev['id'], Unit=8, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
 
                 if dev_type == 'wswitch':
                     # if createDevice(dev['id'], 1) and searchCode('switch1_value', StatusProperties):
@@ -1674,26 +1725,6 @@ def onHandleThread(startup):
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
                                 Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
-
-                # if createDevice(dev['id'], 2) and searchCode('PIR', StatusProperties):
-                #     for item in StatusProperties:
-                #         if item['code'] == 'PIR':
-                #             the_values = json.loads(item['values'])
-                #             mode = ['off']
-                #             mode.extend(the_values.get('range'))
-                #             options = {}
-                #             options['LevelOffHidden'] = 'true'
-                #             options['LevelActions'] = ''
-                #             options['LevelNames'] = '|'.join(mode)
-                #             options['SelectorStyle'] = '0'
-                #             Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
-
-                # if dev_type == 'climate':
-                #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=16, Used=1).Create()
-                # if dev_type == 'lock':
-                #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
-                                Domoticz.Unit(Name=dev['name'] + ' (mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
-                        Domoticz.Unit(Name=dev['name'] + ' (mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('anion', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (anion)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 6) and (searchCode('temp_indoor', ResultValue)):
@@ -2732,8 +2763,11 @@ def onHandleThread(startup):
                         battery_device()
 
                     if dev_type == 'irrigation':
-                        if searchCode('switch', FunctionProperties):
-                            currentstatus = StatusDeviceTuya('switch')
+                        if searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties):
+                            if searchCode('switch_1', FunctionProperties):
+                                currentstatus = StatusDeviceTuya('switch_1')
+                            else:
+                                currentstatus = StatusDeviceTuya('switch')
                             UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
                         if searchCode('work_state', ResultValue):
                             currentmode = StatusDeviceTuya('work_state')
@@ -2744,6 +2778,24 @@ def onHandleThread(startup):
                                     mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('areaone', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('areaone')
+                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('areatwo', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('areatwo')
+                            UpdateDevice(dev['id'], 4, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('areathree', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('areathree')
+                            UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('areafour', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('areafour')
+                            UpdateDevice(dev['id'], 6, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('areafive', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('areafive')
+                            UpdateDevice(dev['id'], 7, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('areasix', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('areasix')
+                            UpdateDevice(dev['id'], 8, bool(currentstatus), int(bool(currentstatus)), 0)
                         battery_device()
 
                     if dev_type == 'wswitch':

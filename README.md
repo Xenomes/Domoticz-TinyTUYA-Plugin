@@ -75,11 +75,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 1.7.6 | Add WiFi Din Rail Switch with power metering |
 | 1.7.7 | Add Airconditioner |
 | 1.7.8 | Add Intelligent triple heat pump |
 | 1.7.9 | Add Illumination sensor |
 | 1.8.0 | Modify Intelligent triple heat pump |
+| 1.8.1 | Modify Irrigation device with six areas |
 
  [The full Change log](CHANGELOG.md)
 
