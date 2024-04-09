@@ -2034,7 +2034,7 @@ def onHandleThread(startup):
                             currentstatus = StatusDeviceTuya('switch_led')
                         else:
                             currentstatus = StatusDeviceTuya('led_switch')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
+                        # UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
                         workmode = StatusDeviceTuya('work_mode')
                         BrightnessControl = False
                         if searchCode('bright_value', StatusProperties):
