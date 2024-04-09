@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.8.2</h2><br/>
+        <h2>TinyTUYA Plugin version 1.8.3</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -355,6 +355,14 @@ class BasePlugin:
                 elif Command == 'Set Level' and Unit  == 9:
                     SendCommandCloud(DeviceID, 'windspeed', Level)
                     UpdateDevice(DeviceID, 9, Level, 1, 0)
+
+            if dev_type == 'doorbell':
+                if Command == 'Off' and Unit == 2:
+                    SendCommandCloud(DeviceID, 'floodlight_switch', False)
+                    UpdateDevice(DeviceID, Unit, False, 0, 0)
+                elif Command == 'On' and Unit == 2:
+                    SendCommandCloud(DeviceID, 'floodlight_switch', True)
+                    UpdateDevice(DeviceID, Unit, True, 1, 0)
 
             if dev_type == 'fan':
                 if Command == 'Off':
@@ -1241,10 +1249,12 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + '_ext3 (Temperature + Humidity)', DeviceID=dev['id'], Unit=43, Type=82, Subtype=5, Used=1).Create()
 
                 if createDevice(dev['id'], 1) and dev_type == 'doorbell':
-                    if searchCode('basic_indicator', FunctionProperties):
+                    if createDevice(dev['id'], 1) and searchCode('basic_indicator', FunctionProperties):
                         Domoticz.Log('Create device Doorbell')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
                         # Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
+                    if createDevice(dev['id'], 2) and searchCode('floodlight_switch', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Light switch)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
 
                 if dev_type == 'fan':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
@@ -2437,6 +2447,9 @@ def onHandleThread(startup):
                                 timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
                                 currentstatus = (int(timestamp) - int(datetimestamp)) < 61
                                 UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('floodlight_switch', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('floodlight_switch')
+                            UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
 
                     if dev_type == 'fan':
                         if searchCode('switch', FunctionProperties):
