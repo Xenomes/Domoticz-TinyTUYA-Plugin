@@ -80,6 +80,7 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.7.9 | Add Illumination sensor |
 | 1.8.0 | Modify Intelligent triple heat pump |
 | 1.8.1 | Modify Irrigation device with six areas |
+| 1.8.2 | Add Micro Inverter SP Series 800 by romaint2b |
 
  [The full Change log](CHANGELOG.md)
 

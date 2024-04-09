@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.8.1</h2><br/>
+        <h2>TinyTUYA Plugin version 1.8.2</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -938,7 +938,10 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (mA)', DeviceID=dev['id'], Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 16) and searchCode('temp_current', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=16, Type=80, Subtype=5, Used=1).Create()
-
+                    if createDevice(dev['id'], 17) and (searchCode('out_power', ResultValue) or searchCode('phase_a', ResultValue)):
+                        Domoticz.Unit(Name=dev['name'] + ' outpower (W)', DeviceID=dev['id'], Unit=17, Type=248, Subtype=1, Used=1).Create()
+                    if createDevice(dev['id'], 18) and (searchCode('out_power', ResultValue) or searchCode('phase_a', ResultValue)):
+                        Domoticz.Unit(Name=dev['name'] + ' outpower (kWh)', DeviceID=dev['id'], Unit=18, Type=243, Subtype=29, Used=1).Create()
                 if dev_type == 'cover' and createDevice(dev['id'], 1):
                     Domoticz.Log('Create device Cover')
                     if searchCode('position', StatusProperties):
@@ -1966,6 +1969,15 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
 
                             UpdateDevice(dev['id'], 13, str(currentvoltage), 0, 0)
+                        if searchCode('out_power', ResultValue):
+                            outpower = StatusDeviceTuya('out_power')
+                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[17].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                            lastvalue = Devices[dev['id']].Units[17].sValue if len(Devices[dev['id']].Units[17].sValue) > 0 else '0;0'
+                            UpdateDevice(dev['id'], 17, str(outpower) + ';' + str(float(lastvalue.split(';')[1]) + ((outpower) * (lastupdate / 3600))) , 0, 0, 1)
+
+                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[18].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                            lastvalue = Devices[dev['id']].Units[18].sValue if len(Devices[dev['id']].Units[18].sValue) > 0 else '0;0'
+                            UpdateDevice(dev['id'], 18, str(outpower) + ';' + str(float(lastvalue.split(';')[1]) + ((outpower) * (lastupdate / 3600))) , 0, 0, 1)
 
                         if searchCode('phase_a', ResultValue):
                             base64_string = StatusDeviceTuya('phase_a')
