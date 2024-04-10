@@ -1,90 +1,103 @@
 #!/usr/bin/env python3
 
 # The script is intended to get a list of all devices available via Tuya API endpoint.
-import argparse
 import tinytuya
 import json
 import os
 import sys
 import time
 
-class TuyaDeviceManager:
-    def __init__(self, region, apikey, apisecret, deviceid):
-        self.region = region
-        self.apikey = apikey
-        self.apisecret = apisecret
-        self.deviceid = deviceid
-        self.token = None
+# TUYA ACCOUNT - Set up a Tuya Account (see PDF Instructions):
+# https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
 
-    def connect_to_cloud(self):
-        try:
-            c = tinytuya.Cloud(
-                apiRegion=self.region,
-                apiKey=self.apikey,
-                apiSecret=self.apisecret,
-                apiDeviceID=self.deviceid
-            )
-            c.use_old_device_list = True
-            c.new_sign_algorithm = True
+# CHANGE THIS - BEGINING
+REGION = "eu" # cn, eu, us
+APIKEY = "xxxxxxxxxxxxxxxxxxxx"
+APISECRET = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# Select a Device ID to Test
+DEVICEID = "xxxxxxxxxxxxxxxxxxxx"
+# CHANGE THIS - END
 
-            if c.error is not None:
+# NO NEED TO CHANGE ANYTHING BELOW
+
+if APIKEY == "xxxxxxxxxxxxxxxxxxxx" or APISECRET == "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" or DEVICEID == "xxxxxxxxxxxxxxxxxxxx":
+        print("""Tuya Plugin Configuration Error:
+
+ERROR: Invalid or missing values for Tuya account configuration.
+
+Please ensure the following information is correctly provided:
+
+REGION: [Enter your Tuya region, e.g., us, eu, cn]
+APIKEY: [Enter your Tuya API key]
+APISECRET: [Enter your Tuya API secret]
+DEVICEID: [Enter your Tuya device ID]
+
+Instructions:
+1. REGION: Specify the Tuya region associated with your account (e.g., us, eu, cn).
+2. APIKEY: Enter the correct Tuya API key linked to your account.
+3. APISECRET: Provide the correct Tuya API secret corresponding to your API key.
+4. DEVICEID: Specify the correct Tuya device ID for your device.
+
+Example:
+REGION: us
+APIKEY: abcdef1234567890
+APISECRET: xyz7890123456789
+DEVICEID: tuya_device_001
+
+Ensure accurate information before attempting to configure the Tuya plugin again.
+""")
+        exit()
+
+# Connect to Tuya Cloud
+try:
+        c = tinytuya.Cloud(
+                apiRegion=REGION,
+                apiKey=APIKEY,
+                apiSecret=APISECRET,
+                apiDeviceID=DEVICEID
+                )
+        c.use_old_device_list = True
+        c.new_sign_algorithm = True
+        if c.error is not None:
                 raise Exception(c.error['Payload'])
-
-            self.token = c.token
-
-            if self.token is None:
+        token = c.token
+        # Check credentials
+        if token == None:
                 raise Exception('Credentials are incorrect!')
 
-            return c
+        if (os.path.exists("dump.json")):
+                f = open("dump.json", "r+")
+        else:
+                f = open("dump.json", "w")
 
-        except Exception as err:
-            print('Error connecting to Tuya Cloud:', str(err))
-            return None
+        # Display list of devices
+        devices = []
+        while len(devices) == 0:
+                devices = c.getdevices()
+                print('No device data returnd for Tuya. Trying again!')
+                time.sleep(10)
 
-    def get_device_list(self):
-        try:
-            tuya_cloud = self.connect_to_cloud()
-            if tuya_cloud:
-                devices = []
-                while len(devices) == 0:
-                    devices = tuya_cloud.getdevices()
-                    print('Script is running, please wait!')
-                    time.sleep(10)
+        for i in range(len(devices)):
+                devices[i - 1]['key'] = 'Deleted'
 
-                for device in devices:
-                    device['key'] = 'Deleted'
+        print("List of devices: \n", json.dumps(devices, indent=2))
+        f.write("List of devices: \n" + json.dumps(devices, indent=2))
 
-                return devices
+        for d in devices:
+                # Display Properties of Device
+                result = c.getproperties(d["id"])
+                print("\nProperties of device: " + d["id"] + "\n", json.dumps(result, indent=2))
+                f.write("\nProperties of device: " + d["id"] + "\n" + json.dumps(result, indent=2))
 
-        except Exception as err:
-            print('Error getting device list:', str(err))
-            return None
+                # Display Status of Device
+                result = c.getstatus(d["id"])
+                print("\nStatus of device: " + d["id"] + "\n", json.dumps(result, indent=2))
+                f.write("\nStatus of device: " + d["id"] + "\n" + json.dumps(result, indent=2))
 
-    def dump_device_list_to_file(self):
-        try:
-            devices = self.get_device_list()
-            if devices:
-                with open("dump.json", "w") as f:
-                    f.write("List of devices: \n" + json.dumps(devices, indent=2))
-                print('dump.json is created!')
+        f.close()
 
-        except Exception as err:
-            print('Error dumping device list to file:', str(err))
+except Exception as err:
+        print('debug_discovery: ' + str(err) + ' line ' + format(sys.exc_info()[-1].tb_lineno))
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description='Get a list of all devices available via Tuya API endpoint.')
-    parser.add_argument('--region', help='Tuya region associated with your account (e.g., us, eu, cn). Must be enclosed in quotes.', required=True)
-    parser.add_argument('--apikey', help='Tuya API key linked to your account. Must be enclosed in quotes.', required=True)
-    parser.add_argument('--apisecret', help='Tuya API secret corresponding to your API key. Must be enclosed in quotes.', required=True)
-    parser.add_argument('--deviceid', help='Tuya device ID for your device. Must be enclosed in quotes.', required=True)
-    parser.add_argument('--h', action='help', help='Show this help message and exit')
-    parser.epilog = "TUYA ACCOUNT - Set up a Tuya Account: https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf"
-    return parser.parse_args()
-
-def main():
-    args = parse_arguments()
-    manager = TuyaDeviceManager(args.region, args.apikey, args.apisecret, args.deviceid)
-    manager.dump_device_list_to_file()
-
-if __name__ == "__main__":
-    main()
+if (os.path.exists("dump.json")):
+        print('\n\ndump.json is created!')
