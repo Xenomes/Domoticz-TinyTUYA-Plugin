@@ -2061,57 +2061,31 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
 
                         if currentstatus == True and workmode == 'white':
-                            if searchCode('temp_value', StatusProperties):
-                                if len(Devices[dev['id']].Units[1].Color) != 0:
-                                    color = ast.literal_eval(Devices[dev['id']].Units[1].Color)
+                            color = Devices[dev['id']].Units[1].Color
+                            if len(color) != 0:
+                                color = ast.literal_eval(color)
+                                if searchCode('temp_value_v2', StatusProperties):
+                                    temptuya = {'b':0,'cw':0,'g':0,'m':2,'r':0,'t':int(inv_val(round(StatusDeviceTuya('temp_value_v2') / 10))),'ww':0}
                                 else:
-                                    color = {'t':0}
-                                temptuya = {'b':0,'cw':0,'g':0,'m':2,'r':0,'t':int(inv_val(round(StatusDeviceTuya('temp_value')))),'ww':0}
-                                # Domoticz.Debug(temptuya['t'])
-                                # Domoticz.Debug(color['t'])
-                                # Domoticz.Debug('temptuya: ' + str(temptuya))
+                                    temptuya = {'b':0,'cw':0,'g':0,'m':2,'r':0,'t':int(round(StatusDeviceTuya('temp_value'))),'ww':0}
                                 if int((temptuya['t'])) != int(color['t']):
-                                    # Domoticz.Debug(str((temptuya['t'])) + ' ' + str(color['t']))
-                                    UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
-                                    UpdateDevice(dev['id'], 1, temptuya, 1, 0)
-                            if searchCode('temp_value_v2', StatusProperties):
-                                if len(Devices[dev['id']].Units[1].Color) != 0:
-                                    color = ast.literal_eval(Devices[dev['id']].Units[1].Color)
-                                else:
-                                    color = {'t':0}
-                                temptuya = {'b':0,'cw':0,'g':0,'m':2,'r':0,'t':int(round(StatusDeviceTuya('temp_value_v2') / 10)),'ww':0}
-                                # Domoticz.Debug(temptuya['t'])
-                                # Domoticz.Debug(color['t'])
-                                # Domoticz.Debug('temptuya: ' + str(temptuya))
-                                if int((temptuya['t'])) != int(color['t']):
-                                    # Domoticz.Debug(str((temptuya['t'])) + ' ' + str(color['t']))
                                     UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
                                     UpdateDevice(dev['id'], 1, temptuya, 1, 0)
 
                         if currentstatus == True and workmode == 'colour':
-                            # Domoticz.Debug('Colordata = ' + str(Devices[dev['id']].Units[1].Color))
-                            # Domoticz.Debug('Tuya colour_data = ' + str(StatusDeviceTuya('colour_data')))
-                            if len(Devices[dev['id']].Units[1].Color) != 0:
-                                color = ast.literal_eval(Devices[dev['id']].Units[1].Color)
-                                # Domoticz.Debug('Colordata = ' + str(color))
+                            color = Devices[dev['id']].Units[1].Color
+                            if len(color) != 0:
+                                color = ast.literal_eval(color)
                                 if searchCode('colour_data_v2', StatusProperties):
-                                    # colorupdate = {'r':int('0x' + colortuya[0:-12],0),'g':int('0x' + colortuya[2:-10],0),'b':int('0x' + colortuya[4:-8],0)}
                                     h,s,level = rgb_to_hsv_v2(int('0x' + colortuya[0:-12],0),int('0x' + colortuya[2:-10],0),int('0x' + colortuya[4:-8],0))
                                     r,g,b = hsv_to_rgb_v2(h, s, 1000)
                                 else:
-                                    # colorupdate = {'r':int('0x' + colortuya[0:-12],0),'g':int('0x' + colortuya[2:-10],0),'b':int('0x' + colortuya[4:-8],0)}
                                     h,s,level = rgb_to_hsv(int('0x' + colortuya[0:-12],0),int('0x' + colortuya[2:-10],0),int('0x' + colortuya[4:-8],0))
                                     r,g,b = hsv_to_rgb(h, s, 100)
                                 colorupdate = {'b':b,'cw':0,'g':g,'m':3,'r':r,'t':0,'ww':0}
-                                # Domoticz.Debug('levelupdate: ' + str(level))
-                                # Domoticz.Debug('Colorupdate = ' + str(colorupdate))
-                                # {"b":0,"cw":0,"g":3,"m":3,"r":255,"t":0,"ww":0}
                                 if (color['r'] != r or color['g'] != g or color['b'] != b ) or len(Devices[dev['id']].Units[1].Color) == 0:
-                                    # Domoticz.Debug('Colorupdate = ' + str(colorupdate))
                                     UpdateDevice(dev['id'], 1, colorupdate, 1, 0)
                                     UpdateDevice(dev['id'], 1, brightness_to_pct(StatusProperties, 'bright_value', int(inv_val(level))), 1, 0)
-                            else:
-                                color = {}
 
                     if dev_type == 'cover':
                         if searchCode('position', StatusProperties):
