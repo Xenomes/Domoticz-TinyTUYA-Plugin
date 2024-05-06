@@ -1961,7 +1961,7 @@ def onHandleThread(startup):
                             switch_type = f'switch_{switch_number}'
                             if searchCode(switch_type, FunctionProperties):
                                 currentstatus = StatusDeviceTuya(switch_type)
-                                UpdateDevice(dev['id'], switch_number, bool(currentstatus), int(bool(current_status)), 0)
+                                UpdateDevice(dev['id'], switch_number, bool(currentstatus), int(bool(currentstatus)), 0)
 
                         if searchCode('cur_current', ResultValue):
                             currentcurrent = StatusDeviceTuya('cur_current')
