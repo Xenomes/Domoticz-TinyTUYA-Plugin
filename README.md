@@ -75,11 +75,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 1.8.0 | Modify Intelligent triple heat pump |
 | 1.8.1 | Modify Irrigation device with six areas |
 | 1.8.2 | Add Micro Inverter SP Series 800 by romaint2b |
 | 1.8.3 | Add LSC smart outdoor lamp with camera (Light only!) |
 | 1.8.4 | Bugfix multi-switch device |
+| 1.8.5 | Add Lawn Mower |
 
  [The full Change log](CHANGELOG.md)
 

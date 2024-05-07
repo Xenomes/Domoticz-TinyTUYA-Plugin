@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.8.4</h2><br/>
+        <h2>TinyTUYA Plugin version 1.8.5</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -667,6 +667,18 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'cook_temperature', Level)
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
 
+            if dev_type == 'mower':
+                if Command == 'Set Level' and Unit == 1:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'MachineControlCmd', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, 1, Level, 1, 0)
+                if Command == 'Off' and Unit == 2:
+                    SendCommandCloud(DeviceID, 'MachineRainMode', False)
+                    UpdateDevice(DeviceID, 2, False, 0, 0)
+                elif Command == 'On' and Unit == 2:
+                    SendCommandCloud(DeviceID, 'MachineRainMode', True)
+                    UpdateDevice(DeviceID, 2, True, 1, 0)
+
             if dev_type == 'infrared_ac':
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'PowerOff', 'PowerOff')
@@ -685,6 +697,7 @@ class BasePlugin:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'F', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
+
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
 
@@ -1884,6 +1897,29 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 5) and searchCode('fault', ResultValue):
                             Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
 
+                if dev_type == 'mower':
+                    if createDevice(dev['id'], 1) and searchCode('MachineControlCmd', FunctionProperties):
+                        Domoticz.Log('Create device Smart Mower')
+                        for item in FunctionProperties:
+                            if item['code'] == 'MachineControlCmd':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '1'
+                        Domoticz.Unit(Name=dev['name'] + ' (Control)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('MachineRainMode', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Rain Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('MachineStatus', ResultValue):
+                            Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=3, Type=243, Subtype=19, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('MachineWarning', ResultValue):
+                            Domoticz.Unit(Name=dev['name'] + ' (Warnig)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=19, Used=1).Create()
+                    if createDevice(dev['id'], 5) and searchCode('MachineError', ResultValue):
+                            Domoticz.Unit(Name=dev['name'] + ' (Error)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=19, Used=1).Create()
+
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Infrared device: ' + str(dev['name']))
@@ -3061,6 +3097,17 @@ def onHandleThread(startup):
                         if searchCode('fault', ResultValue):
                             UpdateDevice(dev['id'], 5, StatusDeviceTuya('fault'), 0, 0)
 
+                    if dev_type == 'mower':
+                        if searchCode('MachineRainMode', ResultValue):
+                            currentstatus = StatusDeviceTuya('MachineRainMode')
+                            UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('MachineStatus', ResultValue):
+                            UpdateDevice(dev['id'], 3, StatusDeviceTuya('MachineStatus'), 0, 0)
+                        if searchCode('MachineWarning', ResultValue):
+                            UpdateDevice(dev['id'], 4, StatusDeviceTuya('MachineWarning'), 0, 0)
+                        if searchCode('MachineError', ResultValue):
+                            UpdateDevice(dev['id'], 5, StatusDeviceTuya('MachineError'), 0, 0)
+
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -3157,6 +3204,8 @@ def DeviceType(category):
         result = 'purifier'
     elif category in {'bh'}:
         result = 'smartkettle'
+    elif category in {'gcj'}:
+        result = 'mower'
     elif category in {'infrared_ac'}:
         result = 'infrared_ac'
     elif 'infrared_' in category: # keep it last
@@ -3261,69 +3310,74 @@ def temp_value_scale(device_functions, actual_function_name, raw):
 
 def set_scale(device_functions, actual_function_name, raw):
     scale = 0
-    if device_functions and actual_function_name:
-        for item in device_functions:
-            if item['code'] == actual_function_name:
-                the_values = json.loads(item['values'])
-                scale = int(the_values.get('scale', 0))
-                # step = the_values.get('step', 0)
-                max = the_values.get('max', 0)
-                min = the_values.get('min', 0)
+    try:
+        if device_functions and actual_function_name:
+            for item in device_functions:
+                if item['code'] == actual_function_name:
+                    the_values = json.loads(item['values'])
+                    scale = int(the_values.get('scale', 0))
+                    # step = the_values.get('step', 0)
+                    max = the_values.get('max', 0)
+                    min = the_values.get('min', 0)
 
-    if scale == 1:
-        result = int(raw * 10)
-    elif scale == 2:
-        result = int(raw * 100)
-    elif scale == 3:
-        result = int(raw * 1000)
-    else:
-        result = int(raw)
+        if scale == 1:
+            result = int(raw * 10)
+        elif scale == 2:
+            result = int(raw * 100)
+        elif scale == 3:
+            result = int(raw * 1000)
+        else:
+            result = int(raw)
 
-    if product_id == 'IAYz2WK1th0cMLmL':
-        result = int(raw * 2)
+        if product_id == 'IAYz2WK1th0cMLmL':
+            result = int(raw * 2)
 
-    if result > max:
-        result = int(max)
-        Domoticz.Log('Value higher then maximum device')
-    elif result < min:
-        result = int(min)
-        Domoticz.Log('Value lower then minium device')
-
+        if result > max:
+            result = int(max)
+            Domoticz.Log('Value higher then maximum device')
+        elif result < min:
+            result = int(min)
+            Domoticz.Log('Value lower then minium device')
+    except:
+        result = str(raw)
     return result
 
 def get_scale(device_functions, actual_function_name, raw):
     scale = 0
     # if actual_function_name == 'temp_current': actual_function_name = 'temp_set'
-    if device_functions and actual_function_name:
-        for item in device_functions:
-            if item['code'] == actual_function_name:
-                the_values = json.loads(item['values'])
-                scale = the_values.get('scale', 0)
-                # step = the_values.get('step', 0)
-                unit = the_values.get('unit', 0)
-                max = the_values.get('max', 0)
-    if scale == 0:
-        if unit == 'V' and len(str(max)) >= 4:
+    try:
+        if device_functions and actual_function_name:
+            for item in device_functions:
+                if item['code'] == actual_function_name:
+                    the_values = json.loads(item['values'])
+                    ttype = json.loads(item['type'])
+                    scale = the_values.get('scale', 0 )
+                    # step = the_values.get('step', 0)
+                    unit = the_values.get('unit', 0)
+                    max = the_values.get('max', 0)
+
+        if scale == 0:
+            if unit == 'V' and len(str(max)) >= 4:
+                result = float(raw / 10)
+            elif unit == 'W' and len(str(max)) >= 5:
+                result = float(raw / 10)
+            else:
+                result = int(raw)
+        elif scale == 1:
             result = float(raw / 10)
-        elif unit == 'W' and len(str(max)) >= 5:
-            result = float(raw / 10)
+        elif scale == 2:
+            result = float(raw / 100)
+        elif scale == 3:
+            result = float(raw / 1000)
         else:
             result = int(raw)
-    elif scale == 1:
-        result = float(raw / 10)
-    elif scale == 2:
-        result = float(raw / 100)
-    elif scale == 3:
-        result = float(raw / 1000)
-    else:
-        result = int(raw)
 
-    if product_id == 'IAYz2WK1th0cMLmL':
-        result = float(raw / 2)
-    if product_id == 'g9m7honkxjweukvt' and actual_function_name == 'temp_current':
-        result = float(raw / 10)
-
-
+        if product_id == 'IAYz2WK1th0cMLmL':
+            result = float(raw / 2)
+        if product_id == 'g9m7honkxjweukvt' and actual_function_name == 'temp_current':
+            result = float(raw / 10)
+    except:
+        result = str(raw)
     return result
 
 def get_unit(actual_function_name, device_functions):
