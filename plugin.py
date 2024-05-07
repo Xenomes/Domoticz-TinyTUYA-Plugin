@@ -3107,6 +3107,7 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 4, StatusDeviceTuya('MachineWarning'), 0, 0)
                         if searchCode('MachineError', ResultValue):
                             UpdateDevice(dev['id'], 5, StatusDeviceTuya('MachineError'), 0, 0)
+                        battery_device()
 
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
@@ -3377,7 +3378,7 @@ def get_scale(device_functions, actual_function_name, raw):
         if product_id == 'g9m7honkxjweukvt' and actual_function_name == 'temp_current':
             result = float(raw / 10)
     except:
-        result = str(raw)
+        result = raw
     return result
 
 def get_unit(actual_function_name, device_functions):
