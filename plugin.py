@@ -3241,7 +3241,7 @@ def StatusDeviceTuya(Function):
     else:
         Domoticz.Debug('StatusDeviceTuya called ' + Function + ' not found ')
         return None
-    if type(valueRaw) == int:
+    if type(valueRaw) == int or type(valueRaw) == float:
         valueT = get_scale(StatusProperties, Function, valueRaw)
     else:
         valueT = valueRaw
@@ -3351,12 +3351,10 @@ def get_scale(device_functions, actual_function_name, raw):
             for item in device_functions:
                 if item['code'] == actual_function_name:
                     the_values = json.loads(item['values'])
-                    ttype = json.loads(item['type'])
                     scale = the_values.get('scale', 0 )
                     # step = the_values.get('step', 0)
                     unit = the_values.get('unit', 0)
                     max = the_values.get('max', 0)
-
         if scale == 0:
             if unit == 'V' and len(str(max)) >= 4:
                 result = float(raw / 10)
