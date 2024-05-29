@@ -75,11 +75,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 1.8.2 | Add Micro Inverter SP Series 800 by romaint2b |
 | 1.8.3 | Add LSC smart outdoor lamp with camera (Light only!) |
 | 1.8.4 | Bugfix multi-switch device |
 | 1.8.5 | Add Lawn Mower |
 | 1.8.6 | Fix scaling issue with some values |
+| 1.8.7 | Changed energy calculation by DKTigra |
 
  [The full Change log](CHANGELOG.md)
 

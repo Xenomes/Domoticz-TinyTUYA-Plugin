@@ -72,3 +72,4 @@
 | 1.8.4 | Bugfix multi-switch device |
 | 1.8.5 | Add Lawn Mower |
 | 1.8.6 | Fix scaling issue with some values |
+| 1.8.7 | Changed energy calculation by DKTigra |

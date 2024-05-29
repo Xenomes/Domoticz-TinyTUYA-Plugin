@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.8.5</h2><br/>
+        <h2>TinyTUYA Plugin version 1.8.7</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -355,6 +355,20 @@ class BasePlugin:
                 elif Command == 'Set Level' and Unit  == 9:
                     SendCommandCloud(DeviceID, 'windspeed', Level)
                     UpdateDevice(DeviceID, 9, Level, 1, 0)
+
+            if dev_type == 'sensor':
+                if Command == 'Set Level' and Unit == 45:
+                    SendCommandCloud(DeviceID, 'cook_temperature', Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                if Command == 'Set Level' and Unit == 46:
+                    SendCommandCloud(DeviceID, 'cook_temperature_2', Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                # if Command == 'Off' and Unit == 47:
+                #     SendCommandCloud(DeviceID, 'alarm_switch', False)
+                #     UpdateDevice(DeviceID, Unit, False, 0, 0)
+                # elif Command == 'On' and Unit == 47:
+                #     SendCommandCloud(DeviceID, 'alarm_switch', True)
+                #     UpdateDevice(DeviceID, Unit, True, 1, 0)
 
             if dev_type == 'doorbell':
                 if Command == 'Off' and Unit == 2:
@@ -873,14 +887,10 @@ def onHandleThread(startup):
                 t = tuya.getstatus(dev['id'])['t']
 
             product_id = getConfigItem(dev['id'],'product_id')
-            # Define scale mode
-            # if '_v2' in str(FunctionProperties):
-            #     scalemode = 'v2'
-            # else:
-            #     scalemode = 'v1'
-            # Domoticz.Debug( 'functions= ' + str(functions))
-            # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + ResultValue)
-            # Domoticz.Debug( 'Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' FunctionProperties= ' + str(properties[dev['id']]))
+
+            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' FunctionProperties= ' + str(properties[dev['id']]['functions']))
+            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' StatusProperties= ' + str(properties[dev['id']]['status']))
+            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(ResultValue))
 
             # Create devices
             if startup == True:
@@ -1209,7 +1219,7 @@ def onHandleThread(startup):
                 if dev_type in ('sensor', 'smartir'):
                     Domoticz.Log('Create Sensor device')
                     if createDevice(dev['id'], 1) and (searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue) or searchCode('local_temp', ResultValue)):
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0 if (searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue)) else 1).Create()
                     if createDevice(dev['id'], 2) and (searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
                     if createDevice(dev['id'], 3) and ((searchCode('va_temperature', ResultValue) and searchCode('va_humidity', ResultValue)) or (searchCode('temp_current', ResultValue) and searchCode('humidity_value', ResultValue)) or (searchCode('local_temp', ResultValue) and searchCode('local_hum', ResultValue))):
@@ -1260,6 +1270,32 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + '_ext3 (Humidity)', DeviceID=dev['id'], Unit=42, Type=81, Subtype=1, Used=0).Create()
                     if createDevice(dev['id'], 43) and ((searchCode('sub3_temp', ResultValue) and searchCode('sub3_hum', ResultValue))):
                         Domoticz.Unit(Name=dev['name'] + '_ext3 (Temperature + Humidity)', DeviceID=dev['id'], Unit=43, Type=82, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 44) and searchCode('temp_current_2', ResultValue):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature 2)', DeviceID=dev['id'], Unit=44, Type=80, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 45) and searchCode('cook_temperature', FunctionProperties):
+                        for item in FunctionProperties:
+                            temp = 'cook_temperature'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Cook temperature)', DeviceID=dev['id'], Unit=45, Type=242, Subtype=1, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 46) and searchCode('cook_temperature_2', FunctionProperties):
+                        for item in FunctionProperties:
+                            temp = 'cook_temperature_2'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Cook temperature 2)', DeviceID=dev['id'], Unit=46, Type=242, Subtype=1, Options=options, Used=1).Create()
+                    # if createDevice(dev['id'], 47) and searchCode('alarm_switch', FunctionProperties):
+                    #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
                 if createDevice(dev['id'], 1) and dev_type == 'doorbell':
                     if createDevice(dev['id'], 1) and searchCode('basic_indicator', FunctionProperties):
@@ -2040,7 +2076,9 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 13, str(currentvoltage), 0, 0)
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
+                            currentEle = StatusDeviceTuya('add_ele')
+                            UpdateDevice(dev['id'], 14, str(int((currentEle - float(lastvalue.split(';')[1])) * (3600 / lastupdate) * 1000)) + ';' + str(currentEle) , 0, 0, 1) # Update from DKTigra
+                            # UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
                             UpdateDevice(dev['id'], 15, str(leakagecurrent), 0, 0)
                         if searchCode('temp_current', ResultValue):
                             currenttemp = StatusDeviceTuya('temp_current')
@@ -2442,6 +2480,21 @@ def onHandleThread(startup):
                             currentdomo = Devices[dev['id']].Units[43].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 43, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
+                        if searchCode('temp_current_2', ResultValue):
+                            currenttemp = StatusDeviceTuya('temp_current_2')
+                            if str(currenttemp) != str(Devices[dev['id']].Units[44].sValue):
+                                UpdateDevice(dev['id'], 44, currenttemp, 0, 0)
+                        if searchCode('cook_temperature', ResultValue):
+                            currenttemp_set = StatusDeviceTuya('cook_temperature')
+                            if str(currenttemp_set) != str(Devices[dev['id']].Units[45].sValue):
+                                UpdateDevice(dev['id'], 45, currenttemp_set, 0, 0)
+                        if searchCode('cook_temperature_2', ResultValue):
+                            currenttemp_set = StatusDeviceTuya('cook_temperature')
+                            if str(currenttemp_set) != str(Devices[dev['id']].Units[46].sValue):
+                                UpdateDevice(dev['id'], 46, currenttemp_set, 0, 0)
+                        # if searchCode('alarm_switch', ResultValue):
+                        #     currentstatus = StatusDeviceTuya('alarm_switch')
+                        #     UpdateDevice(dev['id'], 47, bool(currentstatus), int(bool(currentstatus)), 0)
                         battery_device()
 
                     if dev_type == 'doorbell':
@@ -3093,7 +3146,7 @@ def onHandleThread(startup):
                         if searchCode('cook_temperature', ResultValue):
                             currenttemp_set = StatusDeviceTuya('cook_temperature')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[4].sValue):
-                                    UpdateDevice(dev['id'], 4, currenttemp_set, 0, 0)
+                                UpdateDevice(dev['id'], 4, currenttemp_set, 0, 0)
                         if searchCode('fault', ResultValue):
                             UpdateDevice(dev['id'], 5, StatusDeviceTuya('fault'), 0, 0)
 
@@ -3151,7 +3204,7 @@ def DeviceType(category):
         result = 'heater'
     elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt'}:
         result = 'thermostat'
-    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg'}:
+    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz'}:
         result = 'sensor'
     elif category in {'rs'}:
         result = 'heatpump'
@@ -3377,6 +3430,7 @@ def get_scale(device_functions, actual_function_name, raw):
             result = float(raw / 10)
     except:
         result = raw
+        Domoticz.Debug('except ' + str(result))
     return result
 
 def get_unit(actual_function_name, device_functions):
