@@ -1599,7 +1599,7 @@ def onHandleThread(startup):
                 if dev_type == 'waterleak':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device water leak sesor')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Image=11, Used=1).Create()
 
                 if dev_type == 'presence':
                     if createDevice(dev['id'], 1):
