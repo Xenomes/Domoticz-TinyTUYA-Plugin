@@ -1599,7 +1599,7 @@ def onHandleThread(startup):
                 if dev_type == 'waterleak':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device water leak sesor')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Image=11, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=22, Switchtype=0, Image=11, Used=1).Create()
 
                 if dev_type == 'presence':
                     if createDevice(dev['id'], 1):
@@ -2109,7 +2109,10 @@ def onHandleThread(startup):
                         else:
                             currentstatus = StatusDeviceTuya('led_switch')
                         # UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        workmode = StatusDeviceTuya('work_mode')
+                        if searchCode('work_mode', StatusProperties):
+                            workmode = StatusDeviceTuya('work_mode')
+                        else:
+                            workmode = 'white'
                         BrightnessControl = False
                         if searchCode('bright_value', StatusProperties):
                             BrightnessControl = True
