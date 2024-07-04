@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.8.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.8.8.2</h2><br/>
+        <h2>TinyTUYA Plugin version 1.8.9</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -899,10 +899,9 @@ def onHandleThread(startup):
                 try:
                     deviceinfo = scan[dev['id']]
                 except:
-                    deviceinfo = {'ip': None, 'version': 3.3}
+                    deviceinfo = {'version': 3.3}
 
                 if dev_type in ('light', 'fanlight', 'pirlight') and createDevice(dev['id'], 1):
-                    # for localcontol: and deviceinfo['ip'] != None
                     if (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light RGBWW')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=4, Switchtype=7, Used=1).Create()
@@ -1968,12 +1967,7 @@ def onHandleThread(startup):
                     UpdateDevice(dev['id'], 1, 'This device is not recognized. Please edit and run the debug_discovery with Python from the tools directory and recreate an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.', 0, 0)
 
                 # Set extra info
-                try:
-                    test = deviceinfo['ip']
-                except:
-                    deviceinfo['ip'] = ''
-
-                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'ip': deviceinfo['ip'] , 'product_id': dev['product_id'], 'version': deviceinfo['version']})  #, 'scalemode': scalemode})
+                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'product_id': dev['product_id'], 'version': deviceinfo['version']})  #, 'scalemode': scalemode})
                 # Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
