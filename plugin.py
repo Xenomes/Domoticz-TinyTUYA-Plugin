@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.8.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.8.9</h2><br/>
+        <h2>TinyTUYA Plugin version 1.9.0</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1217,11 +1217,13 @@ def onHandleThread(startup):
 
                 if dev_type in ('sensor', 'smartir'):
                     Domoticz.Log('Create Sensor device')
-                    if createDevice(dev['id'], 1) and (searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue) or searchCode('local_temp', ResultValue)):
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0 if (searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue)) else 1).Create()
-                    if createDevice(dev['id'], 2) and (searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue)):
+                    temp = searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue) or searchCode('local_temp', ResultValue)
+                    hum = searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue) or searchCode('humidity', ResultValue)
+                    if createDevice(dev['id'], 1) and temp:
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0 if hum else 1).Create()
+                    if createDevice(dev['id'], 2) and hum:
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
-                    if createDevice(dev['id'], 3) and ((searchCode('va_temperature', ResultValue) and searchCode('va_humidity', ResultValue)) or (searchCode('temp_current', ResultValue) and searchCode('humidity_value', ResultValue)) or (searchCode('local_temp', ResultValue) and searchCode('local_hum', ResultValue))):
+                    if createDevice(dev['id'], 3) and temp and hum:
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=3, Type=82, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('co2_value', ResultValue):
                         options = {}
@@ -2403,6 +2405,10 @@ def onHandleThread(startup):
                             currenthumi = StatusDeviceTuya('local_hum')
                             if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
                                 UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
+                        if  searchCode('humidity', ResultValue):
+                            currenthumi = StatusDeviceTuya('humidity')
+                            if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
+                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
                         if searchCode('va_temperature', ResultValue) and searchCode('va_humidity', ResultValue):
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -2412,6 +2418,10 @@ def onHandleThread(startup):
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
                         if searchCode('local_temp', ResultValue) and searchCode('local_hum', ResultValue):
+                            currentdomo = Devices[dev['id']].Units[3].sValue
+                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
+                                UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
+                        if searchCode('temp_current', ResultValue) and searchCode('humidity', ResultValue):
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
@@ -3209,7 +3219,7 @@ def DeviceType(category):
         result = 'heater'
     elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt'}:
         result = 'thermostat'
-    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz'}:
+    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy'}:
         result = 'sensor'
     elif category in {'rs'}:
         result = 'heatpump'
