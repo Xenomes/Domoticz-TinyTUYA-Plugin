@@ -76,3 +76,4 @@
 | 1.8.8 | Fix for waterleak sensor |
 | 1.8.9 | Fix for devices with no ip |
 | 1.9.0 | Add Smart Soil Sensor |
+| 1.9.1 | Add Pool temperature Sensor |
