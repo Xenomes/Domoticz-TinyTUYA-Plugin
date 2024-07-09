@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.9.1</h2><br/>
+        <h2>TinyTUYA Plugin version 1.9.2</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1967,7 +1967,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
                         UpdateDevice(dev['id'], 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
 
-                if createDevice(dev['id'], 1):
+                if createDevice(dev['id'], 1) and dev['id'] not in str(Devices):
                     Domoticz.Log('No controls found for device: ' + str(dev['name']))
                     Domoticz.Unit(Name=dev['name'] + ' (Unknown Device)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
                     UpdateDevice(dev['id'], 1, 'This device is not recognized. Please edit and run the debug_discovery with Python from the tools directory and recreate an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.', 0, 0)
@@ -2022,9 +2022,11 @@ def onHandleThread(startup):
                                     Devices[dev['id']].Units[unit].Update()
                         return
                     # status Domoticz
-                    sValue = Devices[dev['id']].Units[1].sValue
-                    nValue = Devices[dev['id']].Units[1].nValue
-                    product_id = getConfigItem(dev['id'],'product_id')
+                    try:
+                        sValue = Devices[dev['id']].Units[1].sValue
+                        nValue = Devices[dev['id']].Units[1].nValue
+                    except:
+                        pass
 
                     if dev_type == 'switch':
                         if searchCode('switch_1', FunctionProperties):
@@ -3263,7 +3265,7 @@ def DumpConfigToLog():
 def DeviceType(category):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
-    if category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr'}:
+    if category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr', 'aqcz'}:
         result = 'switch'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj'}:
         result = 'light'
