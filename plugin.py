@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.9.2</h2><br/>
+        <h2>TinyTUYA Plugin version 1.9.3</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -305,6 +305,8 @@ class BasePlugin:
                     switch = 'switch_1'
                 elif searchCode('Power', function):
                     switch = 'Power'
+                elif searchCode('infared_switch', function):
+                    switch = 'infared_switch'
                 else:
                     switch = 'switch'
                 if searchCode('temp_set', function):
@@ -353,8 +355,15 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'eco', True)
                     UpdateDevice(DeviceID, 7, True, 1, 0)
                 elif Command == 'Set Level' and Unit  == 9:
-                    SendCommandCloud(DeviceID, 'windspeed', Level)
-                    UpdateDevice(DeviceID, 9, Level, 1, 0)
+                    if searchCode('fan_level', function):
+                        wind = 'fan_level'
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 9, mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 9, Level, 1, 0)
+                    else:
+                        wind = 'windspeed'
+                        SendCommandCloud(DeviceID, wind, Level)
+                        UpdateDevice(DeviceID, 9, Level, 1, 0)
 
             if dev_type == 'sensor':
                 if Command == 'Set Level' and Unit == 45:
@@ -1126,7 +1135,7 @@ def onHandleThread(startup):
                 if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device Thermostat/heater/heatpump')
-                        if searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties) or searchCode('Power', FunctionProperties):
+                        if searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties) or searchCode('Power', FunctionProperties) or searchCode('infared_switch', FunctionProperties):
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         else:
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=0).Create()
@@ -1189,9 +1198,13 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Eco)', DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 8) and searchCode('temp_floor', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=8, Type=80, Subtype=5, Used=1).Create()
-                    if createDevice(dev['id'], 9) and searchCode('windspeed', StatusProperties):
+                    if createDevice(dev['id'], 9) and (searchCode('windspeed', StatusProperties) or searchCode('fan_level', StatusProperties)):
+                        if searchCode('fan_level', StatusProperties):
+                            wind = 'fan_level'
+                        else:
+                            wind = 'windspeed'
                         for item in StatusProperties:
-                            if item['code'] == 'windspeed':
+                            if item['code'] == wind:
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 mode.extend(the_values.get('range'))
@@ -1200,7 +1213,7 @@ def onHandleThread(startup):
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
-                                Domoticz.Unit(Name=dev['name'] + ' (Windspeed)', DeviceID=dev['id'], Unit=9, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                                Domoticz.Unit(Name=dev['name'] + ' (' + wind.capitalize().replace("_", " ") +')', DeviceID=dev['id'], Unit=9, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 11) and ((searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'A') or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
                     if createDevice(dev['id'], 12) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue)):
@@ -1303,10 +1316,10 @@ def onHandleThread(startup):
                     #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
                 if createDevice(dev['id'], 1) and dev_type == 'doorbell':
-                    if createDevice(dev['id'], 1) and searchCode('basic_indicator', FunctionProperties):
+                    if createDevice(dev['id'], 1) and (searchCode('basic_indicator', FunctionProperties) or searchCode('doorbell_active', FunctionProperties)):
                         Domoticz.Log('Create device Doorbell')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
-                        # Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
+                        #Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
                     if createDevice(dev['id'], 2) and searchCode('floodlight_switch', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Light switch)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
 
@@ -2347,10 +2360,14 @@ def onHandleThread(startup):
                                     mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('windspeed', ResultValue) and searchCode('windspeed', ResultValue):
-                            currentmode = StatusDeviceTuya('windspeed')
+                        if searchCode('windspeed', ResultValue) or searchCode('fan_level', StatusProperties):
+                            if searchCode('fan_level', StatusProperties):
+                                wind = 'fan_level'
+                            else:
+                                wind = 'windspeed'
+                            currentmode = StatusDeviceTuya(wind)
                             for item in FunctionProperties:
-                                if item['code'] == 'windspeed':
+                                if item['code'] == wind:
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     mode.extend(the_values.get('range'))
@@ -3275,7 +3292,7 @@ def DeviceType(category):
         result = 'cover'
     elif category in {'qn'}:
         result = 'heater'
-    elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt'}:
+    elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt','hwktwkq'}:
         result = 'thermostat'
     elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy'}:
         result = 'sensor'

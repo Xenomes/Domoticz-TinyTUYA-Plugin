@@ -78,3 +78,4 @@
 | 1.9.0 | Add Smart Soil Sensor |
 | 1.9.1 | Add Pool temperature Sensor |
 | 1.9.2 | Add WiFi Digital Meter |
+| 1.9.3 | Add unsupported airconditioner |
