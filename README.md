@@ -80,6 +80,7 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 1.9.1 | Add Pool temperature Sensor |
 | 1.9.2 | Add WiFi Digital Meter |
 | 1.9.3 | Add unsupported airconditioner |
+| 1.9.4 | Add unsupported dehumidifier |
 
  [The full Change log](CHANGELOG.md)
 
