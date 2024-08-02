@@ -628,7 +628,11 @@ class BasePlugin:
                     UpdateDevice(DeviceID, Unit, True, 1, 0)
                 elif Command == 'Set Level' and Unit == 2:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                    SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
+                    if searchCode('dehumidify_set_value', function):
+                        tdev = 'dehumidify_set_value'
+                    elif searchCode('dehumidify_set_enum', function):
+                        tdev = 'dehumidify_set_enum'
+                    SendCommandCloud(DeviceID, tdev, mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
                     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
@@ -3145,8 +3149,13 @@ def onHandleThread(startup):
                         #         UpdateDevice(dev['id'], 8, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
                         if searchCode('fault', ResultValue):
                             currentmode = StatusDeviceTuya('fault')
-                            if str(currentmode).lower().replace('_',' ') != str(Devices[dev['id']].Units[5].sValue).lower():
-                                UpdateDevice(dev['id'], 5, str(currentmode).capitalize().replace('_',' '), 0, 0)
+                            for item in StatusProperties:
+                                if item['code'] == 'fault':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['No fault']
+                                    mode.extend(the_values.get('label'))
+                            if str(mode[currentmode]).lower().replace('_',' ') != str(Devices[dev['id']].Units[5].sValue).lower():
+                                UpdateDevice(dev['id'], 5, str(mode[currentmode]).capitalize().replace('_',' '), 0, 0)
 
                     if dev_type == 'vacuum':
                         if searchCode('power_go', ResultValue):
