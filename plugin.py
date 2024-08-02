@@ -2330,13 +2330,15 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 24, str(current), 0, 0)
 
                     if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
-                        if searchCode('switch', ResultValue) or searchCode('switch_1', ResultValue) or searchCode('Power', ResultValue):
+                        if searchCode('switch', ResultValue) or searchCode('switch_1', ResultValue) or searchCode('Power', ResultValue) or searchCode('infared_switch', ResultValue):
                             if searchCode('switch', ResultValue):
                                 currentstatus = StatusDeviceTuya('switch')
                             elif searchCode('switch_1', ResultValue):
                                 currentstatus = StatusDeviceTuya('switch_1')
                             elif searchCode('Power', ResultValue):
-                                currentstatus = StatusDeviceTuya('switch_1')
+                                currentstatus = StatusDeviceTuya('Power')
+                            elif searchCode('infared_switch', ResultValue):
+                                currentstatus = StatusDeviceTuya('infared_switch')
                             UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
                         if searchCode('temp_current', ResultValue) or searchCode('upper_temp', ResultValue) or searchCode('c_temperature', ResultValue) or searchCode('TempCurrent', ResultValue):
                             if searchCode('temp_current', ResultValue):
