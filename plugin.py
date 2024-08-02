@@ -2439,59 +2439,47 @@ def onHandleThread(startup):
                         battery_device()
 
                     if dev_type in ('sensor', 'smartir'):
-                        if searchCode('va_temperature', ResultValue):
-                            currenttemp = StatusDeviceTuya('va_temperature')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
-                                UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
-                        if searchCode('local_temp', ResultValue):
-                            currenttemp = StatusDeviceTuya('local_temp')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
-                                UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
-                        if searchCode('temp_current', ResultValue):
-                            currenttemp = StatusDeviceTuya('temp_current')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
-                                UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
-                        if searchCode('Tin', ResultValue):
-                            currenttemp = StatusDeviceTuya('Tin')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
-                                UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
-                        if  searchCode('va_humidity', ResultValue):
-                            currenthumi = StatusDeviceTuya('va_humidity')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                        if  searchCode('humidity_value', ResultValue):
-                            currenthumi = StatusDeviceTuya('humidity_value')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                        if  searchCode('local_hum', ResultValue):
-                            currenthumi = StatusDeviceTuya('local_hum')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                        if  searchCode('humidity', ResultValue):
-                            currenthumi = StatusDeviceTuya('humidity')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                        if  searchCode('Hin', ResultValue):
-                            currenthumi = StatusDeviceTuya('Hin')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                        if searchCode('va_temperature', ResultValue) and searchCode('va_humidity', ResultValue):
-                            currentdomo = Devices[dev['id']].Units[3].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('temp_current', ResultValue) and searchCode('humidity_value', ResultValue):
-                            currentdomo = Devices[dev['id']].Units[3].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('local_temp', ResultValue) and searchCode('local_hum', ResultValue):
-                            currentdomo = Devices[dev['id']].Units[3].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('temp_current', ResultValue) and searchCode('humidity', ResultValue):
-                            currentdomo = Devices[dev['id']].Units[3].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('Tin', ResultValue) and searchCode('Hin', ResultValue):
+                        temp = searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue) or searchCode('local_temp', ResultValue) or searchCode('Tin', ResultValue)
+                        hum = searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue) or searchCode('humidity', ResultValue) or searchCode('Hin', ResultValue)
+                        if temp:
+                            if searchCode('va_temperature', ResultValue):
+                                currenttemp = StatusDeviceTuya('va_temperature')
+                                if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
+                                    UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
+                            if searchCode('local_temp', ResultValue):
+                                currenttemp = StatusDeviceTuya('local_temp')
+                                if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
+                                    UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
+                            if searchCode('temp_current', ResultValue):
+                                currenttemp = StatusDeviceTuya('temp_current')
+                                if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
+                                    UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
+                            if searchCode('Tin', ResultValue):
+                                currenttemp = StatusDeviceTuya('Tin')
+                                if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
+                                    UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
+                        if hum:
+                            if  searchCode('va_humidity', ResultValue):
+                                currenthumi = StatusDeviceTuya('va_humidity')
+                                if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
+                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
+                            if  searchCode('humidity_value', ResultValue):
+                                currenthumi = StatusDeviceTuya('humidity_value')
+                                if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
+                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
+                            if  searchCode('local_hum', ResultValue):
+                                currenthumi = StatusDeviceTuya('local_hum')
+                                if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
+                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
+                            if  searchCode('humidity', ResultValue):
+                                currenthumi = StatusDeviceTuya('humidity')
+                                if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
+                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
+                            if  searchCode('Hin', ResultValue):
+                                currenthumi = StatusDeviceTuya('Hin')
+                                if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
+                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
+                        if temp and hum:
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
