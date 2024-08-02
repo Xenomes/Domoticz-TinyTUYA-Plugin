@@ -1133,14 +1133,16 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (L/Min)', DeviceID=dev['id'], Unit=24, Type=243, Subtype=31, Options=options, Used=1).Create()
 
                 if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
+                    temp = searchCode('temp_current', StatusProperties) or searchCode('upper_temp', StatusProperties) or searchCode('c_temperature', StatusProperties) or searchCode('TempCurrent', StatusProperties)
+                    hum = searchCode('humidity_current', ResultValue)
                     if createDevice(dev['id'], 1):
                         Domoticz.Log('Create device Thermostat/heater/heatpump')
                         if searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties) or searchCode('Power', FunctionProperties) or searchCode('infared_switch', FunctionProperties):
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         else:
                             Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=0).Create()
-                    if createDevice(dev['id'], 2) and (searchCode('temp_current', StatusProperties) or searchCode('upper_temp', StatusProperties) or searchCode('c_temperature', StatusProperties) or searchCode('TempCurrent', StatusProperties)):
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 2) and temp:
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=2, Type=80, Subtype=5, Used=0 if hum else 1).Create()
                     if createDevice(dev['id'], 3) and (searchCode('set_temp', FunctionProperties) or searchCode('temp_set', FunctionProperties) or searchCode('temperature_c', FunctionProperties) or searchCode('TempSet', FunctionProperties) or searchCode('target_temp', FunctionProperties)):
                         if searchCode('temp_set', FunctionProperties):
                             temp = 'temp_set'
@@ -1216,6 +1218,8 @@ def onHandleThread(startup):
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
                                 Domoticz.Unit(Name=dev['name'] + ' (' + wind.capitalize().replace("_", " ") +')', DeviceID=dev['id'], Unit=9, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                    if createDevice(dev['id'], 10) and hum:
+                        Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=10, Type=81, Subtype=1, Used=0).Create()
                     if createDevice(dev['id'], 11) and ((searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'A') or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
                     if createDevice(dev['id'], 12) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue)):
@@ -1229,6 +1233,8 @@ def onHandleThread(startup):
                         options = {}
                         options['Custom'] = '1;mA'
                         Domoticz.Unit(Name=dev['name'] + ' (mA)', DeviceID=dev['id'], Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 16) and temp and hum:
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=16, Type=82, Subtype=5, Used=1).Create()                    
 
                 if dev_type in ('sensor', 'smartir'):
                     Domoticz.Log('Create Sensor device')
@@ -2330,6 +2336,8 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 24, str(current), 0, 0)
 
                     if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
+                        temp = searchCode('temp_current', StatusProperties) or searchCode('upper_temp', StatusProperties) or searchCode('c_temperature', StatusProperties) or searchCode('TempCurrent', StatusProperties)
+                        hum = searchCode('humidity_current', ResultValue)
                         if searchCode('switch', ResultValue) or searchCode('switch_1', ResultValue) or searchCode('Power', ResultValue) or searchCode('infared_switch', ResultValue):
                             if searchCode('switch', ResultValue):
                                 currentstatus = StatusDeviceTuya('switch')
@@ -2340,7 +2348,7 @@ def onHandleThread(startup):
                             elif searchCode('infared_switch', ResultValue):
                                 currentstatus = StatusDeviceTuya('infared_switch')
                             UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('temp_current', ResultValue) or searchCode('upper_temp', ResultValue) or searchCode('c_temperature', ResultValue) or searchCode('TempCurrent', ResultValue):
+                        if temp:
                             if searchCode('temp_current', ResultValue):
                                 currenttemp = StatusDeviceTuya('temp_current')
                             elif searchCode('upper_temp', ResultValue):
@@ -2381,34 +2389,6 @@ def onHandleThread(startup):
                                     mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('windspeed', ResultValue) or searchCode('fan_level', StatusProperties):
-                            if searchCode('fan_level', StatusProperties):
-                                wind = 'fan_level'
-                            else:
-                                wind = 'windspeed'
-                            currentmode = StatusDeviceTuya(wind)
-                            for item in FunctionProperties:
-                                if item['code'] == wind:
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[9].sValue):
-                                UpdateDevice(dev['id'], 9, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('cur_current', ResultValue):
-                            currentcurrent = StatusDeviceTuya('cur_current')
-                            currentpower = StatusDeviceTuya('cur_power')
-                            currentvoltage = StatusDeviceTuya('cur_voltage')
-                            if get_unit('cur_current', StatusProperties) == 'mA':
-                                UpdateDevice(dev['id'], 15, str(currentcurrent), 0, 0)
-                            else:
-                                UpdateDevice(dev['id'], 11, str(currentcurrent), 0, 0)
-                            UpdateDevice(dev['id'], 12, str(currentpower), 0, 0)
-                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
-
-                            UpdateDevice(dev['id'], 13, str(currentvoltage), 0, 0)
-
                         if searchCode('window_check', ResultValue):
                             currentstatus = StatusDeviceTuya('window_check')
                             UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
@@ -2422,6 +2402,40 @@ def onHandleThread(startup):
                             currenttemp = StatusDeviceTuya('temp_floor')
                             if str(currenttemp) != str(Devices[dev['id']].Units[8].sValue):
                                 UpdateDevice(dev['id'], 8, currenttemp, 0, 0)
+                        if searchCode('windspeed', ResultValue) or searchCode('fan_level', StatusProperties):
+                            if searchCode('fan_level', StatusProperties):
+                                wind = 'fan_level'
+                            else:
+                                wind = 'windspeed'
+                            currentmode = StatusDeviceTuya(wind)
+                            for item in FunctionProperties:
+                                if item['code'] == wind:
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[9].sValue):
+                                UpdateDevice(dev['id'], 9, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if  hum:
+                            currenthumi = StatusDeviceTuya('humidity_current')
+                            if str(currenthumi) != str(Devices[dev['id']].Units[10].nValue):
+                                UpdateDevice(dev['id'], 10, 0, currenthumi, 0)
+                        if searchCode('cur_current', ResultValue):
+                            currentcurrent = StatusDeviceTuya('cur_current')
+                            currentpower = StatusDeviceTuya('cur_power')
+                            currentvoltage = StatusDeviceTuya('cur_voltage')
+                            if get_unit('cur_current', StatusProperties) == 'mA':
+                                UpdateDevice(dev['id'], 15, str(currentcurrent), 0, 0)
+                            else:
+                                UpdateDevice(dev['id'], 11, str(currentcurrent), 0, 0)
+                            UpdateDevice(dev['id'], 12, str(currentpower), 0, 0)
+                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                            lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
+                            UpdateDevice(dev['id'], 13, str(currentvoltage), 0, 0)
+                            UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
+                        if temp and hum:
+                            currentdomo = Devices[dev['id']].Units[16].sValue
+                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
+                                UpdateDevice(dev['id'], 16, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
                         battery_device()
 
                     if dev_type in ('sensor', 'smartir'):
