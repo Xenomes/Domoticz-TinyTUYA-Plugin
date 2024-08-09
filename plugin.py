@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.9.4</h2><br/>
+        <h2>TinyTUYA Plugin version 1.9.5</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -2945,7 +2945,7 @@ def onHandleThread(startup):
                     if dev_type == 'waterleak':
                         if searchCode('watersensor_state', ResultValue):
                             currentstatus = StatusDeviceTuya('watersensor_state')
-                            if type(currentstatus) != bool:
+                            if not isinstance(currentstatus, bool):
                                 if currentstatus.lower() == 'alarm':
                                     currentstatus = True
                                 else:
@@ -3407,9 +3407,9 @@ def UpdateDevice(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate = 0):
             if sValue == None:
                 sValue = Devices[ID].Units[Unit].sValue
             Devices[ID].Units[Unit].sValue = str(sValue)
-            if type(sValue) == int or type(sValue) == float:
-                Devices[ID].Units[Unit].LastLevel = sValue
-            elif type(sValue) == dict:
+            if isinstance(sValue, (int, float)):
+                Devices[ID].Units[Unit].LastLevel = int(sValue)
+            elif isinstance(sValue, (dict)):
                 Devices[ID].Units[Unit].Color = sValue
             Devices[ID].Units[Unit].nValue = nValue
             Devices[ID].TimedOut = TimedOut
@@ -3426,7 +3426,7 @@ def StatusDeviceTuya(Function):
     else:
         Domoticz.Debug('StatusDeviceTuya called ' + Function + ' not found ')
         return None
-    if type(valueRaw) == int or type(valueRaw) == float:
+    if isinstance(valueRaw, (int, float)):
         valueT = get_scale(StatusProperties, Function, valueRaw)
     else:
         valueT = valueRaw
@@ -3447,7 +3447,7 @@ def SendCommandCloud(ID, CommandName, Status):
         actual_status = pct_to_brightness(sendfunction, actual_function_name, Status)
     elif 'temp_value' in CommandName or 'temp_value_v2' in CommandName:
         actual_status = temp_value_scale(sendfunction, actual_function_name, Status)
-    elif type(actual_status) == int or type(actual_status) == float:
+    elif isinstance(actual_status, (int, float)):
         actual_status = set_scale(sendfunction, actual_function_name, Status)
 
     # Domoticz.Debug("actual_function_name:" + str(actual_function_name))
