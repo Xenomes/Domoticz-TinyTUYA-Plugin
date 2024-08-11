@@ -145,7 +145,7 @@ class BasePlugin:
                     elif Command == 'On':
                         SendCommandCloud(DeviceID, 'switch', True)
                         UpdateDevice(DeviceID, Unit, True, 1, 0)
-                if not searchCode('switch', function):
+                else:
                     if Command == 'Off':
                         SendCommandCloud(DeviceID, 'switch_' + str(Unit), False)
                         UpdateDevice(DeviceID, Unit, False, 0, 0)
@@ -3437,9 +3437,9 @@ def SendCommandCloud(ID, CommandName, Status):
     actual_function_name = CommandName
     CommandName = list([CommandName])
     actual_status = Status
-    # Domoticz.Debug("device_functions:" + str(sendfunction))
-    # Domoticz.Debug("CommandName:" + str(CommandName))
-    # Domoticz.Debug("Status:" + str(Status))
+    Domoticz.Debug("device_functions:" + str(sendfunction))
+    Domoticz.Debug("CommandName:" + str(CommandName))
+    Domoticz.Debug("Status:" + str(Status))
     for item in sendfunction:
         if str(CommandName) in str(item['code']):
             actual_function_name = str(item['code'])
@@ -3447,18 +3447,18 @@ def SendCommandCloud(ID, CommandName, Status):
         actual_status = pct_to_brightness(sendfunction, actual_function_name, Status)
     elif 'temp_value' in CommandName or 'temp_value_v2' in CommandName:
         actual_status = temp_value_scale(sendfunction, actual_function_name, Status)
-    elif isinstance(actual_status, (int, float)):
+    elif isinstance(Status, (int, float)) and not isinstance(Status, bool):
         actual_status = set_scale(sendfunction, actual_function_name, Status)
 
-    # Domoticz.Debug("actual_function_name:" + str(actual_function_name))
-    # Domoticz.Debug("actual_status:" + str(actual_status))
+    Domoticz.Debug("actual_function_name:" + str(actual_function_name))
+    Domoticz.Debug("actual_status:" + str(actual_status))
     if actual_function_name in ('PowerOff', 'PowerOn'):
         uri='devices/'
     else:
         uri='iot-03/devices/'
     if testData != True:
         tuya.sendcommand(ID, {'commands': [{'code': actual_function_name, 'value': actual_status}]}, uri)
-    Domoticz.Debug('Command send to tuya :' + str(ID) + ", " + str({'commands': [{'code': actual_function_name, 'value': actual_status}]}) + ", " + str(uri))
+    Domoticz.Debug('Command send to tuya :' + str(ID) + ", " + str({'commands': [{'code': str(actual_function_name), 'value': str(actual_status)}]}) + ", " + str(uri))
 
 def pct_to_brightness(device_functions, actual_function_name, pct):
     if device_functions and actual_function_name:
