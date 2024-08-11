@@ -3437,9 +3437,9 @@ def SendCommandCloud(ID, CommandName, Status):
     actual_function_name = CommandName
     CommandName = list([CommandName])
     actual_status = Status
-    Domoticz.Debug("device_functions:" + str(sendfunction))
-    Domoticz.Debug("CommandName:" + str(CommandName))
-    Domoticz.Debug("Status:" + str(Status))
+    # Domoticz.Debug("device_functions:" + str(sendfunction))
+    # Domoticz.Debug("CommandName:" + str(CommandName))
+    # Domoticz.Debug("Status:" + str(Status))
     for item in sendfunction:
         if str(CommandName) in str(item['code']):
             actual_function_name = str(item['code'])
@@ -3450,8 +3450,8 @@ def SendCommandCloud(ID, CommandName, Status):
     elif isinstance(Status, (int, float)) and not isinstance(Status, bool):
         actual_status = set_scale(sendfunction, actual_function_name, Status)
 
-    Domoticz.Debug("actual_function_name:" + str(actual_function_name))
-    Domoticz.Debug("actual_status:" + str(actual_status))
+    # Domoticz.Debug("actual_function_name:" + str(actual_function_name))
+    # Domoticz.Debug("actual_status:" + str(actual_status))
     if actual_function_name in ('PowerOff', 'PowerOn'):
         uri='devices/'
     else:
