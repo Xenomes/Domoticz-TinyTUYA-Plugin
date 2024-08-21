@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.9.5</h2><br/>
+        <h2>TinyTUYA Plugin version 1.9.6</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -97,9 +97,7 @@ class BasePlugin:
             devs = Devices
             for dev in devs:
                 # Delete device is not reconised
-                if Devices[dev].Units[1].sValue == 'This device is not reconised, edit and run the debug_discovery with python from the tools directory and receate a issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so the device can be added.':
-                    Devices[dev].Units[1].Delete()
-                if Devices[dev].Units[1].sValue == 'This device is not recognized. Please edit and run the debug_discovery with Python from the tools directory and recreate an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.':
+                if 'This device is not recognized.' in Devices[dev].Units[1].sValue:
                     Devices[dev].Units[1].Delete()
         except:
             Domoticz.Log('onStop called')
@@ -234,7 +232,11 @@ class BasePlugin:
                         SendCommandCloud(DeviceID, 'control', 'stop')
                     UpdateDevice(DeviceID, 1, 'Stop', 1, 0)
                 elif Command == 'Set Level':
-                    SendCommandCloud(DeviceID, 'position', Level)
+                    if searchCode('percent_control', function):
+                        control = 'percent_control'
+                    elif searchCode('position', function):
+                        control = 'position'
+                    SendCommandCloud(DeviceID, control, Level)
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
 
             elif dev_type == 'smartheatpump' :
@@ -983,7 +985,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' outpower (kWh)', DeviceID=dev['id'], Unit=18, Type=243, Subtype=29, Used=1).Create()
                 if dev_type == 'cover' and createDevice(dev['id'], 1):
                     Domoticz.Log('Create device Cover')
-                    if searchCode('position', StatusProperties):
+                    if searchCode('position', StatusProperties) or searchCode('percent_control', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
                     else:
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=14, Used=1).Create()
@@ -1072,9 +1074,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 16) and searchCode('mode', FunctionProperties):
                         for item in FunctionProperties:
                             if item['code'] == 'mode':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1084,9 +1088,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 17) and searchCode('work_mode', FunctionProperties):
                         for item in FunctionProperties:
                             if item['code'] == 'work_mode':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1187,7 +1193,10 @@ def onHandleThread(startup):
                                 # else:
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1209,9 +1218,11 @@ def onHandleThread(startup):
                             wind = 'windspeed'
                         for item in StatusProperties:
                             if item['code'] == wind:
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1234,7 +1245,7 @@ def onHandleThread(startup):
                         options['Custom'] = '1;mA'
                         Domoticz.Unit(Name=dev['name'] + ' (mA)', DeviceID=dev['id'], Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 16) and temp and hum:
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=16, Type=82, Subtype=5, Used=1).Create()                    
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=16, Type=82, Subtype=5, Used=1).Create()
 
                 if dev_type in ('sensor', 'smartir'):
                     Domoticz.Log('Create Sensor device')
@@ -1356,9 +1367,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 4) and searchCode('fan_direction', FunctionProperties):
                         for item in FunctionProperties:
                             if item['code'] == 'fan_direction':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1373,7 +1386,10 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 2) and searchCode('Alarmtype', FunctionProperties):
                         for item in FunctionProperties:
                             if item['code'] == 'Alarmtype':
-                                the_values = json.loads(item['values'])
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 mode = ['off']
                                 mode.extend(the_values.get('range'))
                                 options = {}
@@ -1402,9 +1418,11 @@ def onHandleThread(startup):
                         Domoticz.Log('Create device Siren')
                         for item in FunctionProperties:
                             if item['code'] == 'alarm_state':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1542,9 +1560,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 3) and searchCode('device_mode', FunctionProperties):
                         for item in FunctionProperties:
                             if item['code'] == 'device_mode':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1597,9 +1617,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 2) and searchCode('feed_state', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'feed_state':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1638,9 +1660,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 2) and searchCode('work_state', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'work_state':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1669,9 +1693,11 @@ def onHandleThread(startup):
                         if createDevice(dev['id'], x) and searchCode('switch' + str(x) + '_value', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'switch' + str(x) + '_value':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                                     options = {}
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
@@ -1681,9 +1707,11 @@ def onHandleThread(startup):
                         if createDevice(dev['id'], x) and searchCode('switch_type_' + str(x), StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'switch_type_' + str(x):
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                                     options = {}
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
@@ -1693,9 +1721,11 @@ def onHandleThread(startup):
                         if createDevice(dev['id'], x) and searchCode('switch_mode' + str(x), StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'switch_mode' + str(x):
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                                     options = {}
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
@@ -1728,9 +1758,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 2) and searchCode('alarm_lock', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'alarm_lock':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1760,9 +1792,11 @@ def onHandleThread(startup):
                         elif searchCode('dehumidify_set_enum', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'dehumidify_set_enum':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                                     options = {}
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
@@ -1772,9 +1806,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 3) and searchCode('fan_speed_enum', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'fan_speed_enum':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1784,9 +1820,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 4) and searchCode('mode', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'mode':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1846,9 +1884,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 3) and searchCode('mode', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'mode':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1858,9 +1898,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 4) and searchCode('suction', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'suction':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1870,9 +1912,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 5) and searchCode('cistern', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'cistern':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1915,9 +1959,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 3) and searchCode('mode', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'mode':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1927,9 +1973,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 4) and searchCode('speed', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'speed':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1948,9 +1996,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 2) and searchCode('status', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'status':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1979,9 +2029,11 @@ def onHandleThread(startup):
                         Domoticz.Log('Create device Smart Mower')
                         for item in FunctionProperties:
                             if item['code'] == 'MachineControlCmd':
-                                the_values = json.loads(item['values'])
                                 mode = ['off']
-                                mode.extend(the_values.get('range'))
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2006,7 +2058,7 @@ def onHandleThread(startup):
                 if createDevice(dev['id'], 1) and dev['id'] not in str(Devices):
                     Domoticz.Log('No controls found for device: ' + str(dev['name']))
                     Domoticz.Unit(Name=dev['name'] + ' (Unknown Device)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
-                    UpdateDevice(dev['id'], 1, 'This device is not recognized. Please edit and run the debug_discovery with Python from the tools directory and recreate an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.', 0, 0)
+                    UpdateDevice(dev['id'], 1, 'This device is not recognized. Please run the debug_discovery with Python from the tools directory and create an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.', 0, 0)
 
                 # Set extra info
                 setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'product_id': dev['product_id'], 'version': deviceinfo['version']})  #, 'scalemode': scalemode})
@@ -2208,15 +2260,18 @@ def onHandleThread(startup):
                                     UpdateDevice(dev['id'], 1, brightness_to_pct(StatusProperties, 'bright_value', int(inv_val(level))), 1, 0)
 
                     if dev_type == 'cover':
-                        if searchCode('position', StatusProperties):
-                            currentposition = StatusDeviceTuya('position')
+                        if searchCode('position', StatusProperties) or searchCode('percent_control', FunctionProperties):
+                            if searchCode('position', StatusProperties):
+                                currentposition = StatusDeviceTuya('position')
+                            elif searchCode('percent_control', FunctionProperties):
+                                currentposition = StatusDeviceTuya('percent_control')
                             if str(currentposition) == '0':
                                 UpdateDevice(dev['id'], 1, currentposition, 1, 0)
                             if str(currentposition) == '100':
                                 UpdateDevice(dev['id'], 1, currentposition, 0, 0)
                             if str(currentposition) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, currentposition, 2, 0)
-                        if searchCode('mach_operate', StatusProperties):
+                        elif searchCode('mach_operate', StatusProperties):
                             currentstatus = StatusDeviceTuya('control')
                             if currentstatus == 'close':
                                 UpdateDevice(dev['id'], 1, 'ZZ', 0, 0)
@@ -2224,7 +2279,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'FZ', 1, 0)
                             elif currentstatus == 'stop':
                                 UpdateDevice(dev['id'], 1, 'STOP', 1, 0)
-                        if searchCode('control', StatusProperties):
+                        elif searchCode('control', StatusProperties):
                             currentstatus = StatusDeviceTuya('control')
                             if currentstatus == 'close':
                                 UpdateDevice(dev['id'], 1, 'Open', 0, 0)
@@ -2294,18 +2349,23 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya('mode')
                             for item in FunctionProperties:
                                 if item['code'] == 'mode':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[16].sValue):
                                 UpdateDevice(dev['id'], 16, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('work_mode', ResultValue) and checkDevice(dev['id'],17):
                             currentmode = StatusDeviceTuya('work_mode')
                             for item in FunctionProperties:
                                 if item['code'] == 'work_mode':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
+
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[17].sValue):
                                 UpdateDevice(dev['id'], 17, int(mode.index(str(currentmode)) * 10), 1, 0)
                         # if searchCode('temp_current', ResultValue):
@@ -2384,9 +2444,11 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya(modetype)
                             for item in FunctionProperties:
                                 if item['code'] == modetype:
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('window_check', ResultValue):
@@ -2410,9 +2472,11 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya(wind)
                             for item in FunctionProperties:
                                 if item['code'] == wind:
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[9].sValue):
                                 UpdateDevice(dev['id'], 9, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if  hum:
@@ -2647,9 +2711,11 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya('fan_direction')
                             for item in FunctionProperties:
                                 if item['code'] == 'fan_direction':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
 
@@ -2661,9 +2727,11 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya('Alarmtype')
                             for item in FunctionProperties:
                                 if item['code'] == 'Alarmtype':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('AlarmPeriod', ResultValue):
@@ -2684,18 +2752,22 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya('alarm_state')
                             for item in FunctionProperties:
                                 if item['code'] == 'alarm_state':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('alarm_volume', ResultValue):
                             currentmode = StatusDeviceTuya('alarm_volume')
                             for item in FunctionProperties:
                                 if item['code'] == 'alarm_volume':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
 
@@ -2854,18 +2926,22 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya('device_mode')
                             for item in FunctionProperties:
                                 if item['code'] == 'device_mode':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('pir_sensitivity', ResultValue):
                             currentmode = StatusDeviceTuya('pir_sensitivity')
                             for item in FunctionProperties:
                                 if item['code'] == 'pir_sensitivity':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
 
@@ -2889,9 +2965,11 @@ def onHandleThread(startup):
                         #     currentmode = StatusDeviceTuya('PIR')
                         #     for item in StatusProperties:
                         #         if item['code'] == 'PIR':
-                        #             the_values = json.loads(item['values'])
                         #             mode = ['off']
-                        #             mode.extend(the_values.get('range'))
+                        #             if item['type'] == 'Bitmap':
+                        #                 mode.extend(the_values.get('label'))
+                        #             else:
+                        #                 mode.extend(the_values.get('range'))
                         #     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                         #         UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
 
@@ -2923,9 +3001,11 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya('feed_state')
                             for item in StatusProperties:
                                 if item['code'] == 'feed_state':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('feed_report', ResultValue):
@@ -2974,9 +3054,11 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya('work_state')
                             for item in StatusProperties:
                                 if item['code'] == 'work_state':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('areaone', FunctionProperties):
@@ -3007,27 +3089,33 @@ def onHandleThread(startup):
                                     currentmode = StatusDeviceTuya('switch' + str(x) + '_value')
                                     for item in StatusProperties:
                                         if item['code'] == 'switch' + str(x) + '_value':
-                                            the_values = json.loads(item['values'])
                                             mode = ['off']
-                                            mode.extend(the_values.get('range'))
+                                            if item['type'] == 'Bitmap':
+                                                mode.extend(the_values.get('label'))
+                                            else:
+                                                mode.extend(the_values.get('range'))
                                     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
                                         UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
                                 if searchCode('switch_type_' + str(x), ResultValue):
                                     currentmode = StatusDeviceTuya('switch_type_' + str(x))
                                     for item in StatusProperties:
                                         if item['code'] == 'switch_type_' + str(x):
-                                            the_values = json.loads(item['values'])
                                             mode = ['off']
-                                            mode.extend(the_values.get('range'))
+                                            if item['type'] == 'Bitmap':
+                                                mode.extend(the_values.get('label'))
+                                            else:
+                                                mode.extend(the_values.get('range'))
                                     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
                                         UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
                                 if searchCode('switch_mode' + str(x), ResultValue):
                                     currentmode = StatusDeviceTuya('switch_mode' + str(x))
                                     for item in StatusProperties:
                                         if item['code'] == 'switch_mode' + str(x):
-                                            the_values = json.loads(item['values'])
                                             mode = ['off']
-                                            mode.extend(the_values.get('range'))
+                                            if item['type'] == 'Bitmap':
+                                                mode.extend(the_values.get('label'))
+                                            else:
+                                                mode.extend(the_values.get('range'))
                                     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
                                         UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
                         battery_device()
@@ -3087,9 +3175,11 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya('alarm_lock')
                             for item in StatusProperties:
                                 if item['code'] == 'alarm_lock':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         battery_device()
@@ -3113,27 +3203,33 @@ def onHandleThread(startup):
                                 currentmode = StatusDeviceTuya('dehumidify_set_enum')
                                 for item in StatusProperties:
                                     if item['code'] == 'dehumidify_set_enum':
-                                        the_values = json.loads(item['values'])
                                         mode = ['off']
-                                        mode.extend(the_values.get('range'))
+                                        if item['type'] == 'Bitmap':
+                                            mode.extend(the_values.get('label'))
+                                        else:
+                                            mode.extend(the_values.get('range'))
                                 if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                     UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('fan_speed_enum', ResultValue):
                             currentmode = StatusDeviceTuya('fan_speed_enum')
                             for item in StatusProperties:
                                 if item['code'] == 'fan_speed_enum':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('mode', ResultValue):
                             currentmode = StatusDeviceTuya('mode')
                             for item in StatusProperties:
                                 if item['code'] == 'mode':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
                         # if searchCode('anion', ResultValue):
@@ -3172,27 +3268,33 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya('mode')
                             for item in StatusProperties:
                                 if item['code'] == 'mode':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('suction', ResultValue):
                             currentmode = StatusDeviceTuya('suction')
                             for item in StatusProperties:
                                 if item['code'] == 'suction':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('cistern', ResultValue):
                             currentmode = StatusDeviceTuya('cistern')
                             for item in StatusProperties:
                                 if item['code'] == 'cistern':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[5].sValue):
                                 UpdateDevice(dev['id'], 5, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('status', ResultValue):
@@ -3211,9 +3313,11 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya('fault')
                             for item in StatusProperties:
                                 if item['code'] == 'fault':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('label'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode[currentmode]).lower() != str(Devices[dev['id']].Units[11].sValue).lower():
                                 UpdateDevice(dev['id'], 11, str(mode[currentmode]).capitalize(), 0, 0)
 
@@ -3237,18 +3341,22 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya('mode')
                             for item in StatusProperties:
                                 if item['code'] == 'mode':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('speed', ResultValue):
                             currentmode = StatusDeviceTuya('speed')
                             for item in StatusProperties:
                                 if item['code'] == 'speed':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('filter', ResultValue):
@@ -3266,9 +3374,11 @@ def onHandleThread(startup):
                             currentmode = StatusDeviceTuya('status')
                             for item in StatusProperties:
                                 if item['code'] == 'status':
-                                    the_values = json.loads(item['values'])
                                     mode = ['off']
-                                    mode.extend(the_values.get('range'))
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('temperature', ResultValue):
@@ -3324,13 +3434,13 @@ def DumpConfigToLog():
 def DeviceType(category):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
-    if category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr', 'aqcz'}:
+    if category in {'kg', 'cz', 'pc', 'znjdq', 'szjqr', 'aqcz'}:
         result = 'switch'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj'}:
         result = 'light'
     elif category in {'tgq', 'tgkg'}:
         result = 'dimmer'
-    elif category in {'cl', 'clkg', 'jdcljqr'}:
+    elif category in {'cl', 'clkg', 'jdcljqr', 'tdq'}:
         result = 'cover'
     elif category in {'qn'}:
         result = 'heater'

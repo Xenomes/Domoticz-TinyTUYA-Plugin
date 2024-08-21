@@ -81,3 +81,4 @@
 | 1.9.3 | Add unsupported airconditioner |
 | 1.9.4 | Add unsupported dehumidifier |
 | 1.9.5 | Update for Python >3.11 |
+| 1.9.6 | Add unsupported roller shutter |
