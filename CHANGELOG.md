@@ -82,3 +82,4 @@
 | 1.9.4 | Add unsupported dehumidifier |
 | 1.9.5 | Update for Python >3.11 |
 | 1.9.6 | Add unsupported roller shutter |
+| 1.9.7 | fix category tdq to switch |
