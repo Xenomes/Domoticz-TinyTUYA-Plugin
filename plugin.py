@@ -883,7 +883,6 @@ def onHandleThread(startup):
                     online = tuya.getconnectstatus(dev['id'])
                 # Set last update
                 FunctionProperties = properties[dev['id']]['functions']
-                Domoticz.Debug(properties[dev['id']])
                 dev_type = DeviceType(properties[dev['id']]['category'], dev['product_id'])
                 StatusProperties = properties[dev['id']]['status']
             except:
