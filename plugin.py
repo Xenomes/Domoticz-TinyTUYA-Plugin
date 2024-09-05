@@ -874,7 +874,7 @@ def onHandleThread(startup):
         run = 0
         for dev in devs:
             run += 1
-            Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'])))
+            Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'], dev['product_id'])))
             try:
                 last_update = time.time()
                 if testData == True:
@@ -883,7 +883,8 @@ def onHandleThread(startup):
                     online = tuya.getconnectstatus(dev['id'])
                 # Set last update
                 FunctionProperties = properties[dev['id']]['functions']
-                dev_type = DeviceType(properties[dev['id']]['category'])
+                Domoticz.Debug(properties[dev['id']])
+                dev_type = DeviceType(properties[dev['id']]['category'], dev['product_id'])
                 StatusProperties = properties[dev['id']]['status']
             except:
                 raise Exception('Credentials are incorrect or tuya subscription has expired!')
@@ -2087,7 +2088,7 @@ def onHandleThread(startup):
                     UpdateDevice(dev['id'], 1, 'This device is not recognized. Please run the debug_discovery with Python from the tools directory and create an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.', 0, 0)
 
                 # Set extra info
-                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'product_id': dev['product_id'], 'version': deviceinfo['version']})  #, 'scalemode': scalemode})
+                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'product_id': dev['product_id'] , 'version': deviceinfo['version']})  #, 'scalemode': scalemode})
                 # Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
@@ -3483,7 +3484,7 @@ def DumpConfigToLog():
     return
 
 # Select device type from category
-def DeviceType(category):
+def DeviceType(category, product_id=None):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
     if product_id == 'uoa3mayicscacseb':
