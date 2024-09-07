@@ -52,11 +52,6 @@
     </params>
 </plugin>
 """
-try:
-    import DomoticzEx as Domoticz
-except ImportError:
-    import fakeDomoticz as Domoticz
-import tinytuya
 import os
 import sys
 import ast
@@ -65,6 +60,11 @@ import colorsys
 import time
 import re
 import base64
+try:
+    import DomoticzEx as Domoticz
+except ImportError:
+    import fakeDomoticz as Domoticz
+import tinytuya
 
 class BasePlugin:
     enabled = False
@@ -109,7 +109,12 @@ class BasePlugin:
         Domoticz.Log('onMessage called')
 
     def onCommand(self, DeviceID, Unit, Command, Level, Color):
-        Domoticz.Debug("onCommand called for Device " + str(DeviceID) + " Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level) + "', Color: " + str(Color))
+        Domoticz.Debug("onCommand called for Device " +
+                       str(DeviceID) + " Unit " +
+                       str(Unit) + ": Parameter '" +
+                       str(Command) + "', Level: " +
+                       str(Level) + "', Color: " +
+                       str(Color))
 
         # device for the Domoticz
         dev = Devices[DeviceID].Units[Unit]
@@ -3488,11 +3493,11 @@ def DeviceType(category, product_id=None):
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
     if product_id == 'uoa3mayicscacseb':
         result = 'cover'
-    elif category in {'kg', 'cz', 'pc', 'znjdq', 'szjqr', 'aqcz'}:
+    elif category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr', 'aqcz'}:
         result = 'switch'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj'}:
         result = 'light'
-    elif category in {'tgq', 'tgkg', 'tdq'}:
+    elif category in {'tgq', 'tgkg'}:
         result = 'dimmer'
     elif category in {'cl', 'clkg', 'jdcljqr'}:
         result = 'cover'
@@ -3856,5 +3861,5 @@ def setConfigItem(Key=None, Value=None):
         Domoticz.Error('Domoticz.Configuration operation failed: ' + str(inst))
     return Config
 
-def version(v):
-    return tuple(map(int, (v.split("."))))
+def version(ver):
+    return tuple(map(int, (ver.split("."))))
