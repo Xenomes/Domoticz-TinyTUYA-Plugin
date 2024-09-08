@@ -83,3 +83,4 @@
 | 1.9.5 | Update for Python >3.11 |
 | 1.9.6 | Add unsupported roller shutter |
 | 1.9.7 | Fix category tdq to switch |
+| 1.9.8 | Add unsupported roller shutter |
