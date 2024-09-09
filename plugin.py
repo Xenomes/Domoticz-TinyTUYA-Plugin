@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.9.8</h2><br/>
+        <h2>TinyTUYA Plugin version 1.9.9</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1491,6 +1491,10 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=3, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('phase_a', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=29, Used=1).Create()
+                    if  createDevice(dev['id'], 5) and searchCode('switch', ResultValue):
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 6) and searchCode('fault', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=6, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                 if dev_type == 'powermeter' and searchCode('direction_a', ResultValue):
                     if createDevice(dev['id'], 1) and searchCode('voltage_a', ResultValue):
@@ -1538,7 +1542,7 @@ def onHandleThread(startup):
                         options['Custom'] = '1;kWh'
                         Domoticz.Unit(Name=dev['name'] + ' B Reverse (kWh)', DeviceID=dev['id'], Unit=25, Type=243, Subtype=31, Options=options, Used=1).Create()
 
-                if dev_type == 'powermeter' and (searchCode('switch_1', StatusProperties) or searchCode('switch', StatusProperties)):
+                if dev_type == 'powermeter' and (searchCode('switch_1', StatusProperties) or searchCode('switch', StatusProperties)) and not searchCode('phase_a', ResultValue):
                     if  createDevice(dev['id'], 1) and (searchCode('switch_1', StatusProperties) or searchCode('switch', StatusProperties)):
                         Domoticz.Log('Create device Switch')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -2886,6 +2890,23 @@ def onHandleThread(startup):
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[4].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev['id']].Units[4].sValue if len(Devices[dev['id']].Units[4].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 4, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
+                            if searchCode('switch', StatusProperties):
+                                currentstatus = StatusDeviceTuya('switch')
+                                UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
+                            if searchCode('fault', StatusProperties):
+                                currentnum = StatusDeviceTuya('fault')
+                                for item in StatusProperties:
+                                    if item['code'] == 'fault':
+                                        the_values = json.loads(item['values'])
+                                        mode = ['no fault']
+                                        if item['type'] == 'Bitmap':
+                                            mode.extend(the_values.get('label'))
+                                            currentmode = mode[currentnum].replace("_", " ").capitalize()
+                                        else:
+                                            mode.extend(the_values.get('range'))
+                                            currentmode = mode[currentnum].replace("_", " ").capitalize()
+                                if str(currentmode) != str(Devices[dev['id']].Units[6].nValue):
+                                    UpdateDevice(dev['id'], 6, str(currentmode), 1, 0)
 
                         # 2 phase Meter with reverse
                         if searchCode('direction_a', ResultValue):
@@ -2921,7 +2942,7 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 24, str(currentForwardB), 0, 0)
                             UpdateDevice(dev['id'], 25, str(currentReverseB), 0, 0)
 
-                    if dev_type == 'powermeter' and (searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties)):
+                    if dev_type == 'powermeter' and (searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties)) and not searchCode('phase_a', ResultValue):
                         if searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties):
                             if searchCode('switch_1', FunctionProperties):
                                 currentstatus = StatusDeviceTuya('switch_1')
@@ -3362,18 +3383,20 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 10, StatusDeviceTuya('filter'), 0, 0)
                         # if searchCode('fault', ResultValue):
                         #     UpdateDevice(dev['id'], 11, StatusDeviceTuya('fault'), 0, 0)
-                        if searchCode('fault', ResultValue):
-                            currentmode = StatusDeviceTuya('fault')
+                        if searchCode('fault', StatusProperties):
+                            currentnum = StatusDeviceTuya('fault')
                             for item in StatusProperties:
                                 if item['code'] == 'fault':
                                     the_values = json.loads(item['values'])
-                                    mode = ['off']
+                                    mode = ['no fault']
                                     if item['type'] == 'Bitmap':
                                         mode.extend(the_values.get('label'))
+                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
                                     else:
                                         mode.extend(the_values.get('range'))
-                            if str(mode[currentmode]).lower() != str(Devices[dev['id']].Units[11].sValue).lower():
-                                UpdateDevice(dev['id'], 11, str(mode[currentmode]).capitalize(), 0, 0)
+                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
+                            if str(currentmode) != str(Devices[dev['id']].Units[11].nValue):
+                                UpdateDevice(dev['id'], 11, str(currentmode), 1, 0)
 
                     if dev_type == 'multifunctionalarm':
                         if searchCode('master_mode', ResultValue):
