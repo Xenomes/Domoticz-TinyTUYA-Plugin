@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.9a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="1.9.9b" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 1.9.9a</h2><br/>
+        <h2>TinyTUYA Plugin version 1.9.9b</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -2301,9 +2301,9 @@ def onHandleThread(startup):
                             elif searchCode('percent_control', FunctionProperties):
                                 currentposition = StatusDeviceTuya('percent_control')
                             if str(currentposition) == '0':
-                                UpdateDevice(dev['id'], 1, currentposition, 1, 0)
-                            if str(currentposition) == '100':
                                 UpdateDevice(dev['id'], 1, currentposition, 0, 0)
+                            if str(currentposition) == '100':
+                                UpdateDevice(dev['id'], 1, currentposition, 1, 0)
                             if str(currentposition) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, currentposition, 2, 0)
                         elif searchCode('mach_operate', StatusProperties):
