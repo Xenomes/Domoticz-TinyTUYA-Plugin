@@ -75,11 +75,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 1.9.6 | Add unsupported roller shutter |
 | 1.9.7 | Fix category tdq to switch |
 | 1.9.8 | Add unsupported roller shutter |
 | 1.9.9 | Add extra control powermeter |
 | 2.0.0 | Add support for AV-TTW5-W/RH Ventilator |
+| 2.0.1 | Add support for Caravan and Home Air Conditioner AC3501 |
 
  [The full Change log](CHANGELOG.md)
 

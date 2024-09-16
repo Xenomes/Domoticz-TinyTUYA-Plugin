@@ -364,8 +364,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'eco', True)
                     UpdateDevice(DeviceID, 7, True, 1, 0)
                 elif Command == 'Set Level' and Unit  == 9:
-                    if searchCode('fan_level', function):
-                        wind = 'fan_level'
+                    if searchCode('fan_level', function) or searchCode('fan_speed_enum', function):
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandCloud(DeviceID, 9, mode[int(Level / 10)])
                         UpdateDevice(DeviceID, 9, Level, 1, 0)
@@ -373,6 +372,12 @@ class BasePlugin:
                         wind = 'windspeed'
                         SendCommandCloud(DeviceID, wind, Level)
                         UpdateDevice(DeviceID, 9, Level, 1, 0)
+                if Command == 'Off' and Unit == 17:
+                    SendCommandCloud(DeviceID, 'anti_bother', False)
+                    UpdateDevice(DeviceID, Unit, False, 0, 0)
+                elif Command == 'On' and Unit == 17:
+                    SendCommandCloud(DeviceID, 'anti_bother', True)
+                    UpdateDevice(DeviceID, Unit, True, 1, 0)
 
             if dev_type == 'sensor':
                 if Command == 'Set Level' and Unit == 45:
@@ -879,7 +884,10 @@ def onHandleThread(startup):
                 devs = []
                 i = 0
                 while len(devs) == 0 and i < 4:
-                    devs = tuya.getdevices()
+                    try:
+                        devs = tuya.getdevices()
+                    except:
+                        devs = ''
                     if i > 0:
                         Domoticz.Log('No device data returned for Tuya. Trying again!')
                     i += 1
@@ -1259,9 +1267,11 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Eco)', DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 8) and searchCode('temp_floor', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=8, Type=80, Subtype=5, Used=1).Create()
-                    if createDevice(dev['id'], 9) and (searchCode('windspeed', StatusProperties) or searchCode('fan_level', StatusProperties)):
+                    if createDevice(dev['id'], 9) and (searchCode('windspeed', StatusProperties) or searchCode('fan_level', StatusProperties) or searchCode('fan_speed_enum', StatusProperties)):
                         if searchCode('fan_level', StatusProperties):
                             wind = 'fan_level'
+                        elif searchCode('fan_speed_enum', StatusProperties):
+                            wind = 'fan_speed_enum'
                         else:
                             wind = 'windspeed'
                         for item in StatusProperties:
@@ -1295,6 +1305,10 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (mA)', DeviceID=dev['id'], Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 16) and temp and hum:
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=16, Type=82, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 17) and searchCode('anti_bother', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Anti bother)', DeviceID=dev['id'], Unit=17, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 18) and searchCode('fault', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                 if dev_type in ('sensor', 'smartir'):
                     Domoticz.Log('Create Sensor device')
@@ -2604,9 +2618,11 @@ def onHandleThread(startup):
                             currenttemp = StatusDeviceTuya('temp_floor')
                             if str(currenttemp) != str(Devices[dev['id']].Units[8].sValue):
                                 UpdateDevice(dev['id'], 8, currenttemp, 0, 0)
-                        if searchCode('windspeed', ResultValue) or searchCode('fan_level', StatusProperties):
+                        if searchCode('windspeed', ResultValue) or searchCode('fan_level', StatusProperties) or searchCode('fan_speed_enum', StatusProperties):
                             if searchCode('fan_level', StatusProperties):
                                 wind = 'fan_level'
+                            elif searchCode('fan_speed_enum', StatusProperties):
+                                wind = 'fan_speed_enum'
                             else:
                                 wind = 'windspeed'
                             currentmode = StatusDeviceTuya(wind)
@@ -2641,6 +2657,23 @@ def onHandleThread(startup):
                             currentdomo = Devices[dev['id']].Units[16].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 16, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
+                        if searchCode('anti_bother', ResultValue):
+                            currentstatus = StatusDeviceTuya('anti_bother')
+                            UpdateDevice(dev['id'], 17, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('fault', StatusProperties):
+                            currentnum = StatusDeviceTuya('fault')
+                            for item in StatusProperties:
+                                if item['code'] == 'fault':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['no fault']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
+                                    else:
+                                        mode.extend(the_values.get('range'))
+                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
+                            if str(currentmode) != str(Devices[dev['id']].Units[18].nValue):
+                                UpdateDevice(dev['id'], 18, str(currentmode), 1, 0)
                         battery_device()
 
                     if dev_type in ('sensor', 'smartir'):
@@ -3693,7 +3726,7 @@ def DeviceType(category, product_id=None):
         result = 'cover'
     elif category in {'qn'}:
         result = 'heater'
-    elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt','hwktwkq'}:
+    elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt','hwktwkq', 'ydkt'}:
         result = 'thermostat'
     elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy'}:
         result = 'sensor'
