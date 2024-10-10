@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.0.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.0.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.0.1</h2><br/>
+        <h2>TinyTUYA Plugin version 2.0.2</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -96,7 +96,7 @@ class BasePlugin:
         try:
             devs = Devices
             for dev in devs:
-                # Delete device is not reconised
+                # Delete device is not recognised
                 if 'This device is not recognized.' in Devices[dev].Units[1].sValue:
                     Devices[dev].Units[1].Delete()
         except:
@@ -1018,6 +1018,14 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 4)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('switch_5', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 5)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 6) and searchCode('switch_6', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Switch 6)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 7) and searchCode('switch_7', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Switch 7)', DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 8) and searchCode('switch_8', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Switch 8)', DeviceID=dev['id'], Unit=8, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 9) and searchCode('switch_9', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Switch 9)', DeviceID=dev['id'], Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 11) and ((searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'A') or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
                     if createDevice(dev['id'], 12) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue)):
@@ -2275,7 +2283,7 @@ def onHandleThread(startup):
                             currentstatus = StatusDeviceTuya('switch')
                             UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
 
-                        for switch_number in range(2, 5):
+                        for switch_number in range(2, 9):
                             switch_type = f'switch_{switch_number}'
                             if searchCode(switch_type, FunctionProperties):
                                 currentstatus = StatusDeviceTuya(switch_type)
