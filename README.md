@@ -75,11 +75,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 1.9.8 | Add unsupported roller shutter |
 | 1.9.9 | Add extra control powermeter |
 | 2.0.0 | Add support for AV-TTW5-W/RH Ventilator |
 | 2.0.1 | Add support for Caravan and Home Air Conditioner AC3501 |
 | 2.0.2 | Add support for 8ch Tuya Wireless Switch |
+| 2.0.3 | Add a second channel cover control |
 
  [The full Change log](CHANGELOG.md)
 

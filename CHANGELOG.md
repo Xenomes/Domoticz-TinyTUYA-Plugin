@@ -88,3 +88,4 @@
 | 2.0.0 | Add support for AV-TTW5-W/RH Ventilator |
 | 2.0.1 | Add support for Caravan and Home Air Conditioner AC3501 |
 | 2.0.2 | Add support for 8ch Tuya Wireless Switch |
+| 2.0.3 | Add a second channel cover control |
