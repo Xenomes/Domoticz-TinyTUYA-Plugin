@@ -89,3 +89,4 @@
 | 2.0.1 | Add support for Caravan and Home Air Conditioner AC3501 |
 | 2.0.2 | Add support for 8ch Tuya Wireless Switch |
 | 2.0.3 | Add a second channel cover control |
+| 2.0.4 | Add Power meter with dual channel by romaint2b |
