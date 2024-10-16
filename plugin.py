@@ -1046,6 +1046,15 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' outpower (W)', DeviceID=dev['id'], Unit=17, Type=248, Subtype=1, Used=1).Create()
                     if createDevice(dev['id'], 18) and (searchCode('out_power', ResultValue) or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' outpower (kWh)', DeviceID=dev['id'], Unit=18, Type=243, Subtype=29, Used=1).Create()
+                    if createDevice(dev['id'], 19) and (searchCode('power_a', ResultValue)):
+                        Domoticz.Unit(Name=dev['name'] + ' Reverse A(kWh)', DeviceID=dev['id'], Unit=19, Type=243, Subtype=29, Used=1).Create()
+                    if createDevice(dev['id'], 20) and (searchCode('power_a', ResultValue)):
+                        Domoticz.Unit(Name=dev['name'] + ' Forward A(kWh)', DeviceID=dev['id'], Unit=20, Type=243, Subtype=29, Used=1).Create()
+                    if createDevice(dev['id'], 21) and (searchCode('power_b', ResultValue)):
+                        Domoticz.Unit(Name=dev['name'] + ' Reverse B(kWh)', DeviceID=dev['id'], Unit=21, Type=243, Subtype=29, Used=1).Create()
+                    if createDevice(dev['id'], 22) and (searchCode('power_b', ResultValue)):
+                        Domoticz.Unit(Name=dev['name'] + ' Forward B(kWh)', DeviceID=dev['id'], Unit=22, Type=243, Subtype=29, Used=1).Create()
+                    
                 if dev_type == 'cover' and createDevice(dev['id'], 1):
                     Domoticz.Log('Create device Cover')
                     if searchCode('position', StatusProperties) or searchCode('percent_control', FunctionProperties):
@@ -2316,7 +2325,38 @@ def onHandleThread(startup):
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[18].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev['id']].Units[18].sValue if len(Devices[dev['id']].Units[18].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 18, str(outpower) + ';' + str(float(lastvalue.split(';')[1]) + ((outpower) * (lastupdate / 3600))) , 0, 0, 1)
-
+                        if searchCode('power_a', ResultValue):
+                            powerA = StatusDeviceTuya('power_a')
+                            dirA = StatusDeviceTuya('direction_a')
+                            if dirA == 'REVERSE':
+                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[19].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                lastvalue = Devices[dev['id']].Units[19].sValue if len(Devices[dev['id']].Units[19].sValue) > 0 else '0;0'
+                                lastvalueR = Devices[dev['id']].Units[20].sValue if len(Devices[dev['id']].Units[20].sValue) > 0 else '0;0'
+                                UpdateDevice(dev['id'], 19, str(powerA) + ';' + str(float(lastvalue.split(';')[1]) + ((powerA) * (lastupdate / 3600))) , 0, 0, 1)
+                                UpdateDevice(dev['id'], 20, '0;'+str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
+                            if dirA == 'FORWARD':
+                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[20].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                lastvalue = Devices[dev['id']].Units[20].sValue if len(Devices[dev['id']].Units[20].sValue) > 0 else '0;0'
+                                lastvalueR = Devices[dev['id']].Units[19].sValue if len(Devices[dev['id']].Units[19].sValue) > 0 else '0;0'
+                                UpdateDevice(dev['id'], 20, str(powerA) + ';' + str(float(lastvalue.split(';')[1]) + ((powerA) * (lastupdate / 3600))) , 0, 0, 1)
+                                UpdateDevice(dev['id'], 19, '0;'+str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
+                        
+                        if searchCode('power_b', ResultValue):
+                            powerB = StatusDeviceTuya('power_b')
+                            dirB = StatusDeviceTuya('direction_b')
+                            if dirB == 'REVERSE':
+                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[21].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                lastvalue = Devices[dev['id']].Units[21].sValue if len(Devices[dev['id']].Units[21].sValue) > 0 else '0;0'
+                                lastvalueR = Devices[dev['id']].Units[22].sValue if len(Devices[dev['id']].Units[22].sValue) > 0 else '0;0'
+                                UpdateDevice(dev['id'], 21, str(powerB) + ';' + str(float(lastvalue.split(';')[1]) + ((powerB) * (lastupdate / 3600))) , 0, 0, 1)
+                                UpdateDevice(dev['id'], 22, '0;'+str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
+                            if dirB == 'FORWARD':
+                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[22].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                lastvalue = Devices[dev['id']].Units[22].sValue if len(Devices[dev['id']].Units[22].sValue) > 0 else '0;0'
+                                lastvalueR = Devices[dev['id']].Units[21].sValue if len(Devices[dev['id']].Units[21].sValue) > 0 else '0;0'
+                                UpdateDevice(dev['id'], 22, str(powerB) + ';' + str(float(lastvalue.split(';')[1]) + ((powerB) * (lastupdate / 3600))) , 0, 0, 1)
+                                UpdateDevice(dev['id'], 21, '0;'+str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
+                        
                         if searchCode('phase_a', ResultValue):
                             base64_string = StatusDeviceTuya('phase_a')
                             # Decode base64 string
