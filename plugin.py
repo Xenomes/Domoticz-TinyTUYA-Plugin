@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.0.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.0.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.0.4</h2><br/>
+        <h2>TinyTUYA Plugin version 2.0.6</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -155,6 +155,17 @@ class BasePlugin:
                     elif Command == 'On':
                         SendCommandCloud(DeviceID, 'switch_' + str(Unit), True)
                         UpdateDevice(DeviceID, Unit, True, 1, 0)
+
+            if dev_type == 'wswitch':
+                if Command == 'Set Level':
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    if searchCode('switch' + str(Unit) + '_value', status):
+                        SendCommandCloud(DeviceID, 'switch' + str(Unit) + '_value', mode[int(Level / 10)])
+                    if searchCode('switch_type_' + str(Unit), status):
+                        SendCommandCloud(DeviceID, 'switch_type_' + str(Unit), mode[int(Level / 10)])
+                    if searchCode('switch_mode' + str(Unit), status):
+                        SendCommandCloud(DeviceID, 'switch_mode' + str(Unit), mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
             elif dev_type in ('dimmer'):
                 if Command == 'Off':
@@ -598,17 +609,6 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'areasix', True)
                     UpdateDevice(DeviceID, 8, True, 1, 0)
 
-            if dev_type == 'wswitch':
-                if Command == 'Set Level':
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                    if searchCode('switch' + str(Unit) + '_value', status):
-                        SendCommandCloud(DeviceID, 'switch' + str(Unit) + '_value', mode[int(Level / 10)])
-                    if searchCode('switch_type_' + str(Unit), status):
-                        SendCommandCloud(DeviceID, 'switch_type_' + str(Unit), mode[int(Level / 10)])
-                    if searchCode('switch_mode' + str(Unit), status):
-                        SendCommandCloud(DeviceID, 'switch_mode' + str(Unit), mode[int(Level / 10)])
-                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
-
             if dev_type == 'starlight':
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, 'switch_led', False)
@@ -755,6 +755,18 @@ class BasePlugin:
                 elif Command == 'On' and Unit == 2:
                     SendCommandCloud(DeviceID, 'MachineRainMode', True)
                     UpdateDevice(DeviceID, 2, True, 1, 0)
+
+            if dev_type == 'human_presence':
+                if Command == 'Set Level' and Unit == 2:
+                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    SendCommandCloud(DeviceID, 'sensitivity', mode[int(Level / 10)])
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                elif Command == 'Set Level' and Unit  == 3:
+                    SendCommandCloud(DeviceID, 'near_detection', Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                elif Command == 'Set Level' and Unit  == 4:
+                    SendCommandCloud(DeviceID, 'far_detection', Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
             if dev_type == 'infrared_ac':
                 if Command == 'Off' and Unit == 1:
@@ -1415,6 +1427,11 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (inHg)', DeviceID=dev['id'], Unit=47, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
                     # if createDevice(dev['id'], 47) and searchCode('alarm_switch', FunctionProperties):
                     #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if dev_type in ('smartir') and dev['id'] not in str(Devices):
+                        Domoticz.Log('Infrared device: ' + str(dev['name']))
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
+                        UpdateDevice(dev['id'], 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
+
 
                 if createDevice(dev['id'], 1) and dev_type == 'doorbell':
                     if createDevice(dev['id'], 1) and (searchCode('basic_indicator', FunctionProperties) or searchCode('doorbell_active', FunctionProperties)):
@@ -2218,6 +2235,59 @@ def onHandleThread(startup):
                             Domoticz.Unit(Name=dev['name'] + ' (Warnig)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=19, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('MachineError', ResultValue):
                             Domoticz.Unit(Name=dev['name'] + ' (Error)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=19, Used=1).Create()
+
+                if dev_type == 'human_presence':
+                    if createDevice(dev['id'], 1) and searchCode('presence_state', ResultValue):
+                        Domoticz.Log('Create device Human presence sensor')
+                        Domoticz.Unit(Name=dev['name'] + ' (Presence)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('sensitivity', FunctionProperties):
+                        for item in FunctionProperties:
+                            if item['code'] == 'sensitivity':
+                                the_values = json.loads(item['values'])
+                                mode = ['0']
+                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    mode.extend([str(num)])
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0'
+                        Domoticz.Unit(Name=dev['name'] + ' (Sensitivity)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 3) and (searchCode('near_detection', ResultValue)):
+                        for item in StatusProperties:
+                            temp = 'near_detection'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Near detection)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 4) and (searchCode('far_detection', ResultValue)):
+                        for item in StatusProperties:
+                            temp = 'far_detection'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Far detection)', DeviceID=dev['id'], Unit=4, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 5) and searchCode('checking_result', ResultValue):
+                            Domoticz.Unit(Name=dev['name'] + ' (Result)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=19, Used=1).Create()
+                    if createDevice(dev['id'], 6) and (searchCode('target_dis_closest', ResultValue)):
+                        for item in StatusProperties:
+                            temp = 'target_dis_closest'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Traget)', DeviceID=dev['id'], Unit=6, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
 
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
@@ -3416,7 +3486,7 @@ def onHandleThread(startup):
                     if dev_type == 'wswitch':
                         timestamp = int(time.mktime(time.localtime()) * 1000)
                         if (int(timestamp) - int(t)) < 61000:
-                            for x in range(1, 10):
+                            for x in range(1, 4):
                                 if searchCode('switch' + str(x) + '_value', ResultValue):
                                     currentmode = StatusDeviceTuya('switch' + str(x) + '_value')
                                     for item in StatusProperties:
@@ -3453,6 +3523,11 @@ def onHandleThread(startup):
                                                 mode.extend(the_values.get('range'))
                                     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
                                         UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
+                        else:
+                            for x in range(1, 4):
+                                if searchCode('switch' + str(x) + '_value', ResultValue) or searchCode('switch_type_' + str(x), ResultValue) or earchCode('switch_mode' + str(x), ResultValue):
+                                    if str(0) != str(Devices[dev['id']].Units[x].sValue):
+                                        UpdateDevice(dev['id'], x, int(0), 0, 0, 1)
                         battery_device()
 
                     if dev_type == 'lightsensor':
@@ -3752,6 +3827,41 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 5, StatusDeviceTuya('MachineError'), 0, 0)
                         battery_device()
 
+                    if dev_type == 'human_presence':
+                        if searchCode('presence_state', ResultValue):
+                            currentstatus = StatusDeviceTuya('presence_state')
+                            if currentstatus == 'none':
+                                UpdateDevice(dev['id'], 1, False, 0, 0)
+                            elif currentstatus == 'pir':
+                                UpdateDevice(dev['id'], 1, True, 1, 0)
+                        if searchCode('sensitivity', ResultValue):
+                            currentmode = StatusDeviceTuya('sensitivity')
+                            for item in StatusProperties:
+                                if item['code'] == 'sensitivity':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['0']
+                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                        mode.extend([str(num)])
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
+                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('near_detection', ResultValue):
+                            near_detection = StatusDeviceTuya('near_detection')
+                            if str(near_detection) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, near_detection, 0, 0)
+                        if searchCode('far_detection', ResultValue):
+                            far_detection = StatusDeviceTuya('far_detection')
+                            if str(far_detection) != str(Devices[dev['id']].Units[4].sValue):
+                                UpdateDevice(dev['id'], 4, far_detection, 0, 0)
+                        if searchCode('checking_result', StatusProperties):
+                            currentnum = StatusDeviceTuya('checking_result')
+                            currentmode = currentnum.replace("_", " ").capitalize()
+                            if str(currentmode) != str(Devices[dev['id']].Units[5].nValue):
+                                UpdateDevice(dev['id'], 5, str(currentmode), 1, 0)
+                        if searchCode('target_dis_closest', ResultValue):
+                            target_dis_closest = StatusDeviceTuya('target_dis_closest')
+                            if str(target_dis_closest) != str(Devices[dev['id']].Units[6].sValue):
+                                UpdateDevice(dev['id'], 6, target_dis_closest, 0, 0)
+
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
                     Domoticz.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
@@ -3852,6 +3962,8 @@ def DeviceType(category, product_id=None):
         result = 'smartkettle'
     elif category in {'gcj'}:
         result = 'mower'
+    elif category in {'hps'}:
+        result = 'human_presence'
     elif category in {'infrared_ac'}:
         result = 'infrared_ac'
     elif 'infrared_' in category: # keep it last
