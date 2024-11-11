@@ -75,11 +75,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 2.0.2 | Add support for 8ch Tuya Wireless Switch |
 | 2.0.3 | Add a second channel cover control |
 | 2.0.4 | Add Power meter with dual channel by romaint2b |
 | 2.0.5 | Update for  Smart Scene Switch 4 Gang support #133 |
 | 2.0.6 | Add Presence sensor with switch support #132 |
+| 2.0.7 | Fix issue #137, #138 |
 
  [The full Change log](CHANGELOG.md)
 

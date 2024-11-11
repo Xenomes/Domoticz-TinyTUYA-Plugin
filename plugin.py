@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.0.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.0.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.0.6</h2><br/>
+        <h2>TinyTUYA Plugin version 2.0.7</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -2288,6 +2288,21 @@ def onHandleThread(startup):
                                 options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (Traget)', DeviceID=dev['id'], Unit=6, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 10) and searchCode('presence_state', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'presence_state':
+                                the_values = json.loads(item['values'])
+                                mode = []
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'false'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '1'
+                        Domoticz.Unit(Name=dev['name'] + ' (Presence state)', DeviceID=dev['id'], Unit=10, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
@@ -2311,11 +2326,12 @@ def onHandleThread(startup):
             #update devices in Domoticz
             if run == 1:
                 Domoticz.Log('Update devices in Domoticz')
-            if bool(online) == False and Devices[dev['id']].TimedOut == 0:
+
+            if not bool(online) and Devices[dev['id']].TimedOut == 0:
                 UpdateDevice(dev['id'], 1, False, 0, 1)
-            elif online == True and Devices[dev['id']].TimedOut == 1:
+            elif bool(online) and Devices[dev['id']].TimedOut == 1:
                 UpdateDevice(dev['id'], 1, None, 0, 0)
-            elif bool(online) == True and Devices[dev['id']].TimedOut == 0:
+            elif bool(online) and Devices[dev['id']].TimedOut == 0:
                 try:
                     def battery_device():
                         # Battery_device
@@ -3861,6 +3877,20 @@ def onHandleThread(startup):
                             target_dis_closest = StatusDeviceTuya('target_dis_closest')
                             if str(target_dis_closest) != str(Devices[dev['id']].Units[6].sValue):
                                 UpdateDevice(dev['id'], 6, target_dis_closest, 0, 0)
+                        if searchCode('presence_state', ResultValue):
+                            currentmode = StatusDeviceTuya('presence_state')
+                            for item in StatusProperties:
+                                if item['code'] == 'presence_state':
+                                    the_values = json.loads(item['values'])
+                                    mode = []
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[10].sValue) and str(mode.index(str(currentmode)) * 10) != str(0):
+                                UpdateDevice(dev['id'], 10, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            elif str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[10].sValue) and str(mode.index(str(currentmode)) * 10) == str(0):
+                                UpdateDevice(dev['id'], 10, int(mode.index(str(currentmode)) * 10), 0, 0)
 
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
@@ -3894,6 +3924,8 @@ def DeviceType(category, product_id=None):
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
     if product_id == 'uoa3mayicscacseb' or product_id == 'igtakqsfhbr7qsp7':
         result = 'cover'
+    elif product_id == 'chfpey4klfcp1ipl':
+        result = 'dimmer'
     elif category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr', 'aqcz'}:
         result = 'switch'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj'}:
