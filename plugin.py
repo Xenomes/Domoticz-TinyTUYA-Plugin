@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.0.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.0.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.0.9</h2><br/>
+        <h2>TinyTUYA Plugin version 2.0.8</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -23,6 +23,7 @@
         <li>Enter your Region, Access ID/Client ID, Access Secret/Client Secret, and a Search deviceID from your Tuya IOT Account. Synchronizing time: Tuya has changed the total number of pulses an account can make. Very old accounts can use a 1-minute interval, while others are advised to use a 15-minute interval. Keep the 'Data Timeout' setting disabled.</li>
         <li>A deviceID can be found in your Tuya IOT account. Go to Cloud => your project => Devices => Select one of your device IDs. (This ID is used to detect all the other devices.)</li>
         <li>Complete the initial setup of your devices using the app, and this plugin will automatically detect and use the same settings to find and add the devices into Domoticz.<br/></li>
+        <li>Set the API polling interval in order not to exhaust your calls allocation before the end of the billing period.</li>
         </ul>
         If your subscription to the cloud development plan has expired, you can extend it &nbsp; <a href="https://iot.tuya.com/cloud/products/apply-extension">HERE</a><br/>
     </description>
@@ -37,14 +38,16 @@
         <param field="Username" label="Access ID" width="300px" required="true" default="" />
         <param field="Password" label="Access Secret" width="300px" required="true" default="" password="true" />
         <param field="Mode2" label="Search DeviceID" width="300px" required="true" />
-        <param field="Mode3" label="Synchronizing time" width="150px" required="true" default="15">
+        <param field="Mode3" label="API Polling interval" width="150px" required="true" >
             <options>
-                <option label="15" value="15" default="true" />
-                <option label="10" value="10"/>
-                <option label="5" value="5"/>
-                <option label="1" value="1"/>
+                <option label="1 minute" value="60" />
+                <option label="5 minutes" value="300" />
+                <option label="10 minutes" value="600" />
+                <option label="15 minutes" value="900"  default="true"/>
+                <option label="30 minutes" value="1800" />
             </options>
-        </param>        <param field="Mode6" label="Debug" width="150px">
+        </param>
+        <param field="Mode6" label="Debug" width="150px">
             <options>
                 <option label="None" value="0"  default="true" />
                 <option label="Python Only" value="2"/>
@@ -805,8 +808,8 @@ class BasePlugin:
 
     def onHeartbeat(self):
         Domoticz.Debug('onHeartbeat called')
-        if time.time() - last_update < (60 * synctime) and testData == False:
-            Domoticz.Debug("onHeartbeat called skipped")
+        if time.time() - last_update < synctime and testData == False:
+            Domoticz.Debug("onHeartbeat called skipped, " +  str(int(time.time() - last_update)) + " < " + synctime + " seconds")
             return
         Domoticz.Debug("onHeartbeat called last run: " + str(time.time() - last_update))
         if testData == False:
@@ -869,7 +872,7 @@ def onHandleThread(startup):
             global t
             global synctime
             last_update = time.time()
-            synctime = int(Parameters['Mode3'] ) | 15
+            synctime = int(Parameters['Mode3']) | 900
             if testData == True:
                 tuya = Domoticz.Log
                 with open(Parameters['HomeFolder'] + '/debug_devices.json') as dFile:
