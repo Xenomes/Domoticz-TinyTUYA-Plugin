@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.0.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.0.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.0.8</h2><br/>
+        <h2>TinyTUYA Plugin version 2.0.9</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -38,7 +38,7 @@
         <param field="Username" label="Access ID" width="300px" required="true" default="" />
         <param field="Password" label="Access Secret" width="300px" required="true" default="" password="true" />
         <param field="Mode2" label="Search DeviceID" width="300px" required="true" />
-        <param field="Mode3" label="API Polling interval" width="150px" required="true" >
+        <param field="Mode3" label="API Polling interval" width="150px" required="true" default="15 minutes">
             <options>
                 <option label="1 minute" value="60" />
                 <option label="5 minutes" value="300" />
