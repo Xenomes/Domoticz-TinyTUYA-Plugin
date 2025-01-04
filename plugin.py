@@ -809,7 +809,7 @@ class BasePlugin:
     def onHeartbeat(self):
         Domoticz.Debug('onHeartbeat called')
         if time.time() - last_update < synctime and testData == False:
-            Domoticz.Debug("onHeartbeat called skipped, " +  str(int(time.time() - last_update)) + " < " + synctime + " seconds")
+            Domoticz.Debug("onHeartbeat called skipped, " +  str(int(time.time() - last_update)) + " < " + str(synctime) + " seconds")
             return
         Domoticz.Debug("onHeartbeat called last run: " + str(time.time() - last_update))
         if testData == False:
