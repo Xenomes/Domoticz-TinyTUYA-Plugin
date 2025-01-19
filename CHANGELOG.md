@@ -94,3 +94,5 @@
 | 2.0.6 | Add Presence sensor with switch support #132 |
 | 2.0.7 | Fix issue #137, #138 |
 | 2.0.8 | Polling interval issue #141 |
+| 2.0.9 | Dirty fix for device detection Issue #150 |
+| 2.1.0 | Add Thermostat Device issue #147 |
