@@ -36,6 +36,11 @@ docker compose up -d
 * Monitor the install this can take some time. ```docker logs -f domoticz```
 
 ## Updating
+
+> [!IMPORTANT]
+> **The API polling interval setting** has been added to the plugin interface for updates to **newer versions** from versions prior to 2.0.8.
+
+
 To update:
 ### Native Domoticz
 * Upgrade the tinytuya library ```sudo pip3 install tinytuya -U```
@@ -75,11 +80,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 2.0.4 | Add Power meter with dual channel by romaint2b |
-| 2.0.5 | Update for  Smart Scene Switch 4 Gang support #133 |
 | 2.0.6 | Add Presence sensor with switch support #132 |
 | 2.0.7 | Fix issue #137, #138 |
 | 2.0.8 | Polling interval issue #141 |
+| 2.0.9 | Dirty fix for device detection Issue #150 |
+| 2.1.0 | Add Thermostat Device issue #147 |
 
  [The full Change log](CHANGELOG.md)
 
