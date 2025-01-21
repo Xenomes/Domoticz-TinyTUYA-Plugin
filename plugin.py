@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.1.0</h2><br/>
+        <h2>TinyTUYA Plugin version 2.1.1</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -3945,8 +3945,8 @@ def DeviceType(category, product_id=None):
         result = 'cover'
     elif product_id == 'chfpey4klfcp1ipl':
         result = 'dimmer'
-    elif product_id == 'lf36y5nwb8jkxwgg':
-        result = 'wsdcg'
+    elif product_id == 'x3o8epevyeo3z3oa':
+        result = 'sensor'
     elif category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr', 'aqcz'}:
         result = 'switch'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj'}:
@@ -3959,7 +3959,7 @@ def DeviceType(category, product_id=None):
         result = 'heater'
     elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt','hwktwkq', 'ydkt', 'cjkg'}:
         result = 'thermostat'
-    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy'}:
+    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','wsdcg'}:
         result = 'sensor'
     elif category in {'rs'}:
         result = 'heatpump'
@@ -4018,7 +4018,7 @@ def DeviceType(category, product_id=None):
     elif category in {'hps'}:
         result = 'human_presence'
     elif category in {'qccdz'}:
-        result = 'EVcharger'
+        result = 'evcharger'
     elif category in {'infrared_ac'}:
         result = 'infrared_ac'
     elif 'infrared_' in category: # keep it last

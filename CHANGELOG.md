@@ -96,3 +96,4 @@
 | 2.0.8 | Polling interval issue #141 |
 | 2.0.9 | Dirty fix for device detection Issue #150 |
 | 2.1.0 | Add Thermostat Device issue #147 |
+| 2.1.1 | Fix issue #153 |
