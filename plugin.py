@@ -33,11 +33,19 @@
                 <option label="EU" value="eu" default="true" />
                 <option label="US" value="us"/>
                 <option label="CN" value="cn"/>
+                <option label="IND" value="in"/>
             </options>
         </param>
         <param field="Username" label="Access ID" width="300px" required="true" default="" />
         <param field="Password" label="Access Secret" width="300px" required="true" default="" password="true" />
         <param field="Mode2" label="Search DeviceID" width="300px" required="true" />
+        <param field="Mode4" label="Calling service" width="300px" required="true" default="Default">
+            <options>
+                <option label="Default" value="Default" />
+                <option label="Pulsar" value="Pulsar" />
+            </options>
+        </param>
+        When Pulsar is used, the pulsar-client module meets to be installed and the message service on iot.tuya.com needs to be enabled!
         <param field="Mode3" label="API Polling interval" width="150px" required="true" default="15 minutes">
             <options>
                 <option label="1 minute" value="60" />
@@ -84,6 +92,15 @@ class BasePlugin:
     def onStart(self):
         Domoticz.Log('TinyTUYA ' + Parameters['Version'] + ' plugin started')
         Domoticz.Log('TinyTuyaVersion:' + tinytuya.version )
+
+        if Parameters['Mode4'] == 'pulsar':
+            import threading
+            import pulsar
+            global pulsaractive
+            pulsaractive = True
+        else:
+            pulsaractive = False
+
         if Parameters['Mode6'] != '0':
             Domoticz.Debugging(int(Parameters['Mode6']))
             # Domoticz.Log('Debugger started, use 'telnet 0.0.0.0 4444' to connect')
@@ -976,8 +993,9 @@ def onHandleThread(startup):
                     ResultValue = rData['result']
                     t = rData['t']
             else:
-                ResultValue = tuya.getstatus(dev['id'])['result']
-                t = tuya.getstatus(dev['id'])['t']
+                Result = tuya.getstatus(dev['id'])
+                ResultValue = Result['result']
+                t = Result['t']
 
             product_id = getConfigItem(dev['id'],'product_id')
 
