@@ -976,8 +976,9 @@ def onHandleThread(startup):
                     ResultValue = rData['result']
                     t = rData['t']
             else:
-                ResultValue = tuya.getstatus(dev['id'])['result']
-                t = tuya.getstatus(dev['id'])['t']
+                Result = tuya.getstatus(dev['id'])
+                ResultValue = Result['result']
+                t = Result['t']
 
             product_id = getConfigItem(dev['id'],'product_id')
 
