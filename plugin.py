@@ -78,7 +78,7 @@ import colorsys
 import time
 import re
 import base64
-from queue import Queue
+import queue
 import threading
 try:
     import DomoticzEx as Domoticz
@@ -96,7 +96,10 @@ except ImportError:
 class BasePlugin:
     enabled = False
     def __init__(self):
-        return
+        global message_queue
+        pulsar_thread = None
+        message_queue = queue.Queue()
+        client = None
 
     def onStart(self):
         Domoticz.Log('TinyTUYA ' + Parameters['Version'] + ' plugin started')
@@ -105,15 +108,14 @@ class BasePlugin:
         global pulsaractive
         global testData
         global Error
-        global message_queue
 
         if Parameters['Mode4'] == 'Pulsar':
             Domoticz.Log('Pulsar Active')
             pulsaractive = True
             testData = False
             Error = None
-            message_queue = Queue()
-            messageThread = threading.Thread(name="QueueThread", target=pulsarMessage, args=(self, message_queue: Queue))
+            pulsar_thread = threading.Thread(target=pulsarMessage, args=(message_queue,))
+            # pulsar_thread.start()
         else:
             pulsaractive = False
 
@@ -131,37 +133,23 @@ class BasePlugin:
         else:
             testData = False
             Domoticz.Heartbeat(10)
-
         onHandleThread(True)
-        messageThread.start()
 
     def onStop(self):
+        Domoticz.Log('onStop called')
         try:
             devs = Devices
             for dev in devs:
                 # Delete device is not recognised
                 if 'This device is not recognized.' in Devices[dev].Units[1].sValue:
                     Devices[dev].Units[1].Delete()
+            if client:
+                client.close()
+            if pulsar_thread:
+                pulsar_thread.join()
+            Domoticz.Log('Plugin has stopped')
         except:
-            Domoticz.Log('onStop called')
-
-        # Not needed in an actual plugin
-        for thread in threading.enumerate():
-            if (thread.name != threading.current_thread().name):
-                Domoticz.Log("'"+thread.name+"' is running, it must be shutdown otherwise Domoticz will abort on plugin exit.")
-
-        # signal queue thread to exit
-        self.messageQueue.put(None)
-        Domoticz.Log("Clearing message queue...")
-        self.messageQueue.join()
-
-        # Wait until queue thread has exited
-        Domoticz.Log("Threads still active: "+str(threading.active_count())+", should be 1.")
-        while (threading.active_count() > 1):
-            for thread in threading.enumerate():
-                if (thread.name != threading.current_thread().name):
-                    Domoticz.Log("'"+thread.name+"' is still running, waiting otherwise Domoticz will abort on plugin exit.")
-            time.sleep(1.0)
+            return
 
     def onConnect(self, Connection, Status, Description):
         Domoticz.Log('onConnect called')
@@ -929,9 +917,6 @@ def onHandleThread(startup):
             global password
             global region
             last_update = time.time()
-            username = Parameters['Username']
-            password = Parameters['Password']
-            region = Parameters['Mode1']
             try:
                 synctime = int(Parameters['Mode3'])
             except ValueError:
@@ -962,7 +947,7 @@ def onHandleThread(startup):
                 # if version(tinytuya.version) >= version('1.11.0'):
                 #     tuya = tinytuya.Cloud(apiRegion=region, apiKey=username, apiSecret=password)
                 # else:
-                tuya = tinytuya.Cloud(apiRegion=region, apiKey=username, apiSecret=password, apiDeviceID=Parameters['Mode2'])
+                tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
                 tuya.use_old_device_list = True
                 tuya.new_sign_algorithm = True
                 Error = tuya.error
@@ -4391,22 +4376,23 @@ def setConfigItem(Key=None, Value=None):
 def version(ver):
     return tuple(map(int, (ver.split("."))))
 
-def pulsarMessage(self, message_queue: Queue):
-    client = pulsar.Client("pulsar+ssl://mqe.tuya" + region + ".com:7285/",
-        authentication=get_authentication(username, password),
-        tls_allow_insecure_connection=True,
-    )
-    MQ_ENV = "event" # "event-test"
-    consumer = client.subscribe(username + '/out/' + MQ_ENV, username + '-sub', consumer_type=pulsar.ConsumerType.Failover)
+def pulsarMessage(message_queue: queue.Queue):
     try:
+        Domoticz.Log("Initializing Pulsar Client")
+        client = pulsar.Client("pulsar+ssl://mqe.tuya" + Parameters['Mode1'] + ".com:7285/", authentication=get_authentication(Parameters['Username'], Parameters['Password']), tls_allow_insecure_connection=True)
+        # producer = client.create_producer('my-topic')
+        consumer = client.subscribe(Parameters['Username'] + '/out/event', Parameters['Username'] + '-sub', consumer_type=pulsar.ConsumerType.Failover)
+        Domoticz.Log("Pulsar Client Initialized Successfully")
+
+
         while True:
-            try:
-                pulsar_message = consumer.receive(timeout_millis=1000)
-                decrypt_mssage = decrypt_message(pulsar_message, password)
-                Domoticz.Debug(f"Ontvangen Pulsar bericht: {decrypt_mssage}")
-                message_queue.put(decrypt_mssage)  # Add the decrypted message to the queue
-            except pulsar.Timeout:
-                continue
+            msg = consumer.receive()
+            message_queue.put(msg.data().decode('utf-8'))
+            consumer.acknowledge(msg)
+            Domoticz.Log("Message received and acknowledged: {}".format(msg.data().decode('utf-8')))
+
+    except Exception as e:
+        Domoticz.Error("Error in pulsarMessage: {}".format(str(e)))
     finally:
-        consumer.close()
-        client.close()
+        if client:
+            client.close()
