@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.1.2</h2><br/>
+        <h2>TinyTUYA Plugin version 2.1.3</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -777,6 +777,15 @@ class BasePlugin:
                 elif Command == 'Set Level' and Unit  == 4:
                     SendCommandCloud(DeviceID, 'far_detection', Level)
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
+
+            if dev_type == 'evcharger':
+                if searchCode('switch', function):
+                    if Command == 'Off':
+                        SendCommandCloud(DeviceID, 'switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On':
+                        SendCommandCloud(DeviceID, 'switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
 
             if dev_type == 'infrared_ac':
                 if Command == 'Off' and Unit == 1:
@@ -2320,9 +2329,28 @@ def onHandleThread(startup):
                                 options['SelectorStyle'] = '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Presence state)', DeviceID=dev['id'], Unit=10, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
-                # if dev_type == 'EVcharger'
-
-
+                if dev_type == 'evcharger':
+                    if createDevice(dev['id'], 1) and searchCode('switch', StatusProperties):
+                        Domoticz.Log('Create EVcharger')
+                        Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('work_state', StatusProperties):
+                            Domoticz.Unit(Name=dev['name'] + ' (Work state)', DeviceID=dev['id'], Unit=2, Type=243, Subtype=19, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('temp_current', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=3, Type=80, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('power_total', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (W)', DeviceID=dev['id'], Unit=4, Type=248, Subtype=1, Used=1).Create()
+                    if createDevice(dev['id'], 5) and searchCode('charge_cur_set', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=23, Used=1).Create()
+                    # if createDevice(dev['id'], 6) and searchCode('forward_energy_total', StatusProperties) :
+                    #     Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=6, Type=243, Subtype=29, Used=1).Create()
+                    if createDevice(dev['id'], 6) and searchCode('forward_energy_total', ResultValue) :
+                        options = {}
+                        options['Custom'] = '1;kWh'
+                        Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=6, Type=243, Subtype=31, Options=options, Used=1).Create()
+                    if createDevice(dev['id'], 7) and searchCode('online_state', StatusProperties):
+                            Domoticz.Unit(Name=dev['name'] + ' (Online state)', DeviceID=dev['id'], Unit=7, Type=243, Subtype=19, Used=1).Create()
+                    # if createDevice(dev['id'], 8) and searchCode('fault', ResultValue):
+                    #         Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=8, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                 if dev_type == 'infrared':
                     if createDevice(dev['id'], 1):
@@ -3911,6 +3939,47 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 10, int(mode.index(str(currentmode)) * 10), 1, 0)
                             elif str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[10].sValue) and str(mode.index(str(currentmode)) * 10) == str(0):
                                 UpdateDevice(dev['id'], 10, int(mode.index(str(currentmode)) * 10), 0, 0)
+
+                    if dev_type == 'evcharger':
+                        if searchCode('switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('switch')
+                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('work_state', StatusProperties):
+                            currentnum = StatusDeviceTuya('work_state')
+                            currentmode = currentnum.replace("_", " ").capitalize()
+                            if str(currentmode) != str(Devices[dev['id']].Units[2].nValue):
+                                UpdateDevice(dev['id'], 2, str(currentmode), 1, 0)
+                        if searchCode('temp_current', ResultValue):
+                            currenttemp = StatusDeviceTuya('temp_current')
+                            UpdateDevice(dev['id'], 3, currenttemp, 0, 0)
+                        if searchCode('power_total', ResultValue):
+                            currentpower = StatusDeviceTuya('power_total')
+                            UpdateDevice(dev['id'], 4, str(currentpower), 0, 0)
+                        if searchCode('charge_cur_set', ResultValue):
+                            currentcurrent = StatusDeviceTuya('charge_cur_set')
+                            UpdateDevice(dev['id'], 5, str(currentcurrent), 0, 0)
+                        if searchCode('forward_energy_total', ResultValue):
+                            currentcurrent = StatusDeviceTuya('forward_energy_total')
+                            UpdateDevice(dev['id'], 6, str(currentcurrent), 0, 0)
+                        if searchCode('online_state', StatusProperties):
+                            currentnum = StatusDeviceTuya('online_state')
+                            currentmode = currentnum.replace("_", " ").capitalize()
+                            if str(currentmode) != str(Devices[dev['id']].Units[7].nValue):
+                                UpdateDevice(dev['id'], 7, str(currentmode), 1, 0)
+                        # if searchCode('fault', StatusProperties):
+                        #     currentnum = StatusDeviceTuya('fault')
+                        #     for item in StatusProperties:
+                        #         if item['code'] == 'fault':
+                        #             the_values = json.loads(item['values'])
+                        #             mode = ['no fault']
+                        #             if item['type'] == 'Bitmap':
+                        #                 mode.extend(the_values.get('label'))
+                        #                 currentmode = mode[currentnum].replace("_", " ").capitalize()
+                        #             else:
+                        #                 mode.extend(the_values.get('range'))
+                        #                 currentmode = mode[currentnum].replace("_", " ").capitalize()
+                        #     if str(currentmode) != str(Devices[dev['id']].Units[8].nValue):
+                        #         UpdateDevice(dev['id'], 8, str(currentmode), 1, 0)
 
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))

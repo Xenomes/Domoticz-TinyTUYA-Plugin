@@ -98,3 +98,4 @@
 | 2.1.0 | Add Thermostat Device issue #147 |
 | 2.1.1 | Fix issue #153 |
 | 2.1.2 | Add outside lamp #156 |
+| 2.1.3 | Add EV-Charders #145 #148 |
