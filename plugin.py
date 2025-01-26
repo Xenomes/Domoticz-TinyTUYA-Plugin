@@ -23,7 +23,8 @@
         <li>Enter your Region, Access ID/Client ID, Access Secret/Client Secret, and a Search deviceID from your Tuya IOT Account. Synchronizing time: Tuya has changed the total number of pulses an account can make. Very old accounts can use a 1-minute interval, while others are advised to use a 15-minute interval. Keep the 'Data Timeout' setting disabled.</li>
         <li>A deviceID can be found in your Tuya IOT account. Go to Cloud => your project => Devices => Select one of your device IDs. (This ID is used to detect all the other devices.)</li>
         <li>Complete the initial setup of your devices using the app, and this plugin will automatically detect and use the same settings to find and add the devices into Domoticz.<br/></li>
-        <li>Set the API polling interval in order not to exhaust your calls allocation before the end of the billing period.</li>
+        <li>When Pulsar is used, the tuya-connector-python module meets to be installed and the message service on iot.tuya.com needs to be enabled!</li>
+        <li>Set the API polling interval in order not to exhaust your calls allocation before the end of the period.</li>
         </ul>
         If your subscription to the cloud development plan has expired, you can extend it &nbsp; <a href="https://iot.tuya.com/cloud/products/apply-extension">HERE</a><br/>
     </description>
@@ -45,7 +46,6 @@
                 <option label="Pulsar" value="Pulsar" />
             </options>
         </param>
-        When Pulsar is used, the pulsar-client module meets to be installed and the message service on iot.tuya.com needs to be enabled!
         <param field="Mode3" label="API Polling interval" width="150px" required="true" default="15 minutes">
             <options>
                 <option label="1 minute" value="60" />

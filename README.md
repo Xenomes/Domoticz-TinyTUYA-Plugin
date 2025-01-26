@@ -15,6 +15,7 @@ To install:
 * Go in your Domoticz directory using a command line and open the plugins directory.
 * ```cd ~/domoticz/plugins``` for most user plugins directory.
 * The plugin required Python library tinytuya ```sudo pip3 install requests==2.23.0 charset-normalizer==3.0.1 tinytuya -U```
+* When Pulsar is used, the tuya-connector-python module need also to be installed and the message service on iot.tuya.com needs to be enabled! ```sudo pip3 install tuya-connector-python```
 * Run: ```git clone https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git```
 * Restart Domoticz.
 
@@ -26,7 +27,7 @@ To install:
 ```
 echo 'install tinytuya'
 apt install libffi-dev build-essential pkg-config libssl-dev -y
-pip3 install cryptography==3.4.8 requests==2.23.0 charset-normalizer==3.0.1 tinytuya -U
+pip3 install cryptography==3.4.8 requests==2.23.0 charset-normalizer==3.0.1 tuya-connector-python tinytuya -U
 ```
 * Rebuild the Domoticz Docker container.
 ```
@@ -64,7 +65,7 @@ Is your subscription to cloud development plan expired, you can extend it <a hre
 
 ## Configuration
 
-Enter your apiRegion, apiKey, apiSecret and Search deviceID (This id is used to detect all the other devices), keep the setting 'Data Timeout' disabled.
+Enter your region, 'Access ID', 'Access Secret' and 'Search deviceID' (This id is used to detect all the other devices). 'Calling service' on default use the 'API Polling interval' to pull the data, On Pulsar the module tuya-connector-python needs to be installed. Also the message service on iot.tuya.com needs to be enabled! Keep the setting 'Data Timeout' disabled.
 A deviceID can be found on your IOT account of Tuya got to Cloud => your project => Devices => Pick one of you device ID.
 The initial setup of your devices should be done with the app and this plugin will detect/use the same settings and automatically find/add the devices into Domoticz.
 
@@ -84,7 +85,7 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 2.0.9 | Dirty fix for device detection Issue #150 |
 | 2.1.0 | Add Thermostat Device issue #147 |
 | 2.1.1 | Fix issue #153 |
-| 2.1.2 | Add Pulsar Push messages |
+| 2.1.2 | Add Pulsar Push system |
 
  [The full Change log](CHANGELOG.md)
 
