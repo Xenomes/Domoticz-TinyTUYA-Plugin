@@ -4037,7 +4037,7 @@ def DeviceType(category, product_id=None):
         result = 'sensor'
     elif category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr', 'aqcz'}:
         result = 'switch'
-    elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj'}:
+    elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj', 'tyd'}:
         result = 'light'
     elif category in {'tgq', 'tgkg'}:
         result = 'dimmer'

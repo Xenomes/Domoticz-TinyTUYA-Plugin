@@ -97,4 +97,5 @@
 | 2.0.9 | Dirty fix for device detection Issue #150 |
 | 2.1.0 | Add Thermostat Device issue #147 |
 | 2.1.1 | Fix issue #153 |
-| 2.1.2 | Add Pulsar Push system |
+| 2.1.2 | Add outside lamp #156 |
+| 2.2.0 | Add Pulsar Push system |

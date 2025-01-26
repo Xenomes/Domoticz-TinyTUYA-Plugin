@@ -85,7 +85,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 2.0.9 | Dirty fix for device detection Issue #150 |
 | 2.1.0 | Add Thermostat Device issue #147 |
 | 2.1.1 | Fix issue #153 |
+<<<<<<< HEAD
 | 2.1.2 | Add Pulsar Push system |
+=======
+| 2.1.2 | Add outside lamp #156 |
+>>>>>>> Master
 
  [The full Change log](CHANGELOG.md)
 
