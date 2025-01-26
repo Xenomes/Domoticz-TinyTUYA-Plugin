@@ -23,7 +23,6 @@
         <li>Enter your Region, Access ID/Client ID, Access Secret/Client Secret, and a Search deviceID from your Tuya IOT Account. Synchronizing time: Tuya has changed the total number of pulses an account can make. Very old accounts can use a 1-minute interval, while others are advised to use a 15-minute interval. Keep the 'Data Timeout' setting disabled.</li>
         <li>A deviceID can be found in your Tuya IOT account. Go to Cloud => your project => Devices => Select one of your device IDs. (This ID is used to detect all the other devices.)</li>
         <li>Complete the initial setup of your devices using the app, and this plugin will automatically detect and use the same settings to find and add the devices into Domoticz.<br/></li>
-        <li>Calling service: When Pulsar is used, the pulsar-client module needs to be installed, and the message service on iot.tuya.com must be enabled!</li>
         <li>Set the API polling interval in order not to exhaust your calls allocation before the end of the billing period.</li>
         </ul>
         If your subscription to the cloud development plan has expired, you can extend it &nbsp; <a href="https://iot.tuya.com/cloud/products/apply-extension">HERE</a><br/>
@@ -42,10 +41,11 @@
         <param field="Mode2" label="Search DeviceID" width="300px" required="true" />
         <param field="Mode4" label="Calling service" width="300px" required="true" default="Default">
             <options>
-                <option label="Default" value="Default" default="true" />
+                <option label="Default" value="Default" />
                 <option label="Pulsar" value="Pulsar" />
             </options>
         </param>
+        When Pulsar is used, the pulsar-client module meets to be installed and the message service on iot.tuya.com needs to be enabled!
         <param field="Mode3" label="API Polling interval" width="150px" required="true" default="15 minutes">
             <options>
                 <option label="1 minute" value="60" />
@@ -139,8 +139,8 @@ class BasePlugin:
             pulsaractive = True
             testData = False
             Error = None
-            self.messageThread.start()
 
+            self.messageThread.start()
         else:
             pulsaractive = False
 
@@ -150,11 +150,14 @@ class BasePlugin:
             Domoticz.Error('!! Warning Plugin overruled by local json files !!')
         else:
             testData = False
-            Domoticz.Heartbeat(10)
+            if pulsaractive:
+                Domoticz.Heartbeat(2)
+            else:
+                Domoticz.Heartbeat(10)
+
         onHandleThread(True)
 
     def onStop(self):
-        Domoticz.Log('onStop called')
         try:
             open_pulsar.stop()
         except:
@@ -162,7 +165,7 @@ class BasePlugin:
         # signal queue thread to exit
         messageQueue.put(None)
         Domoticz.Log("Clearing message queue...")
-        messageQueue.join()
+        messageQueue.empty()
 
         # Wait until queue thread has exited
         Domoticz.Log("Threads still active: "+str(threading.active_count())+", should be 1.")
@@ -868,13 +871,10 @@ class BasePlugin:
 
     def onHeartbeat(self):
         Domoticz.Debug('onHeartbeat called')
-        if pulsaractive == True:
-            Domoticz.Heartbeat(2)
-        else:
-            if time.time() - last_update < synctime and testData == False:
-                Domoticz.Debug("onHeartbeat called skipped, " +  str(int(time.time() - last_update)) + " < " + str(synctime) + " seconds")
-                return
-            Domoticz.Debug("onHeartbeat called last run: " + str(time.time() - last_update))
+        if time.time() - last_update < synctime and testData == False and pulsaractive == False:
+            Domoticz.Debug("onHeartbeat called skipped, " +  str(int(time.time() - last_update)) + " < " + str(synctime) + " seconds")
+            return
+        Domoticz.Debug("onHeartbeat called last run: " + str(time.time() - last_update))
         if testData == False:
             if Error is not None:
                 Domoticz.Error(Error['Payload'])
@@ -964,7 +964,7 @@ def onHandleThread(startup):
 
             else:
                 # if version(tinytuya.version) >= version('1.11.0'):
-                #     tuya = tinytuya.Cloud(apiRegion=region, apiKey=username, apiSecret=password)
+                #     tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'])
                 # else:
                 tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
                 tuya.use_old_device_list = True
@@ -1010,6 +1010,7 @@ def onHandleThread(startup):
                             properties[dev['id']]['status']
                         except:
                             properties[dev['id']]['status'] = []
+
                         result[dev['id']] = tuya.getstatus(dev['id'])
                     except:
                         Domoticz.Log('No device data returned for Tuya! Check if subscription cloud plan has expired!')
