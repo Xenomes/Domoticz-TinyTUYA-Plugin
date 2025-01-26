@@ -1027,7 +1027,7 @@ def onHandleThread(startup):
             ResultValuePulsar = []
             if not messageQueue.empty():
                 ResultValuePulsar = json.loads(messageQueue.get())
-                Domoticz.Debug('Pulsar: ' + str(ResultValuePulsar))
+                Domoticz.Debug('Pulsar Message: ' + str(ResultValuePulsar) + '\n')
                 messageQueue.task_done()
         for dev in devs:
             run += 1
@@ -1069,9 +1069,9 @@ def onHandleThread(startup):
 
             product_id = getConfigItem(dev['id'],'product_id')
 
-            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' FunctionProperties= ' + str(properties[dev['id']]['functions'])+ '\n')
-            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' StatusProperties= ' + str(properties[dev['id']]['status'])+ '\n')
-            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(ResultValue)+ '\n')
+            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' FunctionProperties= ' + str(properties[dev['id']]['functions']) + '\n')
+            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' StatusProperties= ' + str(properties[dev['id']]['status']) + '\n')
+            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(ResultValue) + '\n')
 
             # Create devices
             if startup == True:
@@ -1536,13 +1536,15 @@ def onHandleThread(startup):
                         UpdateDevice(dev['id'], 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
 
 
-                if createDevice(dev['id'], 1) and dev_type == 'doorbell':
+                if dev_type == 'doorbell':
                     if createDevice(dev['id'], 1) and (searchCode('basic_indicator', FunctionProperties) or searchCode('doorbell_active', FunctionProperties)):
                         Domoticz.Log('Create device Doorbell')
                         #Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
                     if createDevice(dev['id'], 2) and searchCode('floodlight_switch', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Light switch)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('motion_switch', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Motion switch)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=14, Used=1).Create()
 
                 if dev_type == 'fan':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
@@ -3122,6 +3124,9 @@ def onHandleThread(startup):
                         if searchCode('floodlight_switch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('floodlight_switch')
                             UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('motion_switch', FunctionProperties):
+                            currentstatus = StatusDeviceTuya('motion_switch')
+                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
 
                     if dev_type == 'fan':
                         if searchCode('switch', FunctionProperties):
