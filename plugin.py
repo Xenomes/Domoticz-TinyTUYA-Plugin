@@ -2453,6 +2453,11 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
                         UpdateDevice(dev['id'], 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
 
+                if pulsaractive == True:
+                    if createDevice('ffffffffffffffffffffff', 1):
+                        Domoticz.Log('Created Pulsar API counter')
+                        Domoticz.Unit('Pulsar API counter', DeviceID='ffffffffffffffffffffff', Unit=1, Type=243, Subtype=19, Used=1).Create()
+
                 if createDevice(dev['id'], 1) and dev['id'] not in str(Devices):
                     Domoticz.Log('No controls found for device: ' + str(dev['name']))
                     Domoticz.Unit(Name=dev['name'] + ' (Unknown Device)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
