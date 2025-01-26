@@ -80,11 +80,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 2.0.7 | Fix issue #137, #138 |
 | 2.0.8 | Polling interval issue #141 |
 | 2.0.9 | Dirty fix for device detection Issue #150 |
 | 2.1.0 | Add Thermostat Device issue #147 |
 | 2.1.1 | Fix issue #153 |
+| 2.1.2 | Add Pulsar Push messages |
 
  [The full Change log](CHANGELOG.md)
 
