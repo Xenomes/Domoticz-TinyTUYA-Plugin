@@ -1441,11 +1441,11 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=10, Type=81, Subtype=1, Used=0).Create()
                     if createDevice(dev['id'], 11) and ((searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'A') or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=11, Type=243, Subtype=23, Used=1).Create()
-                    if createDevice(dev['id'], 12) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue)):
+                    if createDevice(dev['id'], 12) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue) or searchCode('average_power', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (W)', DeviceID=dev['id'], Unit=12, Type=248, Subtype=1, Used=1).Create()
                     if createDevice(dev['id'], 13) and (searchCode('cur_voltage', ResultValue) or searchCode('phase_a', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
-                    if createDevice(dev['id'], 14) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue)):
+                    if createDevice(dev['id'], 14) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue) or searchCode('average_power', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Used=1).Create()
                         #UpdateDevice(dev['id'], 14, '0;0', 0, 0, 1)
                     if createDevice(dev['id'], 15) and (searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'mA' or searchCode('leakage_current', ResultValue)):
@@ -2954,6 +2954,12 @@ def onHandleThread(startup):
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 13, str(currentvoltage), 0, 0)
+                            UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
+                        if searchCode('average_power', ResultValue):
+                            currentpower = StatusDeviceTuya('average_power')
+                            UpdateDevice(dev['id'], 12, str(currentpower), 0, 0)
+                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                            lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
                         if temp and hum:
                             currentdomo = Devices[dev['id']].Units[16].sValue
