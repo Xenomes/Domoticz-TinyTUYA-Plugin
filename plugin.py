@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.1</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.2</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -85,14 +85,18 @@ try:
     import DomoticzEx as Domoticz
 except ImportError:
     import fakeDomoticz as Domoticz
-import tinytuya
+try:
+    import tinytuya
+except ImportError:
+    Domoticz.Error('No tinytuya module installed')
 try:
     from tuya_connector import TuyaOpenAPI, TuyaOpenPulsar, TuyaCloudPulsarTopic
 except ImportError:
-    Domoticz.Debug('No pulsar-client')
+    Domoticz.Error('No tuya-connector-python module installed')
 
 class BasePlugin:
     def __init__(self):
+        self.enabled = True
         global messageQueue
         # Start the worker thread
         messageQueue = queue.Queue()
@@ -103,8 +107,7 @@ class BasePlugin:
     def handleMessage(self):
         global open_pulsar
         Domoticz.Debug("Initializing Pulsar client")
-        # global consumer
-        # Initialize Pulsar client
+        # Initialize tuya-connector
         openapi = TuyaOpenAPI("https://openapi.tuya" + Parameters['Mode1'] + ".com", Parameters['Username'], Parameters['Password'])
         openapi.connect()
 
@@ -130,7 +133,7 @@ class BasePlugin:
             DumpConfigToLog()
 
         Domoticz.Log('TinyTUYA ' + Parameters['Version'] + ' plugin started')
-        Domoticz.Log('TinyTuyaVersion:' + tinytuya.version )
+        Domoticz.Log('TinyTuyaVersion: ' + tinytuya.version )
 
         global pulsaractive, testData, Error
 
@@ -139,7 +142,6 @@ class BasePlugin:
             pulsaractive = True
             testData = False
             Error = None
-
             self.messageThread.start()
         else:
             pulsaractive = False
@@ -147,14 +149,13 @@ class BasePlugin:
         if os.path.isfile(Parameters['HomeFolder'] + '/debug_devices.json'):
             testData = True
             Domoticz.Heartbeat(5)
-            Domoticz.Error('!! Warning Plugin overruled by local json files !!')
+            Domoticz.Error('🚨 Warning Plugin overruled by local json files 🚨')
         else:
             testData = False
             if pulsaractive:
                 Domoticz.Heartbeat(2)
             else:
                 Domoticz.Heartbeat(10)
-
         onHandleThread(True)
 
     def onStop(self):
@@ -165,20 +166,22 @@ class BasePlugin:
                 # Delete device is not recognised
                 if 'This device is not recognized.' in Devices[dev].Units[1].sValue:
                     Devices[dev].Units[1].Delete()
-            open_pulsar.stop()
         except:
             return
         # signal queue thread to exit
         messageQueue.put(None)
         Domoticz.Log("Clearing message queue...")
         messageQueue.empty()
-
+        try:
+            open_pulsar.stop()
+        except:
+            return
         # Wait until queue thread has exited
-        Domoticz.Log("Threads still active: "+str(threading.active_count())+", should be 1.")
+        Domoticz.Log("Threads still active: " + str(threading.active_count()) + ", should be 1.")
         while (threading.active_count() > 1):
             for thread in threading.enumerate():
                 if (thread.name != threading.current_thread().name):
-                    Domoticz.Log("'"+thread.name+"' is still running, waiting otherwise Domoticz will abort on plugin exit.")
+                    Domoticz.Log("'" + thread.name + "' is still running, waiting otherwise Domoticz will abort on plugin exit.")
             time.sleep(1.0)
 
     def onConnect(self, Connection, Status, Description):
@@ -208,13 +211,7 @@ class BasePlugin:
         else:
             # Control device and update status in Domoticz
             dev_type = getConfigItem(DeviceID, 'category')
-            # scalemode = getConfigItem(DeviceID, 'scalemode')
             product_id = getConfigItem(DeviceID, 'product_id')
-            # if len(properties) == 0:
-            #     properties = {}
-            #     for dev in devs:
-            #         properties[dev['id']] = tuya.getproperties(dev['id'])['result']
-
             function = properties[DeviceID]['functions']
             status = properties[DeviceID]['status']
             if len(Color) != 0: Color = ast.literal_eval(Color)
@@ -937,19 +934,7 @@ def onHandleThread(startup):
     # Run for every device on startup and heartbeat
     try:
         if startup == True:
-            global tuya
-            global devs
-            global properties
-            global result
-            global FunctionProperties
-            global StatusProperties
-            global ResultValue
-            global Error
-            global scan
-            global last_update
-            global product_id
-            global t
-            global synctime
+            global tuya, devs, properties, result, FunctionProperties, StatusProperties, ResultValue, Error, last_update, product_id, t, synctime
             last_update = time.time()
             try:
                 synctime = int(Parameters['Mode3'])
@@ -1002,16 +987,6 @@ def onHandleThread(startup):
                     raise Exception('No device data returned for Tuya. Check if subscription cloud development plan has expired!')
                 token = tuya.token
 
-                # # Check credentials
-                # if 'sign invalid' in str(devs) or token == None:
-                #     login = False
-                #     raise Exception('Credentials are incorrect!')
-
-                # # Check ID search device is valid
-                # if 'permission deny' in str(devs):
-                #     login = False
-                #     raise Exception('ID search device not found!')
-
                 properties = {}
                 result = {}
                 for dev in devs:
@@ -1030,9 +1005,9 @@ def onHandleThread(startup):
                     except:
                         Domoticz.Log('No device data returned for Tuya! Check if subscription cloud plan has expired!')
 
-            Domoticz.Log('Scanning for tuya devices on network...')
-            if testData == False:
-                scan = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
+            # Domoticz.Log('Scanning for tuya devices on network...')
+            # if testData == False:
+            #     scan = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
 
         # Initialize/Update devices from TUYA API
         last_update = time.time()
@@ -1092,10 +1067,10 @@ def onHandleThread(startup):
             if startup == True:
                 if run == 1:
                     Domoticz.Debug('Run Startup script')
-                try:
-                    deviceinfo = scan[dev['id']]
-                except:
-                    deviceinfo = {'version': 3.3}
+                # try:
+                #     deviceinfo = scan[dev['id']]
+                # except:
+                #     deviceinfo = {'version': 3.3}
 
                 if dev_type in ('light', 'fanlight', 'pirlight') and createDevice(dev['id'], 1):
                     if (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
@@ -1193,6 +1168,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=14, Used=1).Create()
                     if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
+
                 if dev_type == 'smartheatpump':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
                         Domoticz.Log('Create device Smartheatpump')
@@ -1389,13 +1365,6 @@ def onHandleThread(startup):
                             else:
                                 mode = 'mode'
                             if item['code'] == mode:
-                                # if product_id == 'al8g1qdamyu5cfcc':
-                                #     options = {}
-                                #     options['LevelOffHidden'] = 'true'
-                                #     options['LevelActions'] = ''
-                                #     options['LevelNames'] = 'off|auto|a_silent|a_powerful|heat|h_powerful|h_silent|cool|c_powerful|c_silent'
-                                #     options['SelectorStyle'] = '1'
-                                # else:
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
@@ -1447,7 +1416,6 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=8, Used=1).Create()
                     if createDevice(dev['id'], 14) and (searchCode('cur_power', ResultValue) or searchCode('phase_a', ResultValue) or searchCode('average_power', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Used=1).Create()
-                        #UpdateDevice(dev['id'], 14, '0;0', 0, 0, 1)
                     if createDevice(dev['id'], 15) and (searchCode('cur_current', ResultValue) and get_unit('cur_current', StatusProperties) == 'mA' or searchCode('leakage_current', ResultValue)):
                         options = {}
                         options['Custom'] = '1;mA'
@@ -1549,7 +1517,6 @@ def onHandleThread(startup):
                         Domoticz.Log('Infrared device: ' + str(dev['name']))
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
                         UpdateDevice(dev['id'], 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
-
 
                 if dev_type == 'doorbell':
                     if createDevice(dev['id'], 1) and (searchCode('basic_indicator', FunctionProperties) or searchCode('doorbell_active', FunctionProperties)):
@@ -1980,10 +1947,6 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Area Six)', DeviceID=dev['id'], Unit=8, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
 
                 if dev_type == 'wswitch':
-                    # if createDevice(dev['id'], 1) and searchCode('switch1_value', StatusProperties):
-                    #     Domoticz.Unit(Name=dev['name'] + ' single click (Switch 1)', DeviceID=dev['id'], Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' double click (Switch 1)', DeviceID=dev['id'], Unit=12, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    #     Domoticz.Unit(Name=dev['name'] + ' long press (Switch 1)', DeviceID=dev['id'], Unit=13, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     for x in range(1, 10):
                         if createDevice(dev['id'], x) and searchCode('switch' + str(x) + '_value', StatusProperties):
                             for item in StatusProperties:
@@ -2051,8 +2014,6 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 1) and searchCode('lock_motor_state', StatusProperties):
                         Domoticz.Log('Create device smart lock')
                         Domoticz.Unit(Name=dev['name'] + ('State'), DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
-                    # if createDevice(dev['id'], 3):
-                    #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=19, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('alarm_lock', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'alarm_lock':
@@ -2068,6 +2029,8 @@ def onHandleThread(startup):
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0'
                         Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=13, Used=1).Create()
+                    # if createDevice(dev['id'], 3):
+                    #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=19, Used=1).Create()
 
                 if dev_type == 'dehumidifier':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
@@ -2316,7 +2279,6 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 3) and (searchCode('temperature', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=3, Type=80, Subtype=5, Used=0).Create()
                     if createDevice(dev['id'], 4) and (searchCode('cook_temperature', ResultValue)):
-                        # options={'ValueStep':'0.5', ' ValueMin':'-200', 'ValueMax':'200', 'ValueUnit':'°C'}
                         for item in StatusProperties:
                             temp = 'cook_temperature'
                             if item['code'] == temp:
@@ -2436,8 +2398,6 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (W)', DeviceID=dev['id'], Unit=4, Type=248, Subtype=1, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('charge_cur_set', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=23, Used=1).Create()
-                    # if createDevice(dev['id'], 6) and searchCode('forward_energy_total', StatusProperties) :
-                    #     Domoticz.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev['id'], Unit=6, Type=243, Subtype=29, Used=1).Create()
                     if createDevice(dev['id'], 6) and searchCode('forward_energy_total', ResultValue) :
                         options = {}
                         options['Custom'] = '1;kWh'
@@ -2453,10 +2413,17 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
                         UpdateDevice(dev['id'], 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
 
-                if pulsaractive == True:
-                    if createDevice('ffffffffffffffffffffff', 1):
-                        Domoticz.Log('Created Pulsar API counter')
-                        Domoticz.Unit('Pulsar API counter', DeviceID='ffffffffffffffffffffff', Unit=1, Type=243, Subtype=19, Used=1).Create()
+                if createDevice('ffffffffffffffffffffff', 1):
+                    Domoticz.Log('Created Pulsar API counter')
+                    options = {}
+                    options['Custom'] = '1;Calls'
+                    Domoticz.Unit('Tuya API counter', DeviceID='ffffffffffffffffffffff', Unit=1, Type=243, Subtype=31, Options=options, Used=1).Create()
+
+                if createDevice('ffffffffffffffffffffff', 2):
+                    Domoticz.Log('Created Pulsar API counter')
+                    options = {}
+                    options['Custom'] = '1;Calls'
+                    Domoticz.Unit('Pulsar API counter', DeviceID='ffffffffffffffffffffff', Unit=2, Type=243, Subtype=31, Options=options,Used=1 if pulsaractive == True else 0).Create()
 
                 if createDevice(dev['id'], 1) and dev['id'] not in str(Devices):
                     Domoticz.Log('No controls found for device: ' + str(dev['name']))
@@ -2464,7 +2431,7 @@ def onHandleThread(startup):
                     UpdateDevice(dev['id'], 1, 'This device is not recognized. Please run the debug_discovery with Python from the tools directory and create an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.', 0, 0)
 
                 # Set extra info
-                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'product_id': dev['product_id'] , 'version': deviceinfo['version']})  #, 'scalemode': scalemode})
+                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'product_id': dev['product_id']})  # , 'version': deviceinfo['version'], 'scalemode': scalemode})
                 # Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
@@ -2474,7 +2441,6 @@ def onHandleThread(startup):
             #update devices in Domoticz
             if run == 1:
                 Domoticz.Log('Update devices in Domoticz')
-
             if not bool(online) and Devices[dev['id']].TimedOut == 0:
                 UpdateDevice(dev['id'], 1, False, 0, 1)
             elif bool(online) and Devices[dev['id']].TimedOut == 1:
@@ -3295,7 +3261,6 @@ def onHandleThread(startup):
                                         mode.extend([str(num)])
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        battery_device()
                         # Other type of Alarm with same code
                         if searchCode('AlarmSwitch', FunctionProperties):
                             currentstatus = StatusDeviceTuya('AlarmSwitch')
@@ -3323,6 +3288,7 @@ def onHandleThread(startup):
                                         mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        battery_device()
 
                     if dev_type == 'powermeter':
                         if searchCode('Current', ResultValue):
@@ -3330,66 +3296,52 @@ def onHandleThread(startup):
                             currentpower = StatusDeviceTuya('ActivePower')
                             currentFrequency = StatusDeviceTuya('Frequency')
                             currentTemperature = StatusDeviceTuya('Temperature')
-
                             UpdateDevice(dev['id'], 2, str(currentFrequency), 0, 0)
                             UpdateDevice(dev['id'], 3, str(currentTemperature), 0, 0)
                             UpdateDevice(dev['id'], 4, str(currentcurrent), 0, 0)
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[5].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev['id']].Units[5].sValue if len(Devices[dev['id']].Units[5].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 5, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
-
                         if searchCode('CurrentA', ResultValue):
                             currentcurrentA = StatusDeviceTuya('CurrentA')
                             currentpowerA = StatusDeviceTuya('ActivePowerA')
                             currentvoltageA = StatusDeviceTuya('VoltageA')
-
                             lastvalue3PA = Devices[dev['id']].Units[1].sValue if len(Devices[dev['id']].Units[1].sValue) > 0 else '0;0;0'
                             UpdateDevice(dev['id'], 1, str(currentcurrentA) + ';' + str(float(lastvalue3PA.split(';')[1])) + ';' + str(float(lastvalue3PA.split(';')[2])) , 0, 0, 1)
-
                             lastupdateA = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[12].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalueA = Devices[dev['id']].Units[12].sValue if len(Devices[dev['id']].Units[12].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 12, str(currentpowerA) + ';' + str(float(lastvalueA.split(';')[1]) + ((currentpowerA) * (lastupdateA / 3600))) , 0, 0, 1)
-
                             UpdateDevice(dev['id'], 11, str(currentvoltageA), 0, 0)
                         if searchCode('CurrentB', ResultValue):
                             currentcurrentB = StatusDeviceTuya('CurrentB')
                             currentpowerB = StatusDeviceTuya('ActivePowerB')
                             currentvoltageB = StatusDeviceTuya('VoltageB')
-
                             lastvalue3PB = Devices[dev['id']].Units[1].sValue if len(Devices[dev['id']].Units[1].sValue) > 0 else '0;0;0'
                             UpdateDevice(dev['id'], 1, str(float(lastvalue3PB.split(';')[0])) + ';' + str(currentcurrentB) + ';' + str(float(lastvalue3PB.split(';')[2])) , 0, 0, 1)
-
                             lastupdateB = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[22].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalueB = Devices[dev['id']].Units[22].sValue if len(Devices[dev['id']].Units[22].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 22, str(currentpowerB) + ';' + str(float(lastvalueB.split(';')[1]) + ((currentpowerB) * (lastupdateB / 3600))) , 0, 0, 1)
-
                             UpdateDevice(dev['id'], 21, str(currentvoltageB), 0, 0)
                         if searchCode('CurrentC', ResultValue):
                             currentcurrentC = StatusDeviceTuya('CurrentC')
                             currentpowerC = StatusDeviceTuya('ActivePowerC')
                             currentvoltageC = StatusDeviceTuya('VoltageC')
-
                             lastvalue3PC = Devices[dev['id']].Units[1].sValue if len(Devices[dev['id']].Units[1].sValue) > 0 else '0;0;0'
                             UpdateDevice(dev['id'], 1, str(float(lastvalue3PC.split(';')[0])) + ';' + str(float(lastvalue3PC.split(';')[1])) + ';' + str(currentcurrentC) , 0, 0, 1)
-
                             lastupdateC = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[32].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalueC = Devices[dev['id']].Units[32].sValue if len(Devices[dev['id']].Units[32].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 32, str(currentpowerC) + ';' + str(float(lastvalueC.split(';')[1]) + ((currentpowerC) * (lastupdateC / 3600))) , 0, 0, 1)
-
                             UpdateDevice(dev['id'], 31, str(currentvoltageC), 0, 0)
-
                         # 1 phase_a Meter
                         if searchCode('phase_a', ResultValue):
                             base64_string = StatusDeviceTuya('phase_a')
                             # Decode base64 string
                             decoded_data = base64.b64decode(base64_string)
-
                             # Extract voltage, current, and power data
                             currentvoltage = int.from_bytes(decoded_data[:2], byteorder='big') * 0.1
                             currentcurrent = int.from_bytes(decoded_data[2:5], byteorder='big') * 0.001
                             currentpower = int.from_bytes(decoded_data[5:8], byteorder='big')
                             leakagecurrent = StatusDeviceTuya('leakage_current')
-
                             if product_id == 'ze8faryrxr0glqnn':
                                 if str(int.from_bytes(decoded_data[2:5], byteorder='big'))[-1:] == '1':
                                     currentcurrent = 0 - currentcurrent
@@ -3397,7 +3349,6 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 1, str(currentcurrent), 0, 0)
                             UpdateDevice(dev['id'], 2, str(currentpower), 0, 0)
                             UpdateDevice(dev['id'], 3, str(currentvoltage), 0, 0)
-
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[4].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev['id']].Units[4].sValue if len(Devices[dev['id']].Units[4].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 4, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
@@ -3418,7 +3369,6 @@ def onHandleThread(startup):
                                             currentmode = mode[currentnum].replace("_", " ").capitalize()
                                 if str(currentmode) != str(Devices[dev['id']].Units[6].nValue):
                                     UpdateDevice(dev['id'], 6, str(currentmode), 1, 0)
-
                         # 2 phase Meter with reverse
                         if searchCode('direction_a', ResultValue):
                             currentVoltage = StatusDeviceTuya('voltage_a')
@@ -3434,19 +3384,16 @@ def onHandleThread(startup):
                             currentDirectionB = StatusDeviceTuya('direction_b').capitalize()
                             currentForwardB = StatusDeviceTuya('energy_forword_b')
                             currentReverseB = StatusDeviceTuya('energy_reserse_b')
-
                             UpdateDevice(dev['id'], 1, str(currentVoltage), 0, 0)
                             UpdateDevice(dev['id'], 2, str(currentFrequency), 0, 0)
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[3].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev['id']].Units[3].sValue if len(Devices[dev['id']].Units[3].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 3, str(currentPower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentPower) * (lastupdate / 3600))) , 0, 0, 1)
-
                             UpdateDevice(dev['id'], 11, str(currentPowerA), 0, 0)
                             UpdateDevice(dev['id'], 12, str(currentCurrentA), 0, 0)
                             UpdateDevice(dev['id'], 13, str(currentDirectionA), 0, 0)
                             UpdateDevice(dev['id'], 14, str(currentForwardA), 0, 0)
                             UpdateDevice(dev['id'], 15, str(currentReverseA), 0, 0)
-
                             UpdateDevice(dev['id'], 21, str(currentPowerB), 0, 0)
                             UpdateDevice(dev['id'], 22, str(currentCurrentB), 0, 0)
                             UpdateDevice(dev['id'], 23, str(currentDirectionB), 0, 0)
@@ -3546,8 +3493,6 @@ def onHandleThread(startup):
                         #     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                         #         UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
 
-
-
                     if dev_type == 'garagedooropener':
                         if searchCode('switch_1', FunctionProperties):
                             currentstatus = StatusDeviceTuya('switch_1')
@@ -3614,7 +3559,6 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, False, 0, 0)
                             elif currentstatus == 'pir':
                                 UpdateDevice(dev['id'], 1, True, 1, 0)
-
                         battery_device()
 
                     if dev_type == 'irrigation':
@@ -4220,7 +4164,6 @@ def UpdateDevice(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate = 0):
             Devices[ID].Units[Unit].nValue = nValue
             Devices[ID].TimedOut = TimedOut
             Devices[ID].Units[Unit].Update(Log=True)
-
             Domoticz.Debug('Update device value: ' + str(ID) + ' Unit: ' + str(Unit) + ' sValue: ' +  str(sValue) + ' nValue: ' + str(nValue) + ' TimedOut=' + str(TimedOut))
     else:
         Domoticz.Debug('Device: ' + str(ID) + ' Unit: ' + str(Unit) + ' doesn\'t exsist. Nothing to update')
@@ -4255,7 +4198,6 @@ def SendCommandCloud(ID, CommandName, Status):
         actual_status = temp_value_scale(sendfunction, actual_function_name, Status)
     elif isinstance(Status, (int, float)) and not isinstance(Status, bool):
         actual_status = set_scale(sendfunction, actual_function_name, Status)
-
     # Domoticz.Debug("actual_function_name:" + str(actual_function_name))
     # Domoticz.Debug("actual_status:" + str(actual_status))
     if actual_function_name in ('PowerOff', 'PowerOn'):
@@ -4311,7 +4253,6 @@ def set_scale(device_functions, actual_function_name, raw):
                     # step = the_values.get('step', 0)
                     max = the_values.get('max', 0)
                     min = the_values.get('min', 0)
-
         if scale == 1:
             result = int(raw * 10)
         elif scale == 2:
@@ -4320,10 +4261,8 @@ def set_scale(device_functions, actual_function_name, raw):
             result = int(raw * 1000)
         else:
             result = int(raw)
-
         if product_id == 'IAYz2WK1th0cMLmL':
             result = int(raw * 2)
-
         if result > max:
             result = int(max)
             Domoticz.Log('Value higher then maximum device')
@@ -4361,7 +4300,6 @@ def get_scale(device_functions, actual_function_name, raw):
             result = float(raw / 1000)
         else:
             result = int(raw)
-
         if product_id == 'IAYz2WK1th0cMLmL':
             result = float(raw / 2)
         if product_id == 'g9m7honkxjweukvt' and actual_function_name == 'temp_current':
@@ -4466,7 +4404,6 @@ def createDevice(ID, Unit):
             value = True
     else:
         value = True
-
     return value
 
 # Configuration Helpers
