@@ -101,3 +101,4 @@
 | 2.1.3 | Add EV-Chargers #145 #148 |
 | 2.2.0 | Add Pulsar Push system |
 | 2.2.1 | Add Camera Motion Detection #154 |
+| 2.2.2 | Clean up the code  |

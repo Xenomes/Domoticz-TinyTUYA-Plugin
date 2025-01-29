@@ -1017,7 +1017,8 @@ def onHandleThread(startup):
             ResultValuePulsar = []
             if not messageQueue.empty():
                 ResultValuePulsar = json.loads(messageQueue.get())
-                Domoticz.Debug('Pulsar Message: ' + str(ResultValuePulsar) + '\n')
+                Domoticz.Log('Update device: ' + str(ResultValuePulsar['devId']) + ' Switch: ' + str(ResultValuePulsar['status'][0]['code']) + ' Value: '+ str(ResultValuePulsar['status'][0]['value']))
+                Domoticz.Debug('Pulsar message: ' + str(ResultValuePulsar))
                 messageQueue.task_done()
         for dev in devs:
             run += 1
@@ -1428,10 +1429,10 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                 if dev_type in ('sensor', 'smartir'):
-                    Domoticz.Log('Create Sensor device')
                     temp = searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue) or searchCode('local_temp', ResultValue) or searchCode('Tin', ResultValue)
                     hum = searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue) or searchCode('humidity', ResultValue) or searchCode('Hin', ResultValue)
                     if createDevice(dev['id'], 1) and temp:
+                        Domoticz.Log('Create Sensor device')
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0 if hum else 1).Create()
                     if createDevice(dev['id'], 2) and hum:
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
@@ -2412,18 +2413,6 @@ def onHandleThread(startup):
                         Domoticz.Log('Infrared device: ' + str(dev['name']))
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
                         UpdateDevice(dev['id'], 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
-
-                if createDevice('ffffffffffffffffffffff', 1):
-                    Domoticz.Log('Created Pulsar API counter')
-                    options = {}
-                    options['Custom'] = '1;Calls'
-                    Domoticz.Unit('Tuya API counter', DeviceID='ffffffffffffffffffffff', Unit=1, Type=243, Subtype=31, Options=options, Used=1).Create()
-
-                if createDevice('ffffffffffffffffffffff', 2):
-                    Domoticz.Log('Created Pulsar API counter')
-                    options = {}
-                    options['Custom'] = '1;Calls'
-                    Domoticz.Unit('Pulsar API counter', DeviceID='ffffffffffffffffffffff', Unit=2, Type=243, Subtype=31, Options=options,Used=1 if pulsaractive == True else 0).Create()
 
                 if createDevice(dev['id'], 1) and dev['id'] not in str(Devices):
                     Domoticz.Log('No controls found for device: ' + str(dev['name']))
