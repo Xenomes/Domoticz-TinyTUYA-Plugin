@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.2</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.3</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -171,13 +171,14 @@ class BasePlugin:
         # signal queue thread to exit
         messageQueue.put(None)
         Domoticz.Log("Clearing message queue...")
+        messageQueue.join()
         messageQueue.empty()
         try:
             open_pulsar.stop()
         except:
             return
         # Wait until queue thread has exited
-        Domoticz.Log("Threads still active: " + str(threading.active_count()) + ", should be 1.")
+        Domoticz.Log("Threads still active: " + str(threading.active_count())+", should be 1.")
         while (threading.active_count() > 1):
             for thread in threading.enumerate():
                 if (thread.name != threading.current_thread().name):
@@ -1520,14 +1521,16 @@ def onHandleThread(startup):
                         UpdateDevice(dev['id'], 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
 
                 if dev_type == 'doorbell':
-                    if createDevice(dev['id'], 1) and (searchCode('basic_indicator', FunctionProperties) or searchCode('doorbell_active', FunctionProperties)):
+                    if createDevice(dev['id'], 1) and searchCode('doorbell_active', StatusProperties):
                         Domoticz.Log('Create device Doorbell')
                         #Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
-                    if createDevice(dev['id'], 2) and searchCode('floodlight_switch', FunctionProperties):
-                        Domoticz.Unit(Name=dev['name'] + ' (Light switch)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
-                    if createDevice(dev['id'], 3) and searchCode('motion_switch', FunctionProperties):
-                        Domoticz.Unit(Name=dev['name'] + ' (Motion switch)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=14, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('floodlight_switch', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Light switch)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 3) and (searchCode('motion_switch', StatusProperties) or searchCode('movement_detect_pic', StatusProperties)):
+                        Domoticz.Unit(Name=dev['name'] + ' (Motion switch)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('basic_indicator', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Indicator)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
                 if dev_type == 'fan':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
@@ -3109,24 +3112,33 @@ def onHandleThread(startup):
                         battery_device()
 
                     if dev_type == 'doorbell':
-                        if searchCode('doorbell_active', ResultValue):
-                            datetimestamp = StatusDeviceTuya('doorbell_active')
-                            # UpdateDevice(dev['id'], 1, datetimestamp, 0, 0)
-                            # timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
-                            # if (int(timestamp) - int(datetimestamp)) < 61:
-                            #     UpdateDevice(dev['id'], 1, True, 1, 0)
-                            # else:
-                            #     UpdateDevice(dev['id'], 1, False, 0, 0)
-                            if datetimestamp == '' or datetimestamp == None:
-                                timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
-                                currentstatus = (int(timestamp) - int(datetimestamp)) < 61
-                                UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('floodlight_switch', FunctionProperties):
+                        if searchCode('doorbell_active', StatusProperties):
+                            # datetimestamp = StatusDeviceTuya('doorbell_active')
+                            # # UpdateDevice(dev['id'], 1, datetimestamp, 0, 0)
+                            # # timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
+                            # # if (int(timestamp) - int(datetimestamp)) < 61:
+                            # #     UpdateDevice(dev['id'], 1, True, 1, 0)
+                            # # else:
+                            # #     UpdateDevice(dev['id'], 1, False, 0, 0)
+                            # if datetimestamp == '' or datetimestamp == None:
+                            #     timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
+                            # currentstatus = (int(timestamp) - int(datetimestamp)) < 61
+                            current = StatusDeviceTuya('doorbell_active')
+                            currentstatus = False if current == '' or current == None else True
+                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('floodlight_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('floodlight_switch')
                             UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('motion_switch', FunctionProperties):
+                        if searchCode('motion_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('motion_switch')
                             UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('movement_detect_pic', StatusProperties):
+                            current = StatusDeviceTuya('movement_detect_pic')
+                            currentstatus = False if current == '$' else True
+                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('basic_indicator', StatusProperties):
+                            currentstatus = StatusDeviceTuya('basic_indicator')
+                            UpdateDevice(dev['id'], 4, bool(currentstatus), int(bool(currentstatus)), 0)
 
                     if dev_type == 'fan':
                         if searchCode('switch', FunctionProperties):
