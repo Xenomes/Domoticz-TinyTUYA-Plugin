@@ -81,8 +81,8 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 2.1.2 | Add outside lamp #156 |
 | 2.1.3 | Add EV-Chargers #145 #148 |
+| 2.1.4 | Fix for issue #147 #157 |
 | 2.2.0 | Add Pulsar Push system |
 | 2.2.1 | Add Camera Motion Detection #154 |
 | 2.2.2 | Clean up the code  |

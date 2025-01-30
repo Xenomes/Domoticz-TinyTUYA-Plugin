@@ -419,8 +419,9 @@ class BasePlugin:
                     switch4 = 'mode'
                 elif searchCode('Mode', function):
                     switch4 = 'Mode'
-                elif searchCode('work_mode', function):
-                    switch4 = 'work_mode'
+                #Disabled for isseu #147
+                # elif searchCode('work_mode', function):
+                #     switch4 = 'work_mode'
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, switch, False)
                     UpdateDevice(DeviceID, 1, False, 0, 0)
@@ -1013,7 +1014,7 @@ def onHandleThread(startup):
         # Initialize/Update devices from TUYA API
         last_update = time.time()
         run = 0
-        if pulsaractive == True and startup == False:
+        if pulsaractive == True and startup == False and testData == False:
             Domoticz.Debug('Running Pulsar')
             ResultValuePulsar = []
             if not messageQueue.empty():
@@ -1515,6 +1516,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (inHg)', DeviceID=dev['id'], Unit=47, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
                     # if createDevice(dev['id'], 47) and searchCode('alarm_switch', FunctionProperties):
                     #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 48) and searchCode('pir', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Pir)', DeviceID=dev['id'], Unit=48, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if dev_type in ('smartir') and dev['id'] not in str(Devices):
                         Domoticz.Log('Infrared device: ' + str(dev['name']))
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
@@ -3106,6 +3109,10 @@ def onHandleThread(startup):
                             currentlux = StatusDeviceTuya('atmosphere')
                             if str(currentlux) != str(Devices[dev['id']].Units[47].nValue):
                                 UpdateDevice(dev['id'], 47, str(currentlux), 0, 0)
+                        if searchCode('pir', StatusProperties):
+                            currentstatus = StatusDeviceTuya('pir')
+                            UpdateDevice(dev['id'], 48, False if currentstatus == 'none' else True, 0, 0)
+
                         # if searchCode('alarm_switch', ResultValue):
                         #     currentstatus = StatusDeviceTuya('alarm_switch')
                         #     UpdateDevice(dev['id'], 47, bool(currentstatus), int(bool(currentstatus)), 0)
@@ -3551,15 +3558,6 @@ def onHandleThread(startup):
                                 else:
                                     currentstatus = False
                             UpdateDevice(dev['id'], 1, bool(currentstatus), bool(currentstatus), 0)
-                        battery_device()
-
-                    if dev_type == 'presence':
-                        if searchCode('pir', ResultValue):
-                            currentstatus = StatusDeviceTuya('pir')
-                            if currentstatus == 'none':
-                                UpdateDevice(dev['id'], 1, False, 0, 0)
-                            elif currentstatus == 'pir':
-                                UpdateDevice(dev['id'], 1, True, 1, 0)
                         battery_device()
 
                     if dev_type == 'irrigation':
@@ -4083,7 +4081,7 @@ def DeviceType(category, product_id=None):
         result = 'heater'
     elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt','hwktwkq', 'ydkt', 'cjkg'}:
         result = 'thermostat'
-    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','wsdcg'}:
+    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','wsdcg','pir'}:
         result = 'sensor'
     elif category in {'rs'}:
         result = 'heatpump'
@@ -4115,8 +4113,6 @@ def DeviceType(category, product_id=None):
         result = 'feeder'
     elif category in {'sj'}:
         result = 'waterleak'
-    elif category in {'pir'}:
-        result = 'presence'
     elif category in {'sfkzq'}:
         result = 'irrigation'
     elif category in {'wxkg'}:
