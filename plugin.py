@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.1.3</h2><br/>
+        <h2>TinyTUYA Plugin version 2.1.4</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -352,8 +352,9 @@ class BasePlugin:
                     switch4 = 'mode'
                 elif searchCode('Mode', function):
                     switch4 = 'Mode'
-                elif searchCode('work_mode', function):
-                    switch4 = 'work_mode'
+                #Disabled for isseu #147
+                # elif searchCode('work_mode', function):
+                #     switch4 = 'work_mode'
                 if Command == 'Off' and Unit == 1:
                     SendCommandCloud(DeviceID, switch, False)
                     UpdateDevice(DeviceID, 1, False, 0, 0)
@@ -1367,10 +1368,10 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                 if dev_type in ('sensor', 'smartir'):
-                    Domoticz.Log('Create Sensor device')
                     temp = searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue) or searchCode('local_temp', ResultValue) or searchCode('Tin', ResultValue)
                     hum = searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue) or searchCode('humidity', ResultValue) or searchCode('Hin', ResultValue)
                     if createDevice(dev['id'], 1) and temp:
+                        Domoticz.Log('Create Sensor device')
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0 if hum else 1).Create()
                     if createDevice(dev['id'], 2) and hum:
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=2, Type=81, Subtype=1, Used=0).Create()
@@ -1452,19 +1453,24 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (inHg)', DeviceID=dev['id'], Unit=47, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
                     # if createDevice(dev['id'], 47) and searchCode('alarm_switch', FunctionProperties):
                     #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 48) and searchCode('pir', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Pir)', DeviceID=dev['id'], Unit=48, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if dev_type in ('smartir') and dev['id'] not in str(Devices):
                         Domoticz.Log('Infrared device: ' + str(dev['name']))
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
                         UpdateDevice(dev['id'], 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
 
-
-                if createDevice(dev['id'], 1) and dev_type == 'doorbell':
-                    if createDevice(dev['id'], 1) and (searchCode('basic_indicator', FunctionProperties) or searchCode('doorbell_active', FunctionProperties)):
+                if dev_type == 'doorbell':
+                    if createDevice(dev['id'], 1) and searchCode('doorbell_active', StatusProperties):
                         Domoticz.Log('Create device Doorbell')
                         #Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
-                    if createDevice(dev['id'], 2) and searchCode('floodlight_switch', FunctionProperties):
-                        Domoticz.Unit(Name=dev['name'] + ' (Light switch)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+                    if createDevice(dev['id'], 2) and searchCode('floodlight_switch', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Light switch)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 3) and (searchCode('motion_switch', StatusProperties) or searchCode('movement_detect_pic', StatusProperties)):
+                        Domoticz.Unit(Name=dev['name'] + ' (Motion switch)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('basic_indicator', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Indicator)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
                 if dev_type == 'fan':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
@@ -3048,27 +3054,43 @@ def onHandleThread(startup):
                             currentlux = StatusDeviceTuya('atmosphere')
                             if str(currentlux) != str(Devices[dev['id']].Units[47].nValue):
                                 UpdateDevice(dev['id'], 47, str(currentlux), 0, 0)
+                        if searchCode('pir', StatusProperties):
+                            currentstatus = StatusDeviceTuya('pir')
+                            UpdateDevice(dev['id'], 48, False if currentstatus == 'none' else True, 0, 0)
+
                         # if searchCode('alarm_switch', ResultValue):
                         #     currentstatus = StatusDeviceTuya('alarm_switch')
                         #     UpdateDevice(dev['id'], 47, bool(currentstatus), int(bool(currentstatus)), 0)
                         battery_device()
 
                     if dev_type == 'doorbell':
-                        if searchCode('doorbell_active', ResultValue):
-                            datetimestamp = StatusDeviceTuya('doorbell_active')
-                            # UpdateDevice(dev['id'], 1, datetimestamp, 0, 0)
-                            # timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
-                            # if (int(timestamp) - int(datetimestamp)) < 61:
-                            #     UpdateDevice(dev['id'], 1, True, 1, 0)
-                            # else:
-                            #     UpdateDevice(dev['id'], 1, False, 0, 0)
-                            if datetimestamp == '' or datetimestamp == None:
-                                timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
-                                currentstatus = (int(timestamp) - int(datetimestamp)) < 61
-                                UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('floodlight_switch', FunctionProperties):
+                        if searchCode('doorbell_active', StatusProperties):
+                            # datetimestamp = StatusDeviceTuya('doorbell_active')
+                            # # UpdateDevice(dev['id'], 1, datetimestamp, 0, 0)
+                            # # timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
+                            # # if (int(timestamp) - int(datetimestamp)) < 61:
+                            # #     UpdateDevice(dev['id'], 1, True, 1, 0)
+                            # # else:
+                            # #     UpdateDevice(dev['id'], 1, False, 0, 0)
+                            # if datetimestamp == '' or datetimestamp == None:
+                            #     timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
+                            # currentstatus = (int(timestamp) - int(datetimestamp)) < 61
+                            current = StatusDeviceTuya('doorbell_active')
+                            currentstatus = False if current == '' or current == None else True
+                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('floodlight_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('floodlight_switch')
                             UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('motion_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('motion_switch')
+                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('movement_detect_pic', StatusProperties):
+                            current = StatusDeviceTuya('movement_detect_pic')
+                            currentstatus = False if current == '$' else True
+                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('basic_indicator', StatusProperties):
+                            currentstatus = StatusDeviceTuya('basic_indicator')
+                            UpdateDevice(dev['id'], 4, bool(currentstatus), int(bool(currentstatus)), 0)
 
                     if dev_type == 'fan':
                         if searchCode('switch', FunctionProperties):
@@ -3502,16 +3524,6 @@ def onHandleThread(startup):
                                 else:
                                     currentstatus = False
                             UpdateDevice(dev['id'], 1, bool(currentstatus), bool(currentstatus), 0)
-                        battery_device()
-
-                    if dev_type == 'presence':
-                        if searchCode('pir', ResultValue):
-                            currentstatus = StatusDeviceTuya('pir')
-                            if currentstatus == 'none':
-                                UpdateDevice(dev['id'], 1, False, 0, 0)
-                            elif currentstatus == 'pir':
-                                UpdateDevice(dev['id'], 1, True, 1, 0)
-
                         battery_device()
 
                     if dev_type == 'irrigation':
@@ -4035,7 +4047,7 @@ def DeviceType(category, product_id=None):
         result = 'heater'
     elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt','hwktwkq', 'ydkt', 'cjkg'}:
         result = 'thermostat'
-    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','wsdcg'}:
+    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','wsdcg','pir'}:
         result = 'sensor'
     elif category in {'rs'}:
         result = 'heatpump'
@@ -4067,8 +4079,6 @@ def DeviceType(category, product_id=None):
         result = 'feeder'
     elif category in {'sj'}:
         result = 'waterleak'
-    elif category in {'pir'}:
-        result = 'presence'
     elif category in {'sfkzq'}:
         result = 'irrigation'
     elif category in {'wxkg'}:

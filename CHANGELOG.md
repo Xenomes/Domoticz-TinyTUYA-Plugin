@@ -99,3 +99,4 @@
 | 2.1.1 | Fix issue #153 |
 | 2.1.2 | Add outside lamp #156 |
 | 2.1.3 | Add EV-Chargers #145 #148 |
+| 2.1.4 | Fix for issue #147 #157 |
