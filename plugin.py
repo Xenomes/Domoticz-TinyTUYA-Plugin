@@ -91,7 +91,7 @@ class BasePlugin:
             # rpdb.set_trace()
             DumpConfigToLog()
 
-        global testData
+        global testData, Error
         if os.path.isfile(Parameters['HomeFolder'] + '/debug_devices.json'):
             testData = True
             Domoticz.Heartbeat(5)
