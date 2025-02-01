@@ -348,10 +348,10 @@ class BasePlugin:
                     switch3 = 'TempSet'
                 elif searchCode('target_temp', function):
                     switch3 = 'target_temp'
-                if searchCode('mode', function):
-                    switch4 = 'mode'
-                elif searchCode('Mode', function):
+                if searchCode('Mode', function):
                     switch4 = 'Mode'
+                elif searchCode('mode', function):
+                    switch4 = 'mode'
                 #Disabled for isseu #147
                 # elif searchCode('work_mode', function):
                 #     switch4 = 'work_mode'
@@ -1195,7 +1195,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=16, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 17) and searchCode('work_mode', FunctionProperties):
                         for item in FunctionProperties:
@@ -1210,7 +1210,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (WorkMode)', DeviceID=dev['id'], Unit=17, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if not(createDevice(dev['id'], 18)):
                     # if createDevice(dev['id'], 18) and searchCode('temp_current', ResultValue):
@@ -1282,7 +1282,7 @@ def onHandleThread(startup):
                                 options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Options=options, Used=1).Create()
-                    if createDevice(dev['id'], 4) and (searchCode('mode', FunctionProperties) or searchCode('Mode', FunctionProperties) or searchCode('work_mode', FunctionProperties)) and product_id != 'al8g1qdamyu5cfcc':
+                    if createDevice(dev['id'], 4) and (searchCode('mode', FunctionProperties) or searchCode('Mode', FunctionProperties)) and product_id != 'al8g1qdamyu5cfcc':
                         if dev_type == 'thermostat':
                             image = 16
                         elif dev_type == 'heater':
@@ -1290,9 +1290,7 @@ def onHandleThread(startup):
                         else:
                             image = 7
                         for item in FunctionProperties:
-                            if searchCode('work_mode', FunctionProperties):
-                                mode = 'work_mode'
-                            elif searchCode('Mode', FunctionProperties):
+                            if searchCode('Mode', FunctionProperties):
                                 mode = 'Mode'
                             else:
                                 mode = 'mode'
@@ -1302,7 +1300,7 @@ def onHandleThread(startup):
                                 #     options['LevelOffHidden'] = 'true'
                                 #     options['LevelActions'] = ''
                                 #     options['LevelNames'] = 'off|auto|a_silent|a_powerful|heat|h_powerful|h_silent|cool|c_powerful|c_silent'
-                                #     options['SelectorStyle'] = '1'
+                                #     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                                 # else:
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
@@ -1314,7 +1312,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=image, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('window_check', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Window check)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -1343,7 +1341,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                                 Domoticz.Unit(Name=dev['name'] + ' (' + wind.capitalize().replace("_", " ") +')', DeviceID=dev['id'], Unit=9, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 10) and hum:
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=10, Type=81, Subtype=1, Used=0).Create()
@@ -1366,11 +1364,11 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Anti bother)', DeviceID=dev['id'], Unit=17, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 18) and searchCode('fault', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
-
+                    
                 if dev_type in ('sensor', 'smartir'):
                     temp = searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue) or searchCode('local_temp', ResultValue) or searchCode('Tin', ResultValue)
                     hum = searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue) or searchCode('humidity', ResultValue) or searchCode('Hin', ResultValue)
-                    if createDevice(dev['id'], 1) and temp:
+                    if createDevice(dev['id'], 1) and temp: 
                         Domoticz.Log('Create Sensor device')
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0 if hum else 1).Create()
                     if createDevice(dev['id'], 2) and hum:
@@ -1489,7 +1487,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('fan_speed', FunctionProperties):
                         for item in FunctionProperties:
@@ -1502,7 +1500,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Fan Speed)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('temp_set', FunctionProperties):
                         for item in FunctionProperties:
@@ -1553,7 +1551,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Fan Speed)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('fan_direction', FunctionProperties):
                         for item in FunctionProperties:
@@ -1568,7 +1566,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Fan Direction)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
 
                 if dev_type == 'siren':
@@ -1588,7 +1586,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '1'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Alarmtype)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=8, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('AlarmPeriod', FunctionProperties):
                         for item in FunctionProperties:
@@ -1601,7 +1599,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'false'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '1'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (AlarmPeriod)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     # Other type of alarm with same code
                     if createDevice(dev['id'], 1) and searchCode('muffling', FunctionProperties):
@@ -1620,7 +1618,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '1'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('alarm_volume', FunctionProperties):
                         for item in FunctionProperties:
@@ -1635,7 +1633,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '1'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Volume)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=8, Used=1).Create()
 
                 if dev_type == 'powermeter' and searchCode('Current', ResultValue):
@@ -1770,7 +1768,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('pir_sensitivity', FunctionProperties):
                         for item in FunctionProperties:
@@ -1785,7 +1783,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Sensitivity)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                 if dev_type == 'smokedetector':
@@ -1816,7 +1814,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '1'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Manual)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('feed_state', StatusProperties):
                         for item in StatusProperties:
@@ -1831,7 +1829,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('feed_report', StatusProperties):
                         for item in StatusProperties:
@@ -1844,7 +1842,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '1'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Report)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('light', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Light)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
@@ -1875,7 +1873,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=22, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('areaone', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Area One)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
@@ -1909,7 +1907,7 @@ def onHandleThread(startup):
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
-                                    options['SelectorStyle'] = '0'
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                             Domoticz.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev['id'], x) and searchCode('switch_type_' + str(x), StatusProperties):
                             for item in StatusProperties:
@@ -1924,7 +1922,7 @@ def onHandleThread(startup):
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
-                                    options['SelectorStyle'] = '0'
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                             Domoticz.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev['id'], x) and searchCode('switch_mode' + str(x), StatusProperties):
                             for item in StatusProperties:
@@ -1939,7 +1937,7 @@ def onHandleThread(startup):
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
-                                    options['SelectorStyle'] = '0'
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                             Domoticz.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                 if dev_type == 'lightsensor':
@@ -1977,7 +1975,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=13, Used=1).Create()
 
                 if dev_type == 'dehumidifier':
@@ -1997,7 +1995,7 @@ def onHandleThread(startup):
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
-                                    options['SelectorStyle'] = '1'
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                             Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=11, Used=1).Create()
                         elif searchCode('dehumidify_set_enum', FunctionProperties):
                             for item in FunctionProperties:
@@ -2012,7 +2010,7 @@ def onHandleThread(startup):
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
-                                    options['SelectorStyle'] = '0'
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=11, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('fan_speed_enum', StatusProperties):
                         for item in StatusProperties:
@@ -2027,7 +2025,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (fan speed)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('mode', StatusProperties):
                         for item in StatusProperties:
@@ -2042,7 +2040,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                                 Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('fault', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
@@ -2064,7 +2062,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                                 Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('wind', StatusProperties):
                         for item in StatusProperties:
@@ -2077,7 +2075,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                                 Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('anion', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (anion)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -2106,7 +2104,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create() #Image=7,
                     if createDevice(dev['id'], 4) and searchCode('suction', StatusProperties):
                         for item in StatusProperties:
@@ -2121,7 +2119,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Suction)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('cistern', StatusProperties):
                         for item in StatusProperties:
@@ -2136,7 +2134,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Cistern)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 6) and searchCode('status', ResultValue):
                             Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=6, Type=243, Subtype=19, Used=1).Create()
@@ -2183,7 +2181,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (mode)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('speed', StatusProperties):
                         for item in StatusProperties:
@@ -2198,7 +2196,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (speed)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('filter', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Filter)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=6, Used=1).Create()
@@ -2256,7 +2254,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '1'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Control)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('MachineRainMode', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Rain Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -2282,7 +2280,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Sensitivity)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 3) and (searchCode('near_detection', ResultValue)):
                         for item in StatusProperties:
@@ -2332,7 +2330,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'false'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '1'
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Presence state)', DeviceID=dev['id'], Unit=10, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                 if dev_type == 'evcharger':
@@ -2795,8 +2793,10 @@ def onHandleThread(startup):
                                 currenttemp_set = StatusDeviceTuya('target_temp')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[3].sValue):
                                     UpdateDevice(dev['id'], 3, currenttemp_set, 0, 0)
-                        if (searchCode('work_mode', ResultValue) or searchCode('mode', ResultValue) or searchCode('Mode', ResultValue))and checkDevice(dev['id'],4):
-                            if searchCode('work_mode', ResultValue):
+                        if (searchCode('running_mode', ResultValue) or searchCode('work_mode', ResultValue) or searchCode('Mode', ResultValue) or searchCode('mode', ResultValue))and checkDevice(dev['id'],4):
+                            if searchCode('running_mode', ResultValue):
+                                modetype = 'running_mode'
+                            elif searchCode('work_mode', ResultValue):
                                 modetype = 'work_mode'
                             elif searchCode('Mode', ResultValue):
                                 modetype = 'Mode'
