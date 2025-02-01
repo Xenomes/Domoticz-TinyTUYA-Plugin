@@ -2803,7 +2803,7 @@ def onHandleThread(startup):
                             elif searchCode('mode', ResultValue):
                                 modetype = 'mode'
                             currentmode = StatusDeviceTuya(modetype)
-                            for item in FunctionProperties:
+                            for item in StatusProperties:
                                 if item['code'] == modetype:
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
