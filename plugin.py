@@ -2529,7 +2529,6 @@ def onHandleThread(startup):
                         currentmode = StatusDeviceTuya(code)
                         # Get the mode configuration once
                         mode = getConfigItem(dev['id'] + '-' + str(unit), 'mode')
-
                         if mode is None:
                             # Loop through StatusProperties to set the mode
                             for item in StatusProperties:
@@ -2541,6 +2540,7 @@ def onHandleThread(startup):
                                         mode.extend(the_values.get('label'))
                                     else:
                                         mode.extend(the_values.get('range'))
+                                    setConfigItem(dev['id'] + '-' + unit, {'mode': mode})
                                     break  # Exit the loop once we find the code
                         # Calculate the new value
                         new_value = mode.index(str(currentmode)) * 10
