@@ -1282,26 +1282,19 @@ def onHandleThread(startup):
                                 options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
                         Domoticz.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev['id'], Unit=3, Type=242, Subtype=1, Options=options, Used=1).Create()
-                    if createDevice(dev['id'], 4) and (searchCode('mode', FunctionProperties) or searchCode('Mode', FunctionProperties)) and product_id != 'al8g1qdamyu5cfcc':
+                    if createDevice(dev['id'], 4) and (searchCode('mode', StatusProperties) or searchCode('Mode', StatusProperties)) and product_id != 'al8g1qdamyu5cfcc':
                         if dev_type == 'thermostat':
                             image = 16
                         elif dev_type == 'heater':
                             image = 15
                         else:
                             image = 7
-                        for item in FunctionProperties:
-                            if searchCode('Mode', FunctionProperties):
+                        for item in StatusProperties:
+                            if searchCode('Mode', StatusProperties):
                                 mode = 'Mode'
                             else:
                                 mode = 'mode'
                             if item['code'] == mode:
-                                # if product_id == 'al8g1qdamyu5cfcc':
-                                #     options = {}
-                                #     options['LevelOffHidden'] = 'true'
-                                #     options['LevelActions'] = ''
-                                #     options['LevelNames'] = 'off|auto|a_silent|a_powerful|heat|h_powerful|h_silent|cool|c_powerful|c_silent'
-                                #     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                                # else:
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
@@ -1312,6 +1305,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                # setConfigItem(dev['id'] + '-4', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=image, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('window_check', FunctionProperties):
@@ -1364,11 +1358,11 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Anti bother)', DeviceID=dev['id'], Unit=17, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 18) and searchCode('fault', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
-                    
+
                 if dev_type in ('sensor', 'smartir'):
                     temp = searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue) or searchCode('local_temp', ResultValue) or searchCode('Tin', ResultValue)
                     hum = searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue) or searchCode('humidity', ResultValue) or searchCode('Hin', ResultValue)
-                    if createDevice(dev['id'], 1) and temp: 
+                    if createDevice(dev['id'], 1) and temp:
                         Domoticz.Log('Create Sensor device')
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0 if hum else 1).Create()
                     if createDevice(dev['id'], 2) and hum:
@@ -2803,16 +2797,21 @@ def onHandleThread(startup):
                             elif searchCode('mode', ResultValue):
                                 modetype = 'mode'
                             currentmode = StatusDeviceTuya(modetype)
-                            for item in StatusProperties:
-                                if item['code'] == modetype:
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            mode = getConfigItem(dev['id'] + '-4', 'mode')
+                            if mode is None:
+                                for item in StatusProperties:
+                                    if item['code'] == code:
+                                        the_values = json.loads(item['values'])
+                                        mode = ['off']
+                                        if item['type'] == 'Bitmap':
+                                            mode.extend(the_values.get('label'))
+                                        else:
+                                            mode.extend(the_values.get('range'))
+                                        break
+                            new_value = mode.index(str(currentmode)) * 10
+                            if str(new_value) != str(Devices[dev['id']].Units[4].sValue):
+                                UpdateDevice(dev['id'], 4, int(new_value), 1, 0)
+
                         if searchCode('window_check', ResultValue):
                             currentstatus = StatusDeviceTuya('window_check')
                             UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
