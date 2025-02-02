@@ -1305,7 +1305,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                # setConfigItem(dev['id'] + '-4', {'mode': mode})
+                                setConfigItem(dev['id'] + '-4', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=image, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('window_check', FunctionProperties):
