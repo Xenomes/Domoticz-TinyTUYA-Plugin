@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.3</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.4</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -171,8 +171,8 @@ class BasePlugin:
         # signal queue thread to exit
         messageQueue.put(None)
         Domoticz.Log("Clearing message queue...")
-        messageQueue.join()
-        messageQueue.empty()
+        # messageQueue.join()
+        # messageQueue.empty()
         try:
             open_pulsar.stop()
         except:
@@ -212,9 +212,9 @@ class BasePlugin:
         else:
             # Control device and update status in Domoticz
             dev_type = getConfigItem(DeviceID, 'category')
-            product_id = getConfigItem(DeviceID, 'product_id')
+            # product_id = getConfigItem(DeviceID, 'product_id')
             function = properties[DeviceID]['functions']
-            status = properties[DeviceID]['status']
+            # status = properties[DeviceID]['status']
             if len(Color) != 0: Color = ast.literal_eval(Color)
 
             if dev_type == 'switch':
@@ -235,7 +235,7 @@ class BasePlugin:
 
             if dev_type == 'wswitch':
                 if Command == 'Set Level':
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     if searchCode('switch' + str(Unit) + '_value', function):
                         SendCommandCloud(DeviceID, 'switch' + str(Unit) + '_value', mode[int(Level / 10)])
                     if searchCode('switch_type_' + str(Unit), function):
@@ -369,12 +369,12 @@ class BasePlugin:
                         UpdateDevice(DeviceID, 15, Level, 1, 0)
                 if searchCode('mode', function):
                     if Command == 'Set Level' and Unit == 16:
-                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
                         UpdateDevice(DeviceID, 16, Level, 1, 0)
                 if searchCode('work_mode', function):
                     if Command == 'Set Level' and Unit == 17:
-                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandCloud(DeviceID, 'work_mode', mode[int(Level / 10)])
                         UpdateDevice(DeviceID, 17, Level, 1, 0)
                 if searchCode('temp_set', function):
@@ -432,7 +432,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, switch3, Level)
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, switch4, mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
                 if Command == 'Off' and Unit == 5:
@@ -455,7 +455,7 @@ class BasePlugin:
                     UpdateDevice(DeviceID, 7, True, 1, 0)
                 elif Command == 'Set Level' and Unit  == 9:
                     if searchCode('fan_level', function) or searchCode('fan_speed_enum', function):
-                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandCloud(DeviceID, 9, mode[int(Level / 10)])
                         UpdateDevice(DeviceID, 9, Level, 1, 0)
                     else:
@@ -499,11 +499,11 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'switch', True)
                     UpdateDevice(DeviceID, Unit, True, 1, 0)
                 elif Command == 'Set Level' and Unit == 2:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'fan_speed', int(mode[int(Level / 10)]))
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 elif Command == 'Set Level' and Unit  == 4:
@@ -548,11 +548,11 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'fan_switch', True)
                     UpdateDevice(DeviceID, 2, True, 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'fan_speed', int(mode[int(Level / 10)]))
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'fan_direction', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
 
@@ -580,11 +580,11 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'AlarmSwitch', True)
                     UpdateDevice(DeviceID, Unit, True, 1, 0)
                 elif Command == 'Set Level' and Unit == 2:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 2, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 # Other Type of alarm with same code
@@ -595,11 +595,11 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'muffling', True)
                     UpdateDevice(DeviceID, 1, True, 1, 0)
                 elif Command == 'Set Level' and Unit == 2:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'alarm_state', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 2, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'alarm_volume', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
 
@@ -611,11 +611,11 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'switch_pir', True)
                     UpdateDevice(DeviceID, 2, True, 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'device_mode', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'pir_sensitivity', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
 
@@ -635,7 +635,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'light', True)
                     UpdateDevice(DeviceID, 5, True, 1, 0)
                 elif Command == 'Set Level' and Unit == 1:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
 
@@ -759,7 +759,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'switch', True)
                     UpdateDevice(DeviceID, Unit, True, 1, 0)
                 elif Command == 'Set Level' and Unit == 2:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     if searchCode('dehumidify_set_value', function):
                         tdev = 'dehumidify_set_value'
                     elif searchCode('dehumidify_set_enum', function):
@@ -767,11 +767,11 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, tdev, mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'fan_speed_enum', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
@@ -783,15 +783,15 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'power_go', True)
                     UpdateDevice(DeviceID, Unit, True, 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'suction', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 5:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'cistern', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
@@ -803,11 +803,11 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'switch', True)
                     UpdateDevice(DeviceID, Unit, True, 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'speed', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
@@ -824,7 +824,7 @@ class BasePlugin:
 
             if dev_type == 'mower':
                 if Command == 'Set Level' and Unit == 1:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'MachineControlCmd', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 1, Level, 1, 0)
                 if Command == 'Off' and Unit == 2:
@@ -836,7 +836,7 @@ class BasePlugin:
 
             if dev_type == 'human_presence':
                 if Command == 'Set Level' and Unit == 2:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'sensitivity', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 elif Command == 'Set Level' and Unit  == 3:
@@ -866,11 +866,11 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, 'T', Level)
                     UpdateDevice(DeviceID, 2, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 3:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'M', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, 'F', mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
 
@@ -1075,6 +1075,9 @@ def onHandleThread(startup):
                 # except:
                 #     deviceinfo = {'version': 3.3}
 
+                # Set extra info
+                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'product_id': dev['product_id']})  # , 'version': deviceinfo['version'], 'scalemode': scalemode})
+
                 if dev_type in ('light', 'fanlight', 'pirlight') and createDevice(dev['id'], 1):
                     if (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light RGBWW')
@@ -1266,6 +1269,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-16', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=16, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 17) and searchCode('work_mode', StatusProperties):
@@ -1281,6 +1285,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-17', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (WorkMode)', DeviceID=dev['id'], Unit=17, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if not(createDevice(dev['id'], 18)):
@@ -1376,6 +1381,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-4', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=image, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('window_check', StatusProperties):
@@ -1405,6 +1411,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-9', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                                 Domoticz.Unit(Name=dev['name'] + ' (' + wind.capitalize().replace("_", " ") +')', DeviceID=dev['id'], Unit=9, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 10) and hum:
@@ -1427,11 +1434,11 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Anti bother)', DeviceID=dev['id'], Unit=17, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 18) and searchCode('fault', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
-                    
+
                 if dev_type in ('sensor', 'smartir'):
                     temp = searchCode('va_temperature', StatusProperties) or searchCode('temp_current', StatusProperties) or searchCode('local_temp', StatusProperties) or searchCode('Tin', StatusProperties)
                     hum = searchCode('va_humidity', StatusProperties) or searchCode('humidity_value', StatusProperties) or searchCode('local_hum', StatusProperties) or searchCode('humidity', StatusProperties) or searchCode('Hin', StatusProperties)
-                    if createDevice(dev['id'], 1) and temp: 
+                    if createDevice(dev['id'], 1) and temp:
                         Domoticz.Log('Create Sensor device')
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=1, Type=80, Subtype=5, Used=0 if hum else 1).Create()
                     if createDevice(dev['id'], 2) and hum:
@@ -1550,6 +1557,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-2', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('fan_speed', StatusProperties):
@@ -1563,6 +1571,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-3', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Fan Speed)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('temp_set', StatusProperties):
@@ -1614,6 +1623,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-3', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Fan Speed)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('fan_direction', StatusProperties):
@@ -1629,6 +1639,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-4', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Fan Direction)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
 
@@ -1649,6 +1660,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-2', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Alarmtype)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=8, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('AlarmPeriod', StatusProperties):
@@ -1662,6 +1674,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'false'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-3', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (AlarmPeriod)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     # Other type of alarm with same code
@@ -1681,6 +1694,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-2', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('alarm_volume', StatusProperties):
@@ -1696,6 +1710,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-3', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Volume)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=8, Used=1).Create()
 
@@ -1846,6 +1861,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-4', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Sensitivity)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
@@ -1892,6 +1908,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-2', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('feed_report', StatusProperties):
@@ -1905,6 +1922,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-3', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Report)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('light', StatusProperties):
@@ -1936,6 +1954,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-2', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=22, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('areaone', StatusProperties):
@@ -1966,6 +1985,7 @@ def onHandleThread(startup):
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
+                                    setConfigItem(dev['id'] + '-' + str(x), {'mode': mode})
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                             Domoticz.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev['id'], x) and searchCode('switch_type_' + str(x), StatusProperties):
@@ -1981,6 +2001,7 @@ def onHandleThread(startup):
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
+                                    setConfigItem(dev['id'] + '-' + str(x), {'mode': mode})
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                             Domoticz.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev['id'], x) and searchCode('switch_mode' + str(x), StatusProperties):
@@ -1996,6 +2017,7 @@ def onHandleThread(startup):
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
+                                    setConfigItem(dev['id'] + '-' + str(x), {'mode': mode})
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                             Domoticz.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
@@ -2032,6 +2054,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-2', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=13, Used=1).Create()
                     # if createDevice(dev['id'], 3):
@@ -2054,6 +2077,7 @@ def onHandleThread(startup):
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
+                                    setConfigItem(dev['id'] + '-2', {'mode': mode})
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                             Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=11, Used=1).Create()
                         elif searchCode('dehumidify_set_enum', StatusProperties):
@@ -2069,6 +2093,7 @@ def onHandleThread(startup):
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
+                                    setConfigItem(dev['id'] + '-2', {'mode': mode})
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=11, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('fan_speed_enum', StatusProperties):
@@ -2084,6 +2109,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-3', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (fan speed)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('mode', StatusProperties):
@@ -2121,6 +2147,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-3', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                                 Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('wind', StatusProperties):
@@ -2134,6 +2161,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-4', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                                 Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('anion', StatusProperties):
@@ -2163,6 +2191,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-3', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create() #Image=7,
                     if createDevice(dev['id'], 4) and searchCode('suction', StatusProperties):
@@ -2178,6 +2207,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-4', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Suction)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('cistern', StatusProperties):
@@ -2193,6 +2223,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-5', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Cistern)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 6) and searchCode('status', StatusProperties):
@@ -2240,6 +2271,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-3', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (mode)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('speed', StatusProperties):
@@ -2255,6 +2287,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-4', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (speed)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('filter', StatusProperties):
@@ -2279,6 +2312,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-2', {'mode': mode})
                                 options['SelectorStyle'] = 0
                         Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 3) and (searchCode('temperature', StatusProperties)):
@@ -2312,6 +2346,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-1', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Control)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('MachineRainMode', StatusProperties):
@@ -2338,6 +2373,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-2', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Sensitivity)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 3) and (searchCode('near_detection', StatusProperties)):
@@ -2388,6 +2424,7 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'false'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
+                                setConfigItem(dev['id'] + '-10', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Presence state)', DeviceID=dev['id'], Unit=10, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
@@ -2423,8 +2460,6 @@ def onHandleThread(startup):
                     Domoticz.Unit(Name=dev['name'] + ' (Unknown Device)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
                     UpdateDevice(dev['id'], 1, 'This device is not recognized. Please run the debug_discovery with Python from the tools directory and create an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.', 0, 0)
 
-                # Set extra info
-                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'product_id': dev['product_id']})  # , 'version': deviceinfo['version'], 'scalemode': scalemode})
                 # Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
@@ -2440,17 +2475,131 @@ def onHandleThread(startup):
                 UpdateDevice(dev['id'], 1, None, 0, 0)
             elif bool(online) and Devices[dev['id']].TimedOut == 0:
                 try:
+                    def update_bool_device(code, unit, value=None):
+                        # Check if the given code is present and device is valid
+                        if not searchCode(code, StatusProperties) or not checkDevice(dev['id'], unit):
+                            return False
+                        # Get the current status of the device
+                        if value is None:
+                            currentstatus = StatusDeviceTuya(code)
+                        else:
+                            currentstatus = False if value == StatusDeviceTuya(code) else True
+                        UpdateDevice(dev['id'], unit, bool(currentstatus), int(bool(currentstatus)), 0)
+                        return True
+
+                    def update_value_device(code, unit, codeunit=None):
+                        # Check if the given code is present and device is valid
+                        if not searchCode(code, StatusProperties) or not get_unit(code, StatusProperties) not in [codeunit, None] or not checkDevice(dev['id'], unit):
+                            return False
+                        # Get the current value of the device
+                        currentvalue = StatusDeviceTuya(code)
+                        if str(currentvalue) != str(Devices[dev['id']].Units[unit].sValue):
+                            UpdateDevice(dev['id'], unit, currentvalue, 0, 0)
+                        return True
+
+                    def update_dualvalue_device(code1, code2, unit):
+                        # Check if the given code is present and device is valid
+                        if not searchCode(code1, StatusProperties) or not searchCode(code2, StatusProperties) or not checkDevice(dev['id'], unit):
+                            return False
+                        # Get the current value of the device
+                        currentvalue1 = StatusDeviceTuya(code1)
+                        currentvalue2 = StatusDeviceTuya(code2)
+                        currentdomo = Devices[dev['id']].Units[unit].sValue
+                        if str(currentvalue1) != str(currentdomo.split(';')[0]) or str(currentvalue2) != str(currentdomo.split(';')[1]):
+                            UpdateDevice(dev['id'], unit, str(currentvalue1 ) + ';' + str(currentvalue2) + ';0', 0, 0)
+                        return True
+
+                    def update_power_device(code, unit):
+                        # Check if the given code is present and device is valid
+                        if not searchCode(code, StatusProperties) or not checkDevice(dev['id'], unit):
+                            return False
+                        # Get the power value of the device
+                        currentpower = StatusDeviceTuya(code)
+                        lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[unit].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                        lastvalue = Devices[dev['id']].Units[unit].sValue if len(Devices[dev['id']].Units[unit].sValue) > 0 else '0;0'
+                        # Calculating the Power Difference in an time interval
+                        UpdateDevice(dev['id'], unit, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
+                        return True
+
+                    def update_select_device(code, unit):
+                        # Check if the given code is present and device is valid
+                        if not searchCode(code, StatusProperties) or not checkDevice(dev['id'], unit):
+                            return False
+                        # Get the current mode of the device
+                        currentmode = StatusDeviceTuya(code)
+                        # Get the mode configuration once
+                        mode = getConfigItem(dev['id'] + '-' + str(unit), 'mode')
+
+                        if mode is None:
+                            # Loop through StatusProperties to set the mode
+                            for item in StatusProperties:
+                                if item['code'] == code:
+                                    # Parse values based on item type
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
+                                    break  # Exit the loop once we find the code
+                        # Calculate the new value
+                        new_value = mode.index(str(currentmode)) * 10
+                        # Only update if the new value differs from the current value
+                        if str(new_value) != str(Devices[dev['id']].Units[unit].sValue):
+                            UpdateDevice(dev['id'], unit, int(new_value), 1, 0)
+                        return True
+
+                    def update_selectnum_device(code, unit):
+                        # Check if the given code is present and device is valid
+                        if not searchCode(code, StatusProperties) or not checkDevice(dev['id'], unit):
+                            return False
+                        # Get the current mode of the device
+                        current = StatusDeviceTuya(code)
+                        # Loop through StatusProperties to set the mode
+                        for item in StatusProperties:
+                            if item['code'] == code:
+                                the_values = json.loads(item['values'])
+                                mode = ['0']
+                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    mode.extend([str(num)])
+                        # Only update if the new value differs from the current value
+                        if str(mode.index(str(current)) * 10) != str(Devices[dev['id']].Units[unit].sValue):
+                            UpdateDevice(dev['id'], unit, int(mode.index(str(current)) * 10), 1, 0)
+                        return True
+
+                    def update_text_device(code, unit):
+                        # Check if the given code is present and device is valid
+                        if not searchCode(code, StatusProperties) or not checkDevice(dev['id'], unit):
+                            return False
+                        # Get the current mode of the device
+                        value = StatusDeviceTuya(code)
+                        # Loop through StatusProperties to set the mode
+                        for item in StatusProperties:
+                            if item['code'] == code:
+                                the_values = json.loads(item['values'])
+                                mode = ['No fault']
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                    currentmode = mode[value].replace("_", " ").capitalize()
+                                else:
+                                    mode.extend(the_values.get('range'))
+                                    currentmode = mode[value].replace("_", " ").capitalize()
+                        # Only update if the new value differs from the current value
+                        if str(currentmode) != str(Devices[dev['id']].Units[unit].nValue):
+                            UpdateDevice(dev['id'], unit, str(currentmode), 1, 0)
+                        return True
+
                     def battery_device():
                         # Battery_device
-                        if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
-                            if searchCode('battery_state', ResultValue):
+                        if searchCode('battery_state', StatusProperties) or searchCode('battery', StatusProperties) or searchCode('va_battery', StatusProperties) or searchCode('battery_percentage', StatusProperties):
+                            if searchCode('battery_state', StatusProperties):
                                 if StatusDeviceTuya('battery_state') == 'high':
                                     currentbattery = 100
                                 if StatusDeviceTuya('battery_state') == 'middle':
                                     currentbattery = 50
                                 if StatusDeviceTuya('battery_state') == 'low':
                                     currentbattery = 5
-                            if searchCode('BatteryStatus', ResultValue):
+                            if searchCode('BatteryStatus', StatusProperties):
                                 if int(StatusDeviceTuya('BatteryStatus')) == 1:
                                     currentbattery = 100
                                 elif int(StatusDeviceTuya('BatteryStatus')) == 2:
@@ -2459,13 +2608,13 @@ def onHandleThread(startup):
                                     currentbattery = 5
                                 else:
                                     currentbattery = 100
-                            if searchCode('battery', ResultValue):
+                            if searchCode('battery', StatusProperties):
                                 currentbattery = StatusDeviceTuya('battery') * 10
-                            if searchCode('va_battery', ResultValue):
+                            if searchCode('va_battery', StatusProperties):
                                 currentbattery = StatusDeviceTuya('va_battery')
-                            if searchCode('battery_percentage', ResultValue):
+                            if searchCode('battery_percentage', StatusProperties):
                                 currentbattery = StatusDeviceTuya('battery_percentage')
-                            if searchCode('residual_electricity', ResultValue):
+                            if searchCode('residual_electricity', StatusProperties):
                                 currentbattery = StatusDeviceTuya('residual_electricity')
                             for unit in Devices[dev['id']].Units:
                                 if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
@@ -2480,31 +2629,21 @@ def onHandleThread(startup):
                         pass
 
                     if dev_type == 'switch':
-                        if searchCode('switch_1', ResultValue):
-                            currentstatus = StatusDeviceTuya('switch_1')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        elif searchCode('switch', ResultValue):
-                            currentstatus = StatusDeviceTuya('switch')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if update_bool_device('switch_1', 1):
+                            pass
+                        elif update_bool_device('switch', 1):
+                            pass
+
                         for switch_number in range(2, 9):
-                            switch_type = f'switch_{switch_number}'
-                            if searchCode(switch_type, ResultValue):
-                                currentstatus = StatusDeviceTuya(switch_type)
-                                UpdateDevice(dev['id'], switch_number, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('cur_current', ResultValue):
-                            currentcurrent = StatusDeviceTuya('cur_current')
-                            currentpower = StatusDeviceTuya('cur_power')
-                            currentvoltage = StatusDeviceTuya('cur_voltage')
-                            if get_unit('cur_current', StatusProperties) == 'mA':
-                                UpdateDevice(dev['id'], 15, str(currentcurrent), 0, 0)
-                            else:
-                                UpdateDevice(dev['id'], 11, str(currentcurrent), 0, 0)
-                            UpdateDevice(dev['id'], 12, str(currentpower), 0, 0)
-                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
-                            UpdateDevice(dev['id'], 13, str(currentvoltage), 0, 0)
-                        if searchCode('phase_a', ResultValue):
+                            update_bool_device(f'switch_{switch_number}', switch_number)
+                        if update_value_device('cur_current', 15, 'mA'):
+                            pass
+                        elif update_value_device('cur_current', 11):
+                            pass
+                        update_value_device('cur_power', 12)
+                        update_value_device('cur_voltage', 13)
+                        update_power_device('cur_power', 14)
+                        if searchCode('phase_a', StatusProperties):
                             base64_string = StatusDeviceTuya('phase_a')
                             # Decode base64 string
                             decoded_data = base64.b64decode(base64_string)
@@ -2512,29 +2651,17 @@ def onHandleThread(startup):
                             currentvoltage = int.from_bytes(decoded_data[:2], byteorder='big') * 0.1
                             currentcurrent = int.from_bytes(decoded_data[2:5], byteorder='big') * 0.001
                             currentpower = int.from_bytes(decoded_data[5:8], byteorder='big')
-                            leakagecurrent = StatusDeviceTuya('leakage_current')
                             UpdateDevice(dev['id'], 11, str(currentcurrent), 0, 0)
                             UpdateDevice(dev['id'], 12, str(currentpower), 0, 0)
                             UpdateDevice(dev['id'], 13, str(currentvoltage), 0, 0)
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
                             currentEle = StatusDeviceTuya('add_ele')
-                            UpdateDevice(dev['id'], 14, str(int((currentEle - float(lastvalue.split(';')[1])) * (3600 / lastupdate) * 1000)) + ';' + str(currentEle) , 0, 0, 1) # Update from DKTigra
-                            # UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
-                            UpdateDevice(dev['id'], 15, str(leakagecurrent), 0, 0)
-                        if searchCode('temp_current', ResultValue):
-                            currenttemp = StatusDeviceTuya('temp_current')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[16].sValue):
-                                UpdateDevice(dev['id'], 16, currenttemp, 0, 0)
-                        if searchCode('out_power', ResultValue):
-                            outpower = StatusDeviceTuya('out_power')
-                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[17].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalue = Devices[dev['id']].Units[17].sValue if len(Devices[dev['id']].Units[17].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 17, str(outpower) + ';' + str(float(lastvalue.split(';')[1]) + ((outpower) * (lastupdate / 3600))) , 0, 0, 1)
-                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[18].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalue = Devices[dev['id']].Units[18].sValue if len(Devices[dev['id']].Units[18].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 18, str(outpower) + ';' + str(float(lastvalue.split(';')[1]) + ((outpower) * (lastupdate / 3600))) , 0, 0, 1)
-                        if searchCode('power_a', ResultValue):
+                        update_value_device('leakage_current', 15)
+                        update_value_device('temp_current', 16)
+                        update_power_device('out_power', 17)
+                        update_power_device('out_power', 18)
+                        if searchCode('power_a', StatusProperties):
                             powerA = StatusDeviceTuya('power_a')
                             dirA = StatusDeviceTuya('direction_a')
                             if dirA == 'REVERSE':
@@ -2549,7 +2676,7 @@ def onHandleThread(startup):
                                 lastvalueR = Devices[dev['id']].Units[19].sValue if len(Devices[dev['id']].Units[19].sValue) > 0 else '0;0'
                                 UpdateDevice(dev['id'], 20, str(powerA) + ';' + str(float(lastvalue.split(';')[1]) + ((powerA) * (lastupdate / 3600))) , 0, 0, 1)
                                 UpdateDevice(dev['id'], 19, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
-                        if searchCode('power_b', ResultValue):
+                        if searchCode('power_b', StatusProperties):
                             powerB = StatusDeviceTuya('power_b')
                             dirB = StatusDeviceTuya('direction_b')
                             if dirB == 'REVERSE':
@@ -2567,42 +2694,42 @@ def onHandleThread(startup):
                         battery_device()
 
                     if dev_type == 'dimmer':
-                        if searchCode('switch_led_1', ResultValue):
+                        if searchCode('switch_led_1', StatusProperties):
                             currentstatus = StatusDeviceTuya('switch_led_1')
-                            currentdim = brightness_to_pct(ResultValue, 'bright_value_1', int(StatusDeviceTuya('bright_value_1')))
+                            currentdim = brightness_to_pct(StatusProperties, 'bright_value_1', int(StatusDeviceTuya('bright_value_1')))
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 1, False, 0, 0)
                             elif bool(currentstatus) == True and  currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, currentdim, 1, 0)
 
-                        if searchCode('switch_led_2', ResultValue):
+                        if searchCode('switch_led_2', StatusProperties):
                             currentstatus = StatusDeviceTuya('switch_led_2')
-                            currentdim = brightness_to_pct(ResultValue, 'bright_value_2', int(StatusDeviceTuya('bright_value_2')))
+                            currentdim = brightness_to_pct(StatusProperties, 'bright_value_2', int(StatusDeviceTuya('bright_value_2')))
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 2, False, 0, 0)
                             elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, currentdim, 1, 0)
 
                     if dev_type in ('light','fanlight'):
-                        if searchCode('switch_led', ResultValue):
+                        if searchCode('switch_led', StatusProperties):
                             currentstatus = StatusDeviceTuya('switch_led')
                         else:
                             currentstatus = StatusDeviceTuya('led_switch')
                         # UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('work_mode', ResultValue):
+                        if searchCode('work_mode', StatusProperties):
                             workmode = StatusDeviceTuya('work_mode')
                         else:
                             workmode = 'white'
                         BrightnessControl = False
-                        if searchCode('bright_value', ResultValue):
+                        if searchCode('bright_value', StatusProperties):
                             BrightnessControl = True
-                            dimtuya = brightness_to_pct(ResultValue, 'bright_value', int(StatusDeviceTuya('bright_value')))
-                        elif searchCode('bright_value_v2', ResultValue):
+                            dimtuya = brightness_to_pct(StatusProperties, 'bright_value', int(StatusDeviceTuya('bright_value')))
+                        elif searchCode('bright_value_v2', StatusProperties):
                             BrightnessControl = True
-                            dimtuya = brightness_to_pct(ResultValue, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
+                            dimtuya = brightness_to_pct(StatusProperties, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
                         dimlevel = Devices[dev['id']].Units[1].sValue
-                        if (searchCode('colour_data', ResultValue) or searchCode('colour_data_v2', ResultValue)):
-                            if searchCode('colour_data', ResultValue):
+                        if (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)):
+                            if searchCode('colour_data', StatusProperties):
                                 colortuya = StatusDeviceTuya('colour_data')
                             else:
                                 colortuya = StatusDeviceTuya('colour_data_v2')
@@ -2616,24 +2743,22 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, False, 0, 0)
                             elif (bool(currentstatus) == True and bool(nValue) != True) or (str(dimtuya) != str(sValue) and bool(nValue) != False):
                                 UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
-
                         if currentstatus == True and workmode == 'white':
                             color = Devices[dev['id']].Units[1].Color
                             if len(color) != 0:
                                 color = ast.literal_eval(color)
-                                if searchCode('temp_value_v2', ResultValue):
+                                if searchCode('temp_value_v2', StatusProperties):
                                     temptuya = {'b':0,'cw':0,'g':0,'m':2,'r':0,'t':int(inv_val(round(StatusDeviceTuya('temp_value_v2') / 10))),'ww':0}
                                 else:
                                     temptuya = {'b':0,'cw':0,'g':0,'m':2,'r':0,'t':int(round(StatusDeviceTuya('temp_value'))),'ww':0}
                                 if int((temptuya['t'])) != int(color['t']):
                                     UpdateDevice(dev['id'], 1, dimtuya, 1, 0)
                                     UpdateDevice(dev['id'], 1, temptuya, 1, 0)
-
                         if currentstatus == True and workmode == 'colour':
                             color = Devices[dev['id']].Units[1].Color
                             if len(color) != 0:
                                 color = ast.literal_eval(color)
-                                if searchCode('colour_data_v2', ResultValue):
+                                if searchCode('colour_data_v2', StatusProperties):
                                     h,s,level = rgb_to_hsv_v2(int('0x' + colortuya[0:-12],0),int('0x' + colortuya[2:-10],0),int('0x' + colortuya[4:-8],0))
                                     r,g,b = hsv_to_rgb_v2(h, s, 1000)
                                 else:
@@ -2642,13 +2767,13 @@ def onHandleThread(startup):
                                 colorupdate = {'b':b,'cw':0,'g':g,'m':3,'r':r,'t':0,'ww':0}
                                 if (color['r'] != r or color['g'] != g or color['b'] != b ) or len(Devices[dev['id']].Units[1].Color) == 0:
                                     UpdateDevice(dev['id'], 1, colorupdate, 1, 0)
-                                    UpdateDevice(dev['id'], 1, brightness_to_pct(ResultValue, 'bright_value', int(inv_val(level))), 1, 0)
+                                    UpdateDevice(dev['id'], 1, brightness_to_pct(StatusProperties, 'bright_value', int(inv_val(level))), 1, 0)
 
                     if dev_type == 'cover':
-                        if searchCode('position', ResultValue) or searchCode('percent_control', ResultValue):
-                            if searchCode('position', ResultValue):
+                        if searchCode('position', StatusProperties) or searchCode('percent_control', StatusProperties):
+                            if searchCode('position', StatusProperties):
                                 currentposition = StatusDeviceTuya('position')
-                            elif searchCode('percent_control', ResultValue):
+                            elif searchCode('percent_control', StatusProperties):
                                 currentposition = StatusDeviceTuya('percent_control')
                             if str(currentposition) == '0':
                                 UpdateDevice(dev['id'], 1, currentposition, 0, 0)
@@ -2656,7 +2781,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, currentposition, 1, 0)
                             if str(currentposition) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, currentposition, 2, 0)
-                        elif searchCode('mach_operate', ResultValue):
+                        elif searchCode('mach_operate', StatusProperties):
                             currentstatus = StatusDeviceTuya('control')
                             if currentstatus == 'close':
                                 UpdateDevice(dev['id'], 1, 'ZZ', 0, 0)
@@ -2664,7 +2789,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'FZ', 1, 0)
                             elif currentstatus == 'stop':
                                 UpdateDevice(dev['id'], 1, 'STOP', 1, 0)
-                        elif searchCode('control', ResultValue):
+                        elif searchCode('control', StatusProperties):
                             currentstatus = StatusDeviceTuya('control')
                             if currentstatus == 'close':
                                 UpdateDevice(dev['id'], 1, 'Open', 0, 0)
@@ -2672,10 +2797,10 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Close', 1, 0)
                             elif currentstatus == 'stop':
                                 UpdateDevice(dev['id'], 1, 'Stop', 1, 0)
-                        if searchCode('position_2', ResultValue) or searchCode('percent_control_2', ResultValue):
-                            if searchCode('position_2', ResultValue):
+                        if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', StatusProperties):
+                            if searchCode('position_2', StatusProperties):
                                 currentposition = StatusDeviceTuya('position_2')
-                            elif searchCode('percent_control_2', ResultValue):
+                            elif searchCode('percent_control_2', StatusProperties):
                                 currentposition = StatusDeviceTuya('percent_control_2')
                             if str(currentposition) == '0':
                                 UpdateDevice(dev['id'], 2, currentposition, 0, 0)
@@ -2683,7 +2808,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 2, currentposition, 1, 0)
                             if str(currentposition) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, currentposition, 2, 0)
-                        elif searchCode('mach_operate_2', ResultValue):
+                        elif searchCode('mach_operate_2', StatusProperties):
                             currentstatus = StatusDeviceTuya('control_2')
                             if currentstatus == 'close':
                                 UpdateDevice(dev['id'], 2, 'ZZ', 0, 0)
@@ -2691,7 +2816,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 2, 'FZ', 1, 0)
                             elif currentstatus == 'stop':
                                 UpdateDevice(dev['id'], 2, 'STOP', 1, 0)
-                        elif searchCode('control_2', ResultValue):
+                        elif searchCode('control_2', StatusProperties):
                             currentstatus = StatusDeviceTuya('control_2')
                             if currentstatus == 'close':
                                 UpdateDevice(dev['id'], 2, 'Open', 0, 0)
@@ -2701,647 +2826,231 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 2, 'Stop', 1, 0)
 
                     if dev_type == 'smartheatpump':
-                        if searchCode('intemp', ResultValue):
-                            intemp = StatusDeviceTuya('intemp')
-                            if str(intemp) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, intemp, 0, 0)
-                        if searchCode('outtemp', ResultValue):
-                            outtemp = StatusDeviceTuya('outtemp')
-                            if str(outtemp) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, outtemp, 0, 0)
-                        if searchCode('whjtemp', ResultValue):
-                            whjtemp = StatusDeviceTuya('whjtemp')
-                            if str(whjtemp) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, whjtemp, 0, 0)
-                        if searchCode('cmptemp', ResultValue):
-                            cmptemp = StatusDeviceTuya('cmptemp')
-                            if str(cmptemp) != str(Devices[dev['id']].Units[5].sValue):
-                                UpdateDevice(dev['id'], 5, cmptemp, 0, 0)
-                        if searchCode('wttemp', ResultValue):
-                            wttemp = StatusDeviceTuya('wttemp')
-                            if str(wttemp) != str(Devices[dev['id']].Units[6].sValue):
-                                UpdateDevice(dev['id'], 6, wttemp, 0, 0)
-                        if searchCode('hqtemp', ResultValue):
-                            hqtemp = StatusDeviceTuya('hqtemp')
-                            if str(hqtemp) != str(Devices[dev['id']].Units[7].sValue):
-                                UpdateDevice(dev['id'], 7, hqtemp, 0, 0)
-                        if searchCode('cmp_act_frep', ResultValue):
-                            cmp_act_frep = StatusDeviceTuya('cmp_act_frep')
-                            if str(cmp_act_frep) != str(Devices[dev['id']].Units[8].sValue):
-                                UpdateDevice(dev['id'], 8, cmp_act_frep, 0, 0)
-                        if searchCode('cmp_cur', ResultValue):
-                            cmp_cur = StatusDeviceTuya('cmp_cur')
-                            if str(cmp_cur) != str(Devices[dev['id']].Units[9].sValue):
-                                UpdateDevice(dev['id'], 9, cmp_cur, 0, 0)
-                        if searchCode('dc_fan_speed', ResultValue):
-                            dc_fan_speed = StatusDeviceTuya('dc_fan_speed')
-                            if str(dc_fan_speed) != str(Devices[dev['id']].Units[10].sValue):
-                                UpdateDevice(dev['id'], 10, dc_fan_speed, 0, 0)
-                        if searchCode('ach_stemp', ResultValue):
-                            ach_stemp = StatusDeviceTuya('ach_stemp')
-                            if str(ach_stemp) != str(Devices[dev['id']].Units[11].sValue):
-                                UpdateDevice(dev['id'], 11, ach_stemp, 0, 0)
-                        if searchCode('wth_stemp', ResultValue):
-                            wth_stemp = StatusDeviceTuya('wth_stemp')
-                            if str(wth_stemp) != str(Devices[dev['id']].Units[12].sValue):
-                                UpdateDevice(dev['id'], 12, wth_stemp, 0, 0)
-                        if searchCode('aircond_temp_diff', ResultValue):
-                            aircond_temp_diff = StatusDeviceTuya('aircond_temp_diff')
-                            if str(aircond_temp_diff) != str(Devices[dev['id']].Units[13].sValue):
-                                UpdateDevice(dev['id'], 13, aircond_temp_diff, 0, 0)
-                        if searchCode('wth_temp_diff', ResultValue):
-                            wth_temp_diff = StatusDeviceTuya('wth_temp_diff')
-                            if str(wth_temp_diff) != str(Devices[dev['id']].Units[14].sValue):
-                                UpdateDevice(dev['id'], 14, wth_temp_diff, 0, 0)
-                        if searchCode('acc_stemp', ResultValue):
-                            acc_stemp = StatusDeviceTuya('acc_stemp')
-                            if str(acc_stemp) != str(Devices[dev['id']].Units[15].sValue):
-                                UpdateDevice(dev['id'], 15, acc_stemp, 0, 0)
-                        if searchCode('mode', ResultValue) and checkDevice(dev['id'],16):
-                            currentmode = StatusDeviceTuya('mode')
-                            for item in StatusProperties:
-                                if item['code'] == 'mode':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[16].sValue):
-                                UpdateDevice(dev['id'], 16, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('work_mode', ResultValue) and checkDevice(dev['id'],17):
-                            currentmode = StatusDeviceTuya('work_mode')
-                            for item in StatusProperties:
-                                if item['code'] == 'work_mode':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[17].sValue):
-                                UpdateDevice(dev['id'], 17, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        # if searchCode('temp_current', ResultValue):
-                        #     temp = StatusDeviceTuya('temp_current')
-                        #     if str(temp) != str(Devices[dev['id']].Units[18].sValue):
-                        #         UpdateDevice(dev['id'], 18, temp, 0, 0)
-                        if searchCode('temp_set', ResultValue):
-                            satemp = StatusDeviceTuya('temp_set')
-                            if str(satemp) != str(Devices[dev['id']].Units[19].sValue):
-                                UpdateDevice(dev['id'], 19, satemp, 0, 0)
-                        # if searchCode('water_set', ResultValue):
-                        #     swtemp = StatusDeviceTuya('water_set')
-                        #     if str(swtemp) != str(Devices[dev['id']].Units[20].sValue):
-                        #         UpdateDevice(dev['id'], 20, swtemp, 0, 0)
-                        if searchCode('temp_top', ResultValue):
-                            temp = StatusDeviceTuya('temp_top')
-                            if str(temp) != str(Devices[dev['id']].Units[21].sValue):
-                                UpdateDevice(dev['id'], 21, temp, 0, 0)
-                        if searchCode('temp_bottom', ResultValue):
-                            temp = StatusDeviceTuya('temp_bottom')
-                            if str(temp) != str(Devices[dev['id']].Units[22].sValue):
-                                UpdateDevice(dev['id'], 22, temp, 0, 0)
-                        if searchCode('compressor_state', ResultValue):
-                            currentstatus = StatusDeviceTuya('compressor_state')
-                            UpdateDevice(dev['id'], 23, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('water_flow', ResultValue):
-                            current = StatusDeviceTuya('water_flow')
-                            UpdateDevice(dev['id'], 24, str(current), 0, 0)
+                        update_value_device('intemp', 2)
+                        update_value_device('outtemp', 3)
+                        update_value_device('whjtemp', 4)
+                        update_value_device('cmptemp', 5)
+                        update_value_device('wttemp', 6)
+                        update_value_device('hqtemp', 7)
+                        update_value_device('cmp_act_frep', 8)
+                        update_value_device('cmp_cur', 9)
+                        update_value_device('dc_fan_speed', 10)
+                        update_value_device('ach_stemp', 11)
+                        update_value_device('wth_stemp', 12)
+                        update_value_device('aircond_temp_diff', 13)
+                        update_value_device('wth_temp_diff', 14)
+                        update_value_device('acc_stemp', 15)
+                        update_select_device('mode', 16)
+                        update_select_device('work_mode', 17)
+                        # update_value_device('temp_current', 18)
+                        update_value_device('temp_set', 19)
+                        # update_value_device('water_set', 20)
+                        update_value_device('temp_top', 21)
+                        update_value_device('temp_bottom',22)
+                        update_bool_device('compressor_state',23)
+                        update_value_device('water_flow',24)
 
                     if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
-                        temp = searchCode('temp_current', ResultValue) or searchCode('upper_temp', ResultValue) or searchCode('c_temperature', ResultValue) or searchCode('TempCurrent', ResultValue)
-                        hum = searchCode('humidity_current', ResultValue)
-                        if searchCode('switch', ResultValue) or searchCode('switch_1', ResultValue) or searchCode('Power', ResultValue) or searchCode('infared_switch', ResultValue):
-                            if searchCode('switch', ResultValue):
-                                currentstatus = StatusDeviceTuya('switch')
-                            elif searchCode('switch_1', ResultValue):
-                                currentstatus = StatusDeviceTuya('switch_1')
-                            elif searchCode('Power', ResultValue):
-                                currentstatus = StatusDeviceTuya('Power')
-                            elif searchCode('infared_switch', ResultValue):
-                                currentstatus = StatusDeviceTuya('infared_switch')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if temp:
-                            if searchCode('temp_current', ResultValue):
-                                currenttemp = StatusDeviceTuya('temp_current')
-                            elif searchCode('upper_temp', ResultValue):
-                                currenttemp = StatusDeviceTuya('upper_temp')
-                            elif searchCode('c_temperature', ResultValue):
-                                currenttemp = StatusDeviceTuya('c_temperature')
-                            elif searchCode('TempCurrent', ResultValue):
-                                currenttemp = StatusDeviceTuya('TempCurrent')
-                            else:
-                                currenttemp = 0
-                            if str(currenttemp) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, currenttemp, 0, 0)
-                        if searchCode('temp_set', ResultValue) or searchCode('set_temp', ResultValue) or searchCode('temperature_c', ResultValue) or searchCode('TempSet', ResultValue) or searchCode('target_temp', ResultValue):
-                            if searchCode('temp_set', ResultValue):
-                                currenttemp_set = StatusDeviceTuya('temp_set')
-                            elif searchCode('set_temp', ResultValue):
-                                currenttemp_set = StatusDeviceTuya('set_temp')
-                            elif searchCode('temperature_c', ResultValue):
-                                currenttemp_set = StatusDeviceTuya('temperature_c')
-                            elif searchCode('TempSet', ResultValue):
-                                currenttemp_set = StatusDeviceTuya('TempSet')
-                            elif searchCode('target_temp', ResultValue):
-                                currenttemp_set = StatusDeviceTuya('target_temp')
-                            if str(currenttemp_set) != str(Devices[dev['id']].Units[3].sValue):
-                                    UpdateDevice(dev['id'], 3, currenttemp_set, 0, 0)
-                        if (searchCode('running_mode', ResultValue) or searchCode('work_mode', ResultValue) or searchCode('Mode', ResultValue) or searchCode('mode', ResultValue))and checkDevice(dev['id'],4):
-                            if searchCode('running_mode', ResultValue):
-                                modetype = 'running_mode'
-                            elif searchCode('work_mode', ResultValue):
-                                modetype = 'work_mode'
-                            elif searchCode('Mode', ResultValue):
-                                modetype = 'Mode'
-                            elif searchCode('mode', ResultValue):
-                                modetype = 'mode'
-                            currentmode = StatusDeviceTuya(modetype)
-                            for item in StatusProperties:
-                                if item['code'] == modetype:
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('window_check', ResultValue):
-                            currentstatus = StatusDeviceTuya('window_check')
-                            UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('child_lock', ResultValue):
-                            currentstatus = StatusDeviceTuya('child_lock')
-                            UpdateDevice(dev['id'], 6, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('eco', ResultValue):
-                            currentstatus = StatusDeviceTuya('eco')
-                            UpdateDevice(dev['id'], 7, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('temp_floor', ResultValue):
-                            currenttemp = StatusDeviceTuya('temp_floor')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[8].sValue):
-                                UpdateDevice(dev['id'], 8, currenttemp, 0, 0)
-                        if searchCode('windspeed', ResultValue) or searchCode('fan_level', ResultValue) or searchCode('fan_speed_enum', ResultValue):
-                            if searchCode('fan_level', ResultValue):
-                                wind = 'fan_level'
-                            elif searchCode('fan_speed_enum', ResultValue):
-                                wind = 'fan_speed_enum'
-                            else:
-                                wind = 'windspeed'
-                            currentmode = StatusDeviceTuya(wind)
-                            for item in StatusProperties:
-                                if item['code'] == wind:
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[9].sValue):
-                                UpdateDevice(dev['id'], 9, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if  hum:
-                            currenthumi = StatusDeviceTuya('humidity_current')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[10].nValue):
-                                UpdateDevice(dev['id'], 10, 0, currenthumi, 0)
-                        if searchCode('cur_current', ResultValue):
-                            currentcurrent = StatusDeviceTuya('cur_current')
-                            currentpower = StatusDeviceTuya('cur_power')
-                            currentvoltage = StatusDeviceTuya('cur_voltage')
-                            if get_unit('cur_current', StatusProperties) == 'mA':
-                                UpdateDevice(dev['id'], 15, str(currentcurrent), 0, 0)
-                            else:
-                                UpdateDevice(dev['id'], 11, str(currentcurrent), 0, 0)
-                            UpdateDevice(dev['id'], 12, str(currentpower), 0, 0)
-                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 13, str(currentvoltage), 0, 0)
-                            UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
-                        if searchCode('average_power', ResultValue):
-                            currentpower = StatusDeviceTuya('average_power')
-                            UpdateDevice(dev['id'], 12, str(currentpower), 0, 0)
-                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalue = Devices[dev['id']].Units[14].sValue if len(Devices[dev['id']].Units[14].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 14, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
-                        if temp and hum:
-                            currentdomo = Devices[dev['id']].Units[16].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 16, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('anti_bother', ResultValue):
-                            currentstatus = StatusDeviceTuya('anti_bother')
-                            UpdateDevice(dev['id'], 17, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('fault', ResultValue):
-                            currentnum = StatusDeviceTuya('fault')
-                            for item in StatusProperties:
-                                if item['code'] == 'fault':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['no fault']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
-                            if str(currentmode) != str(Devices[dev['id']].Units[18].nValue):
-                                UpdateDevice(dev['id'], 18, str(currentmode), 1, 0)
+                        if update_bool_device('switch', 1):
+                            pass
+                        elif update_bool_device('switch_1', 1):
+                            pass
+                        elif update_bool_device('switch_1', 1):
+                            pass
+                        elif update_bool_device('Power', 1):
+                            pass
+                        if update_bool_device('infared_switch', 1):
+                            pass
+                        if update_value_device('temp_current', 2):
+                            pass
+                        elif update_value_device('upper_temp', 2):
+                            pass
+                        elif update_value_device('c_temperature', 2):
+                            pass
+                        elif update_value_device('TempCurrent', 2):
+                            pass
+                        if update_value_device('temp_set', 3):
+                            pass
+                        elif update_value_device('set_temp', 3):
+                            pass
+                        elif update_value_device('temperature_c', 3):
+                            pass
+                        elif update_value_device('TempSet', 3):
+                            pass
+                        elif update_value_device('target_temp', 3):
+                            pass
+                        if update_select_device('running_mode', 4):
+                            pass
+                        elif update_select_device('work_mode', 4):
+                            pass
+                        elif update_select_device('Mode', 4):
+                            pass
+                        elif update_select_device('mode', 4):
+                            pass
+                        update_bool_device('window_check', 5)
+                        update_bool_device('child_lock', 6)
+                        update_bool_device('eco', 7)
+                        update_value_device('temp_floor', 8)
+                        if update_select_device('windspeed', 9):
+                            pass
+                        elif update_select_device('fan_level', 9):
+                            pass
+                        elif update_select_device('fan_speed_enum', 9):
+                            pass
+                        update_value_device('humidity_current', 10)
+                        if update_value_device('currentcurrent', 15, 'mA'):
+                            pass
+                        elif update_value_device('currentcurrent', 11):
+                            pass
+                        if update_value_device('cur_power',12):
+                            pass
+                        elif update_value_device('average_power', 12):
+                            pass
+                        update_value_device('cur_voltage', 13)
+                        if update_power_device('cur_power', 14):
+                            pass
+                        elif update_power_device('average_power', 14):
+                            pass
+                        update_dualvalue_device('temp_current', 'humidity_current', 16)
+                        update_bool_device('anti_bother', 17)
+                        update_text_device('fault',18)
                         battery_device()
 
                     if dev_type in ('sensor', 'smartir'):
-                        temp = searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue) or searchCode('local_temp', ResultValue) or searchCode('Tin', ResultValue)
-                        hum = searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue) or searchCode('humidity', ResultValue) or searchCode('Hin', ResultValue)
-                        if temp:
-                            if searchCode('va_temperature', ResultValue):
-                                currenttemp = StatusDeviceTuya('va_temperature')
-                                if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
-                                    UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
-                            if searchCode('local_temp', ResultValue):
-                                currenttemp = StatusDeviceTuya('local_temp')
-                                if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
-                                    UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
-                            if searchCode('temp_current', ResultValue):
-                                currenttemp = StatusDeviceTuya('temp_current')
-                                if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
-                                    UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
-                            if searchCode('Tin', ResultValue):
-                                currenttemp = StatusDeviceTuya('Tin')
-                                if str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
-                                    UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
-                        if hum:
-                            if  searchCode('va_humidity', ResultValue):
-                                currenthumi = StatusDeviceTuya('va_humidity')
-                                if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                            if  searchCode('humidity_value', ResultValue):
-                                currenthumi = StatusDeviceTuya('humidity_value')
-                                if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                            if  searchCode('local_hum', ResultValue):
-                                currenthumi = StatusDeviceTuya('local_hum')
-                                if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                            if  searchCode('humidity', ResultValue):
-                                currenthumi = StatusDeviceTuya('humidity')
-                                if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                            if  searchCode('Hin', ResultValue):
-                                currenthumi = StatusDeviceTuya('Hin')
-                                if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
-                        if temp and hum:
-                            currentdomo = Devices[dev['id']].Units[3].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if  searchCode('co2_value', ResultValue):
-                            currentco2 = StatusDeviceTuya('co2_value')
-                            if str(currentco2) != str(Devices[dev['id']].Units[4].nValue):
-                                UpdateDevice(dev['id'], 4, str(currentco2), 0, 0)
-                        if searchCode('air_quality_index', ResultValue):
-                            currentindex = StatusDeviceTuya('air_quality_index')
-                            if str(currentindex) != str(Devices[dev['id']].Units[5].sValue):
-                                UpdateDevice(dev['id'], 5, str(currentindex), 0, 0)
-                        if  searchCode('ch2o_value', ResultValue):
-                            currentch2o = StatusDeviceTuya('ch2o_value')
-                            if str(currentch2o) != str(Devices[dev['id']].Units[6].nValue):
-                                UpdateDevice(dev['id'], 6, str(currentch2o), 0, 0)
-                        if  searchCode('voc_value', ResultValue):
-                            currentvoc = StatusDeviceTuya('voc_value')
-                            if str(currentvoc) != str(Devices[dev['id']].Units[7].nValue):
-                                UpdateDevice(dev['id'], 7, str(currentvoc), 0, 0)
-                        if  searchCode('pm25_value', ResultValue):
-                            currentpm25 = StatusDeviceTuya('pm25_value')
-                            if str(currentpm25) != str(Devices[dev['id']].Units[8].nValue):
-                                UpdateDevice(dev['id'], 8, str(currentpm25), 0, 0)
-                        if  searchCode('pm10', ResultValue):
-                            currentpm10 = StatusDeviceTuya('pm10')
-                            if str(currentpm10) != str(Devices[dev['id']].Units[9].nValue):
-                                UpdateDevice(dev['id'], 9, str(currentpm10), 0, 0)
-                        if  searchCode('bright_value', ResultValue):
-                            currentlux = StatusDeviceTuya('bright_value')
-                            if str(currentlux) != str(Devices[dev['id']].Units[10].nValue):
-                                UpdateDevice(dev['id'], 10, str(currentlux), 0, 0)
-                        if searchCode('switch', ResultValue):
-                            currentstatus = StatusDeviceTuya('switch')
-                            UpdateDevice(dev['id'], 11, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('sub1_temp', ResultValue):
-                            currenttemp = StatusDeviceTuya('sub1_temp')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[21].sValue):
-                                UpdateDevice(dev['id'], 21, currenttemp, 0, 0)
-                        if  searchCode('sub1_hum', ResultValue):
-                            currenthumi = StatusDeviceTuya('sub1_hum')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[22].nValue):
-                                UpdateDevice(dev['id'], 22, 0, currenthumi, 0)
-                        if searchCode('sub1_temp', ResultValue) and searchCode('sub1_hum', ResultValue):
-                            currentdomo = Devices[dev['id']].Units[23].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 23, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('ToutCh1', ResultValue):
-                            currenttemp = StatusDeviceTuya('ToutCh1')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[21].sValue):
-                                UpdateDevice(dev['id'], 21, currenttemp, 0, 0)
-                        if  searchCode('HoutCh1', ResultValue):
-                            currenthumi = StatusDeviceTuya('HoutCh1')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[22].nValue):
-                                UpdateDevice(dev['id'], 22, 0, currenthumi, 0)
-                        if searchCode('ToutCh1', ResultValue) and searchCode('HoutCh1', ResultValue):
-                            currentdomo = Devices[dev['id']].Units[23].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 23, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('sub2_temp', ResultValue):
-                            currenttemp = StatusDeviceTuya('sub2_temp')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[31].sValue):
-                                UpdateDevice(dev['id'], 31, currenttemp, 0, 0)
-                        if  searchCode('sub2_hum', ResultValue):
-                            currenthumi = StatusDeviceTuya('sub2_hum')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[32].nValue):
-                                UpdateDevice(dev['id'], 32, 0, currenthumi, 0)
-                        if searchCode('sub2_temp', ResultValue) and searchCode('sub2_hum', ResultValue):
-                            currentdomo = Devices[dev['id']].Units[33].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 33, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('ToutCh2', ResultValue):
-                            currenttemp = StatusDeviceTuya('ToutCh2')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[31].sValue):
-                                UpdateDevice(dev['id'], 31, currenttemp, 0, 0)
-                        if  searchCode('HoutCh2', ResultValue):
-                            currenthumi = StatusDeviceTuya('HoutCh2')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[32].nValue):
-                                UpdateDevice(dev['id'], 32, 0, currenthumi, 0)
-                        if searchCode('ToutCh2', ResultValue) and searchCode('HoutCh2', ResultValue):
-                            currentdomo = Devices[dev['id']].Units[33].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 33, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('sub3_temp', ResultValue):
-                            currenttemp = StatusDeviceTuya('sub3_temp')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[41].sValue):
-                                UpdateDevice(dev['id'], 41, currenttemp, 0, 0)
-                        if  searchCode('sub3_hum', ResultValue):
-                            currenthumi = StatusDeviceTuya('sub3_hum')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[42].nValue):
-                                UpdateDevice(dev['id'], 42, 0, currenthumi, 0)
-                        if searchCode('sub3_temp', ResultValue) and searchCode('sub3_hum', ResultValue):
-                            currentdomo = Devices[dev['id']].Units[43].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 43, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('ToutCh3', ResultValue):
-                            currenttemp = StatusDeviceTuya('ToutCh3')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[41].sValue):
-                                UpdateDevice(dev['id'], 41, currenttemp, 0, 0)
-                        if  searchCode('HoutCh3', ResultValue):
-                            currenthumi = StatusDeviceTuya('HoutCh3')
-                            if str(currenthumi) != str(Devices[dev['id']].Units[42].nValue):
-                                UpdateDevice(dev['id'], 42, 0, currenthumi, 0)
-                        if searchCode('ToutCh3', ResultValue) and searchCode('HoutCh3', ResultValue):
-                            currentdomo = Devices[dev['id']].Units[43].sValue
-                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                                UpdateDevice(dev['id'], 43, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('temp_current_2', ResultValue):
-                            currenttemp = StatusDeviceTuya('temp_current_2')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[44].sValue):
-                                UpdateDevice(dev['id'], 44, currenttemp, 0, 0)
-                        if searchCode('cook_temperature', ResultValue):
-                            currenttemp_set = StatusDeviceTuya('cook_temperature')
-                            if str(currenttemp_set) != str(Devices[dev['id']].Units[45].sValue):
-                                UpdateDevice(dev['id'], 45, currenttemp_set, 0, 0)
-                        if searchCode('cook_temperature_2', ResultValue):
-                            currenttemp_set = StatusDeviceTuya('cook_temperature')
-                            if str(currenttemp_set) != str(Devices[dev['id']].Units[46].sValue):
-                                UpdateDevice(dev['id'], 46, currenttemp_set, 0, 0)
-                        if  searchCode('atmosphere', ResultValue):
-                            currentlux = StatusDeviceTuya('atmosphere')
-                            if str(currentlux) != str(Devices[dev['id']].Units[47].nValue):
-                                UpdateDevice(dev['id'], 47, str(currentlux), 0, 0)
-                        if searchCode('pir', ResultValue):
-                            currentstatus = StatusDeviceTuya('pir')
-                            UpdateDevice(dev['id'], 48, False if currentstatus == 'none' else True, 0, 0)
-
-                        # if searchCode('alarm_switch', ResultValue):
-                        #     currentstatus = StatusDeviceTuya('alarm_switch')
-                        #     UpdateDevice(dev['id'], 47, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if update_value_device('va_temperature', 1):
+                            pass
+                        elif update_value_device('temp_current', 1):
+                            pass
+                        elif update_value_device('local_temp', 1):
+                            pass
+                        elif update_value_device('Tin', 1):
+                            pass
+                        if update_value_device('va_humidity', 2):
+                            pass
+                        elif update_value_device('humidity_value', 2):
+                            pass
+                        elif update_value_device('local_hum', 2):
+                            pass
+                        elif update_value_device('humidity', 2):
+                            pass
+                        elif update_value_device('Hin', 2):
+                            pass
+                        if update_dualvalue_device('va_temperature','va_humidity', 3):
+                            pass
+                        elif update_dualvalue_device('temp_current','humidity', 3):
+                            pass
+                        elif update_dualvalue_device('local_temp','local_hum', 3):
+                            pass
+                        elif update_dualvalue_device('Tin','Hin', 3):
+                            pass
+                        update_value_device('co2_value', 4)
+                        update_value_device('air_quality_index', 5)
+                        update_value_device('ch2o_value', 6)
+                        update_value_device('voc_value', 7)
+                        update_value_device('pm25_value', 8)
+                        update_value_device('pm10', 9)
+                        update_value_device('bright_value', 10)
+                        update_bool_device('switch', 11)
+                        if update_value_device('sub1_temp', 21):
+                            pass
+                        elif update_value_device('ToutCh1', 21):
+                            pass
+                        if update_value_device('sub1_hum', 22):
+                            pass
+                        elif update_value_device('HoutCh1', 22):
+                            pass
+                        if update_dualvalue_device('sub1_temp', 'sub1_hum', 23):
+                            pass
+                        elif update_dualvalue_device('ToutCh1', 'HoutCh1', 23):
+                            pass
+                        if update_value_device('sub2_temp', 31):
+                            pass
+                        elif update_value_device('ToutCh2', 31):
+                            pass
+                        if update_value_device('sub2_hum', 32):
+                            pass
+                        elif update_value_device('HoutCh2', 32):
+                            pass
+                        if update_dualvalue_device('sub2_temp', 'sub2_hum', 33):
+                            pass
+                        elif update_dualvalue_device('ToutCh2', 'HoutCh2', 33):
+                            pass
+                        if update_value_device('sub3_temp', 41):
+                            pass
+                        elif update_value_device('ToutCh3', 41):
+                            pass
+                        if update_value_device('sub3_hum', 42):
+                            pass
+                        elif update_value_device('HoutCh3', 42):
+                            pass
+                        if update_dualvalue_device('sub3_temp', 'sub3_hum', 43):
+                            pass
+                        elif update_dualvalue_device('ToutCh3', 'HoutCh3', 43):
+                            pass
+                        update_value_device('temp_current_2', 44)
+                        update_value_device('cook_temperature', 45)
+                        update_value_device('cook_temperature_2', 46)
+                        update_value_device('atmosphere', 47)
+                        update_value_device('temp_current_2', 44)
+                        update_bool_device('pir', 48, 'none')
                         battery_device()
 
                     if dev_type == 'doorbell':
-                        if searchCode('doorbell_active', ResultValue):
-                            # datetimestamp = StatusDeviceTuya('doorbell_active')
-                            # # UpdateDevice(dev['id'], 1, datetimestamp, 0, 0)
-                            # # timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
-                            # # if (int(timestamp) - int(datetimestamp)) < 61:
-                            # #     UpdateDevice(dev['id'], 1, True, 1, 0)
-                            # # else:
-                            # #     UpdateDevice(dev['id'], 1, False, 0, 0)
-                            # if datetimestamp == '' or datetimestamp == None:
-                            #     timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
-                            # currentstatus = (int(timestamp) - int(datetimestamp)) < 61
-                            current = StatusDeviceTuya('doorbell_active')
-                            currentstatus = False if current == '' or current == None else True
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('floodlight_switch', ResultValue):
-                            currentstatus = StatusDeviceTuya('floodlight_switch')
-                            UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('motion_switch', ResultValue):
-                            currentstatus = StatusDeviceTuya('motion_switch')
-                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('movement_detect_pic', ResultValue):
-                            current = StatusDeviceTuya('movement_detect_pic')
-                            currentstatus = False if current == '$' else True
-                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('basic_indicator', ResultValue):
-                            currentstatus = StatusDeviceTuya('basic_indicator')
-                            UpdateDevice(dev['id'], 4, bool(currentstatus), int(bool(currentstatus)), 0)
+                        update_bool_device('doorbell_active', 1, '')
+                        update_bool_device('floodlight_switch', 2)
+                        if update_bool_device('motion_switch', 3):
+                            pass
+                        elif update_bool_device('movement_detect_pic', 3, '$'):
+                            pass
+                        update_bool_device('basic_indicator', 4)
 
                     if dev_type == 'fan':
-                        if searchCode('switch', ResultValue):
-                            currentstatus = StatusDeviceTuya('switch')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('mode', ResultValue):
-                            currentmode = StatusDeviceTuya('mode')
-                            for item in StatusProperties:
-                                if item['code'] == 'mode':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('fan_speed', ResultValue):
-                            currentmode = StatusDeviceTuya('fan_speed')
-                            for item in StatusProperties:
-                                if item['code'] == 'fan_speed':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
-                                        mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('temp_set', ResultValue):
-                            currenttemp_set = StatusDeviceTuya('temp_set')
-                            if str(currenttemp_set) != str(Devices[dev['id']].Units[4].sValue):
-                                    UpdateDevice(dev['id'], 4, currenttemp_set, 0, 0)
-                        if searchCode('temp_current', ResultValue):
-                            currenttemp = StatusDeviceTuya('temp_current')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[5].sValue):
-                                UpdateDevice(dev['id'], 5, currenttemp, 0, 0)
-                        if searchCode('fault', ResultValue):
-                            currentnum = StatusDeviceTuya('fault')
-                            for item in StatusProperties:
-                                if item['code'] == 'fault':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['no fault']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
-                            if str(currentmode) != str(Devices[dev['id']].Units[6].nValue):
-                                UpdateDevice(dev['id'], 6, str(currentmode), 1, 0)
-                        if searchCode('light', ResultValue):
-                            currentstatus = StatusDeviceTuya('light')
-                            UpdateDevice(dev['id'], 7, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('RH_switch', ResultValue):
-                            currentstatus = StatusDeviceTuya('RH_switch')
-                            UpdateDevice(dev['id'], 8, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('RH_threshold', ResultValue):
-                            currentcurrent = StatusDeviceTuya('RH_threshold')
-                            UpdateDevice(dev['id'], 9, str(currentcurrent), 0, 0)
-                        if searchCode('RH_value', ResultValue):
-                            currentcurrent = StatusDeviceTuya('RH_value')
-                            UpdateDevice(dev['id'], 10, str(currentcurrent), 0, 0)
-                        if searchCode('anion', ResultValue):
-                            currentstatus = StatusDeviceTuya('anion')
-                            UpdateDevice(dev['id'], 11, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('free_cooling', ResultValue):
-                            currentstatus = StatusDeviceTuya('free_cooling')
-                            UpdateDevice(dev['id'], 12, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('powerful', ResultValue):
-                            currentstatus = StatusDeviceTuya('powerful')
-                            UpdateDevice(dev['id'], 13, bool(currentstatus), int(bool(currentstatus)), 0)
+                        update_bool_device('switch', 1)
+                        update_select_device('mode', 2)
+                        update_selectnum_device('fan_speed', 3)
+                        update_value_device('temp_set', 4)
+                        update_value_device('temp_current', 5)
+                        update_text_device('fault', 6)
+                        update_bool_device('light', 7)
+                        update_bool_device('RH_switch', 8)
+                        update_value_device('RH_threshold', 9)
+                        update_value_device('RH_value', 10)
+                        update_bool_device('anion', 11)
+                        update_bool_device('free_cooling', 12)
+                        update_bool_device('powerful', 13)
 
                     if dev_type == 'fanlight':
-                        if searchCode('fan_switch', ResultValue):
-                            currentstatus = StatusDeviceTuya('fan_switch')
-                            UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('fan_speed', ResultValue):
-                            currentmode = StatusDeviceTuya('fan_speed')
-                            for item in StatusProperties:
-                                if item['code'] == 'fan_speed':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
-                                        mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('fan_direction', ResultValue):
-                            currentmode = StatusDeviceTuya('fan_direction')
-                            for item in StatusProperties:
-                                if item['code'] == 'fan_direction':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        update_bool_device('fan_switch', 2)
+                        update_selectnum_device('fan_speed', 3)
+                        update_select_device('fan_direction', 4)
 
                     if dev_type == 'siren':
-                        if searchCode('AlarmSwitch', ResultValue):
-                            currentstatus = StatusDeviceTuya('AlarmSwitch')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('Alarmtype', ResultValue):
-                            currentmode = StatusDeviceTuya('Alarmtype')
-                            for item in StatusProperties:
-                                if item['code'] == 'Alarmtype':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('AlarmPeriod', ResultValue):
-                            currentmode = StatusDeviceTuya('AlarmPeriod')
-                            for item in StatusProperties:
-                                if item['code'] == 'AlarmPeriod':
-                                    the_values = json.loads(item['values'])
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
-                                        mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        # Other type of Alarm with same code
-                        if searchCode('AlarmSwitch', ResultValue):
-                            currentstatus = StatusDeviceTuya('AlarmSwitch')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('alarm_state', ResultValue):
-                            currentmode = StatusDeviceTuya('alarm_state')
-                            for item in StatusProperties:
-                                if item['code'] == 'alarm_state':
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('alarm_volume', ResultValue):
-                            currentmode = StatusDeviceTuya('alarm_volume')
-                            for item in StatusProperties:
-                                if item['code'] == 'alarm_volume':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        update_bool_device('AlarmSwitch', 1)
+                        if update_select_device('Alarmtype', 2):
+                            pass
+                        elif update_select_device('alarm_state', 2):
+                            pass
+                        if update_selectnum_device('AlarmPeriod', 3):
+                            pass
+                        elif update_selectnum_device('alarm_volume', 3):
+                            pass
                         battery_device()
 
                     if dev_type == 'powermeter':
-                        if searchCode('Current', ResultValue):
-                            currentcurrent = StatusDeviceTuya('Current')
-                            currentpower = StatusDeviceTuya('ActivePower')
-                            currentFrequency = StatusDeviceTuya('Frequency')
-                            currentTemperature = StatusDeviceTuya('Temperature')
-                            UpdateDevice(dev['id'], 2, str(currentFrequency), 0, 0)
-                            UpdateDevice(dev['id'], 3, str(currentTemperature), 0, 0)
-                            UpdateDevice(dev['id'], 4, str(currentcurrent), 0, 0)
-                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[5].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalue = Devices[dev['id']].Units[5].sValue if len(Devices[dev['id']].Units[5].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 5, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
-                        if searchCode('CurrentA', ResultValue):
-                            currentcurrentA = StatusDeviceTuya('CurrentA')
-                            currentpowerA = StatusDeviceTuya('ActivePowerA')
-                            currentvoltageA = StatusDeviceTuya('VoltageA')
-                            lastvalue3PA = Devices[dev['id']].Units[1].sValue if len(Devices[dev['id']].Units[1].sValue) > 0 else '0;0;0'
-                            UpdateDevice(dev['id'], 1, str(currentcurrentA) + ';' + str(float(lastvalue3PA.split(';')[1])) + ';' + str(float(lastvalue3PA.split(';')[2])) , 0, 0, 1)
-                            lastupdateA = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[12].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalueA = Devices[dev['id']].Units[12].sValue if len(Devices[dev['id']].Units[12].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 12, str(currentpowerA) + ';' + str(float(lastvalueA.split(';')[1]) + ((currentpowerA) * (lastupdateA / 3600))) , 0, 0, 1)
-                            UpdateDevice(dev['id'], 11, str(currentvoltageA), 0, 0)
-                        if searchCode('CurrentB', ResultValue):
-                            currentcurrentB = StatusDeviceTuya('CurrentB')
-                            currentpowerB = StatusDeviceTuya('ActivePowerB')
-                            currentvoltageB = StatusDeviceTuya('VoltageB')
-                            lastvalue3PB = Devices[dev['id']].Units[1].sValue if len(Devices[dev['id']].Units[1].sValue) > 0 else '0;0;0'
-                            UpdateDevice(dev['id'], 1, str(float(lastvalue3PB.split(';')[0])) + ';' + str(currentcurrentB) + ';' + str(float(lastvalue3PB.split(';')[2])) , 0, 0, 1)
-                            lastupdateB = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[22].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalueB = Devices[dev['id']].Units[22].sValue if len(Devices[dev['id']].Units[22].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 22, str(currentpowerB) + ';' + str(float(lastvalueB.split(';')[1]) + ((currentpowerB) * (lastupdateB / 3600))) , 0, 0, 1)
-                            UpdateDevice(dev['id'], 21, str(currentvoltageB), 0, 0)
-                        if searchCode('CurrentC', ResultValue):
-                            currentcurrentC = StatusDeviceTuya('CurrentC')
-                            currentpowerC = StatusDeviceTuya('ActivePowerC')
-                            currentvoltageC = StatusDeviceTuya('VoltageC')
-                            lastvalue3PC = Devices[dev['id']].Units[1].sValue if len(Devices[dev['id']].Units[1].sValue) > 0 else '0;0;0'
-                            UpdateDevice(dev['id'], 1, str(float(lastvalue3PC.split(';')[0])) + ';' + str(float(lastvalue3PC.split(';')[1])) + ';' + str(currentcurrentC) , 0, 0, 1)
-                            lastupdateC = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[32].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalueC = Devices[dev['id']].Units[32].sValue if len(Devices[dev['id']].Units[32].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 32, str(currentpowerC) + ';' + str(float(lastvalueC.split(';')[1]) + ((currentpowerC) * (lastupdateC / 3600))) , 0, 0, 1)
-                            UpdateDevice(dev['id'], 31, str(currentvoltageC), 0, 0)
-                        # 1 phase_a Meter
-                        if searchCode('phase_a', ResultValue):
+                        update_power_device('CurrentA', 1)
+                        update_power_device('CurrentB', 1)
+                        update_power_device('CurrentC', 1)
+                        update_value_device('Frequency', 2)
+                        update_value_device('Temperature', 3)
+                        update_value_device('Current', 4)
+                        update_power_device('ActivePower', 5)
+                        update_value_device('VoltageA', 11)
+                        update_power_device('ActivePowerA', 12)
+                        update_value_device('VoltageB', 21)
+                        update_power_device('ActivePowerB', 22)
+                        update_value_device('VoltageC', 31)
+                        update_power_device('ActivePowerC', 32)
+                        if searchCode('phase_a', StatusProperties):
                             base64_string = StatusDeviceTuya('phase_a')
                             # Decode base64 string
                             decoded_data = base64.b64decode(base64_string)
@@ -3360,301 +3069,113 @@ def onHandleThread(startup):
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[4].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev['id']].Units[4].sValue if len(Devices[dev['id']].Units[4].sValue) > 0 else '0;0'
                             UpdateDevice(dev['id'], 4, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
-                            if searchCode('switch', ResultValue):
-                                currentstatus = StatusDeviceTuya('switch')
-                                UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
-                            if searchCode('fault', ResultValue):
-                                currentnum = StatusDeviceTuya('fault')
-                                for item in StatusProperties:
-                                    if item['code'] == 'fault':
-                                        the_values = json.loads(item['values'])
-                                        mode = ['no fault']
-                                        if item['type'] == 'Bitmap':
-                                            mode.extend(the_values.get('label'))
-                                            currentmode = mode[currentnum].replace("_", " ").capitalize()
-                                        else:
-                                            mode.extend(the_values.get('range'))
-                                            currentmode = mode[currentnum].replace("_", " ").capitalize()
-                                if str(currentmode) != str(Devices[dev['id']].Units[6].nValue):
-                                    UpdateDevice(dev['id'], 6, str(currentmode), 1, 0)
+                        update_bool_device('switch', 5)
+                        update_text_device('fault', 6)
                         # 2 phase Meter with reverse
-                        if searchCode('direction_a', ResultValue):
-                            currentVoltage = StatusDeviceTuya('voltage_a')
-                            currentFrequency = StatusDeviceTuya('freq')
-                            currentPower = StatusDeviceTuya('total_power')
-                            currentPowerA = StatusDeviceTuya('power_a')
-                            currentCurrentA = StatusDeviceTuya('current_a')
-                            currentDirectionA = StatusDeviceTuya('direction_a').capitalize()
-                            currentForwardA = StatusDeviceTuya('energy_forword_a')
-                            currentReverseA = StatusDeviceTuya('energy_reverse_a')
-                            currentPowerB = StatusDeviceTuya('power_b')
-                            currentCurrentB = StatusDeviceTuya('current_b')
-                            currentDirectionB = StatusDeviceTuya('direction_b').capitalize()
-                            currentForwardB = StatusDeviceTuya('energy_forword_b')
-                            currentReverseB = StatusDeviceTuya('energy_reserse_b')
-                            UpdateDevice(dev['id'], 1, str(currentVoltage), 0, 0)
-                            UpdateDevice(dev['id'], 2, str(currentFrequency), 0, 0)
-                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[3].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalue = Devices[dev['id']].Units[3].sValue if len(Devices[dev['id']].Units[3].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 3, str(currentPower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentPower) * (lastupdate / 3600))) , 0, 0, 1)
-                            UpdateDevice(dev['id'], 11, str(currentPowerA), 0, 0)
-                            UpdateDevice(dev['id'], 12, str(currentCurrentA), 0, 0)
-                            UpdateDevice(dev['id'], 13, str(currentDirectionA), 0, 0)
-                            UpdateDevice(dev['id'], 14, str(currentForwardA), 0, 0)
-                            UpdateDevice(dev['id'], 15, str(currentReverseA), 0, 0)
-                            UpdateDevice(dev['id'], 21, str(currentPowerB), 0, 0)
-                            UpdateDevice(dev['id'], 22, str(currentCurrentB), 0, 0)
-                            UpdateDevice(dev['id'], 23, str(currentDirectionB), 0, 0)
-                            UpdateDevice(dev['id'], 24, str(currentForwardB), 0, 0)
-                            UpdateDevice(dev['id'], 25, str(currentReverseB), 0, 0)
+                        update_value_device('voltage_a', 1)
+                        update_value_device('freq', 2)
+                        update_power_device('total_power', 3)
+                        update_value_device('power_a', 11)
+                        update_value_device('current_a', 12)
+                        update_value_device('direction_a', 13)
+                        update_value_device('energy_forword_a', 14)
+                        update_value_device('energy_reverse_a', 15)
+                        update_value_device('power_b', 21)
+                        update_value_device('current_b', 22)
+                        update_value_device('direction_b', 23)
+                        update_value_device('energy_forword_b', 24)
+                        update_value_device('energy_reserse_b', 25)
 
-                    if dev_type == 'powermeter' and (searchCode('switch', ResultValue) or searchCode('switch_1', ResultValue)) and not searchCode('phase_a', ResultValue):
-                        if searchCode('switch', ResultValue) or searchCode('switch_1', ResultValue):
-                            if searchCode('switch_1', ResultValue):
-                                currentstatus = StatusDeviceTuya('switch_1')
-                            else:
-                                currentstatus = StatusDeviceTuya('switch')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('cur_current', ResultValue):
-                            currentcurrent = StatusDeviceTuya('cur_current')
-                            UpdateDevice(dev['id'], 2, str(currentcurrent), 0, 0)
-                        if searchCode('cur_power', ResultValue):
-                            currentpower = StatusDeviceTuya('cur_power')
-                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[3].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalue = Devices[dev['id']].Units[3].sValue if len(Devices[dev['id']].Units[3].sValue) > 0 else '0;0'
-                            UpdateDevice(dev['id'], 3, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
-                        if searchCode('cur_voltage', ResultValue):
-                            currentvoltage = StatusDeviceTuya('cur_voltage')
-                            UpdateDevice(dev['id'], 4, str(currentvoltage), 0, 0)
-                        if searchCode('fault', ResultValue):
-                            currentmode = StatusDeviceTuya('fault')
-                            if str(currentmode).lower() != str(Devices[dev['id']].Units[5].sValue).lower():
-                                UpdateDevice(dev['id'], 5, str(currentmode).capitalize(), 0, 0)
+                    if dev_type == 'powermeter' and (searchCode('switch', StatusProperties) or searchCode('switch_1', StatusProperties)) and not searchCode('phase_a', StatusProperties):
+                        if update_bool_device('switch', 1):
+                            pass
+                        elif update_bool_device('switch_1', 1):
+                            pass
+                        update_value_device('cur_current', 2)
+                        update_power_device('cur_power', 3)
+                        update_value_device('cur_voltage', 4)
+                        update_text_device('fault', 5)
 
                     if dev_type == 'gateway':
-                        if searchCode('master_state', ResultValue):
-                            UpdateDevice(dev['id'], 1, StatusDeviceTuya('master_state'), 0, 0)
+                        if update_value_device('master_state', 1):
+                            pass
                         else:
                             UpdateDevice(dev['id'], 1, 'Gateway only', 0, 0)
 
                     if dev_type == 'doorcontact':
-                        if searchCode('doorcontact_state', ResultValue):
-                            currentstatus = StatusDeviceTuya('doorcontact_state')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
+                        update_bool_device('doorcontact_state', 1)
                         battery_device()
 
                     if dev_type == 'pirlight':
-                        if searchCode('switch_pir', ResultValue):
-                            currentstatus = StatusDeviceTuya('switch_pir')
-                            UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('device_mode', ResultValue):
-                            currentmode = StatusDeviceTuya('device_mode')
-                            for item in StatusProperties:
-                                if item['code'] == 'device_mode':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('pir_sensitivity', ResultValue):
-                            currentmode = StatusDeviceTuya('pir_sensitivity')
-                            for item in StatusProperties:
-                                if item['code'] == 'pir_sensitivity':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        update_bool_device('switch_pir', 2)
+                        update_select_device('device_mode', 3)
+                        update_select_device('pir_sensitivity', 4)
 
                     if dev_type == 'smokedetector':
-                        if searchCode('smoke_sensor_status', ResultValue):
-                            currentstatus = StatusDeviceTuya('smoke_sensor_status')
-                            if currentstatus == 'normal':
-                                UpdateDevice(dev['id'], 1, False, 0, 0)
-                            elif currentstatus == 'alarm':
-                                UpdateDevice(dev['id'], 1, True, 1, 0)
-                            UpdateDevice(dev['id'], 2, currentstatus, 0, 0)
-                        if searchCode('PIR', ResultValue):
-                            currentstatus = StatusDeviceTuya('PIR')
-                            if int(currentstatus) == 0:
-                                UpdateDevice(dev['id'], 1, False, 0, 0)
-                            elif int(currentstatus) > 0:
-                                UpdateDevice(dev['id'], 1, True, 1, 0)
-                            UpdateDevice(dev['id'], 2, currentstatus, 0, 0)
+                        if update_bool_device('smoke_sensor_status', 2, 'normal'):
+                            pass
+                        elif update_bool_device('PIR', 2, 0):
+                            pass
+                        # if searchCode('smoke_sensor_status', StatusProperties):
+                        #     currentstatus = StatusDeviceTuya('smoke_sensor_status')
+                        #     if currentstatus == 'normal':
+                        #         UpdateDevice(dev['id'], 1, False, 0, 0)
+                        #     elif currentstatus == 'alarm':
+                        #         UpdateDevice(dev['id'], 1, True, 1, 0)
+                        #     UpdateDevice(dev['id'], 2, currentstatus, 0, 0)
+                        # if searchCode('PIR', StatusProperties):
+                        #     currentstatus = StatusDeviceTuya('PIR')
+                        #     if int(currentstatus) == 0:
+                        #         UpdateDevice(dev['id'], 1, False, 0, 0)
+                        #     elif int(currentstatus) > 0:
+                        #         UpdateDevice(dev['id'], 1, True, 1, 0)
+                        #     UpdateDevice(dev['id'], 2, currentstatus, 0, 0)
                         battery_device()
-                        # if searchCode('PIR', ResultValue):
-                        #     currentmode = StatusDeviceTuya('PIR')
-                        #     for item in ResultValue:
-                        #         if item['code'] == 'PIR':
-                        #             the_values = json.loads(item['values'])
-                        #             mode = ['off']
-                        #             if item['type'] == 'Bitmap':
-                        #                 mode.extend(the_values.get('label'))
-                        #             else:
-                        #                 mode.extend(the_values.get('range'))
-                        #     if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                        #         UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
 
                     if dev_type == 'garagedooropener':
-                        if searchCode('switch_1', ResultValue):
-                            currentstatus = StatusDeviceTuya('switch_1')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('doorcontact_state', ResultValue):
-                            currentstatus = StatusDeviceTuya('doorcontact_state')
-                            UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('door_control_1', ResultValue):
-                            currentstatus = StatusDeviceTuya('door_control_1')
-                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
+                        update_bool_device('switch_1', 1)
+                        update_bool_device('doorcontact_state', 2)
+                        update_bool_device('door_control_1', 3)
 
                     if dev_type == 'feeder':
-                        if searchCode('manual_feed', ResultValue):
-                            currentmode = StatusDeviceTuya('manual_feed')
-                            for item in StatusProperties:
-                                if item['code'] == 'manual_feed':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
-                                        mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[1].sValue):
-                                UpdateDevice(dev['id'], 1, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('feed_state', ResultValue):
-                            currentmode = StatusDeviceTuya('feed_state')
-                            for item in StatusProperties:
-                                if item['code'] == 'feed_state':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('feed_report', ResultValue):
-                            currentmode = StatusDeviceTuya('feed_report')
-                            for item in StatusProperties:
-                                if item['code'] == 'feed_report':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
-                                        mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('light', ResultValue):
-                            currentstatus = StatusDeviceTuya('light')
-                            UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
+                        update_selectnum_device('manual_feed', 1)
+                        update_select_device('feed_state', 2)
+                        update_selectnum_device('feed_report', 3)
+                        update_bool_device('light', 5)
 
                     if dev_type == 'waterleak':
-                        if searchCode('watersensor_state', ResultValue):
-                            currentstatus = StatusDeviceTuya('watersensor_state')
-                            if not isinstance(currentstatus, bool):
-                                if currentstatus.lower() == 'alarm':
-                                    currentstatus = True
-                                else:
-                                    currentstatus = False
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), bool(currentstatus), 0)
+                        update_bool_device('watersensor_state', 1, 'normal')
                         battery_device()
 
                     if dev_type == 'irrigation':
-                        if searchCode('switch', ResultValue) or searchCode('switch_1', ResultValue):
-                            if searchCode('switch_1', ResultValue):
-                                currentstatus = StatusDeviceTuya('switch_1')
-                            else:
-                                currentstatus = StatusDeviceTuya('switch')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('work_state', ResultValue):
-                            currentmode = StatusDeviceTuya('work_state')
-                            for item in StatusProperties:
-                                if item['code'] == 'work_state':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('areaone', ResultValue):
-                            currentstatus = StatusDeviceTuya('areaone')
-                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('areatwo', ResultValue):
-                            currentstatus = StatusDeviceTuya('areatwo')
-                            UpdateDevice(dev['id'], 4, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('areathree', ResultValue):
-                            currentstatus = StatusDeviceTuya('areathree')
-                            UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('areafour', ResultValue):
-                            currentstatus = StatusDeviceTuya('areafour')
-                            UpdateDevice(dev['id'], 6, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('areafive', ResultValue):
-                            currentstatus = StatusDeviceTuya('areafive')
-                            UpdateDevice(dev['id'], 7, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('areasix', ResultValue):
-                            currentstatus = StatusDeviceTuya('areasix')
-                            UpdateDevice(dev['id'], 8, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if update_bool_device('switch', 1):
+                            pass
+                        elif update_bool_device('switch_1', 1):
+                            pass
+                        update_select_device('work_state', 2)
+                        update_bool_device('areaone', 3)
+                        update_bool_device('areatwo', 4)
+                        update_bool_device('areathree', 5)
+                        update_bool_device('areafour', 6)
+                        update_bool_device('areafive', 7)
+                        update_bool_device('areasix', 8)
                         battery_device()
 
                     if dev_type == 'wswitch':
-                        timestamp = int(time.mktime(time.localtime()) * 1000)
-                        if (int(timestamp) - int(t)) < 61000:
-                            for x in range(1, 4):
-                                if searchCode('switch' + str(x) + '_value', ResultValue):
-                                    currentmode = StatusDeviceTuya('switch' + str(x) + '_value')
-                                    for item in StatusProperties:
-                                        if item['code'] == 'switch' + str(x) + '_value':
-                                            the_values = json.loads(item['values'])
-                                            mode = ['off']
-                                            if item['type'] == 'Bitmap':
-                                                mode.extend(the_values.get('label'))
-                                            else:
-                                                mode.extend(the_values.get('range'))
-                                    if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
-                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
-                                if searchCode('switch_type_' + str(x), ResultValue):
-                                    currentmode = StatusDeviceTuya('switch_type_' + str(x))
-                                    for item in StatusProperties:
-                                        if item['code'] == 'switch_type_' + str(x):
-                                            the_values = json.loads(item['values'])
-                                            mode = ['off']
-                                            if item['type'] == 'Bitmap':
-                                                mode.extend(the_values.get('label'))
-                                            else:
-                                                mode.extend(the_values.get('range'))
-                                    if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
-                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
-                                if searchCode('switch_mode' + str(x), ResultValue):
-                                    currentmode = StatusDeviceTuya('switch_mode' + str(x))
-                                    for item in StatusProperties:
-                                        if item['code'] == 'switch_mode' + str(x):
-                                            the_values = json.loads(item['values'])
-                                            mode = ['off']
-                                            if item['type'] == 'Bitmap':
-                                                mode.extend(the_values.get('label'))
-                                            else:
-                                                mode.extend(the_values.get('range'))
-                                    if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[x].sValue):
-                                        UpdateDevice(dev['id'], x, int(mode.index(str(currentmode)) * 10), 1, 0, 1)
-                        else:
-                            for x in range(1, 4):
-                                if searchCode('switch' + str(x) + '_value', ResultValue) or searchCode('switch_type_' + str(x), ResultValue) or earchCode('switch_mode' + str(x), ResultValue):
-                                    if str(0) != str(Devices[dev['id']].Units[x].sValue):
-                                        UpdateDevice(dev['id'], x, int(0), 0, 0, 1)
+                        for x in range(1, 4):
+                            if update_select_device('switch' + str(x) + '_value', x):
+                                pass
+                            elif update_select_device('switch_type_' + str(x), x):
+                                pass
+                            elif update_select_device('switch_mode' + str(x), x):
+                                pass
                         battery_device()
 
                     if dev_type == 'lightsensor':
-                        if searchCode('bright_value', ResultValue):
-                            currentbright= StatusDeviceTuya('bright_value')
-                            UpdateDevice(dev['id'], 1, float(currentbright),1, 0)
+                        update_value_device('bright_value', 1)
 
                     if dev_type == 'starlight':
-                        if searchCode('switch_led', ResultValue):
-                            currentstatus = StatusDeviceTuya('switch_led')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
+                        update_bool_device('switch_led', 1)
                         colortuya = StatusDeviceTuya('colour_data')
                         if currentstatus == True:
                             tuyacolor = ast.literal_eval(StatusDeviceTuya('colour_data'))
@@ -3666,21 +3187,19 @@ def onHandleThread(startup):
                             # {"b":0,"cw":0,"g":3,"m":3,"r":255,"t":0,"ww":0}
                             if (color['r'] != r or color['g'] != g or color['b'] != b ):
                                 UpdateDevice(dev['id'], 1, colorupdate, 1, 0)
-                                UpdateDevice(dev['id'], 1, brightness_to_pct(ResultValue, 'bright_value', int(v * 0.255)), 1, 0)
-                        if searchCode('colour_switch', ResultValue):
-                            currentstatus = StatusDeviceTuya('colour_switch')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('laser_switch', ResultValue):
+                                UpdateDevice(dev['id'], 1, brightness_to_pct(StatusProperties, 'bright_value', int(v * 0.255)), 1, 0)
+                        update_bool_device('colour_switch', 2)
+                        if searchCode('laser_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('laser_switch')
-                            currentdim = brightness_to_pct(ResultValue, 'laser_bright', int(StatusDeviceTuya('laser_bright')))
+                            currentdim = brightness_to_pct(StatusProperties, 'laser_bright', int(StatusDeviceTuya('laser_bright')))
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 3, False, 0, 0)
                             elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, True, 1, 0)
                                 UpdateDevice(dev['id'], 3, currentdim, 1, 0)
-                        if searchCode('fan_switch', ResultValue):
+                        if searchCode('fan_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('fan_switch')
-                            currentdim = brightness_to_pct(ResultValue, 'fan_speed', int(StatusDeviceTuya('fan_speed')))
+                            currentdim = brightness_to_pct(StatusProperties, 'fan_speed', int(StatusDeviceTuya('fan_speed')))
                             if bool(currentstatus) == False or currentdim == 0:
                                 UpdateDevice(dev['id'], 4, False, 0, 0)
                             elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev['id']].Units[4].sValue):
@@ -3688,350 +3207,88 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 4, currentdim, 1, 0)
 
                     if dev_type == 'smartlock':
-                        if searchCode('lock_motor_state', ResultValue):
-                            currentstatus = StatusDeviceTuya('lock_motor_state')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        # if searchCode('unlock_temporary', ResultValue):
+                        update_bool_device('lock_motor_state', 1)
+                        update_select_device('alarm_lock', 2)
+                        # if searchCode('unlock_temporary', StatusProperties):
                         #     currentstatus = StatusDeviceTuya('unlock_temporary')
                         #     if currentstatus == 0:
                         #         UpdateDevice(dev['id'], 3, False, 0, 0)
                         #     else:
                         #         UpdateDevice(dev['id'], 3, True, 1, 0)
-                        if searchCode('alarm_lock', ResultValue):
-                            currentmode = StatusDeviceTuya('alarm_lock')
-                            for item in StatusProperties:
-                                if item['code'] == 'alarm_lock':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         battery_device()
 
                     if dev_type == 'dehumidifier':
-                        if searchCode('switch', ResultValue):
-                            currentstatus = StatusDeviceTuya('switch')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('dehumidify_set_value', ResultValue) or searchCode('dehumidify_set_enum', ResultValue):
-                            if searchCode('dehumidify_set_value', ResultValue):
-                                currentmode = StatusDeviceTuya('dehumidify_set_value')
-                                for item in StatusProperties:
-                                    if item['code'] == 'dehumidify_set_value':
-                                        the_values = json.loads(item['values'])
-                                        mode = ['0']
-                                        for num in range(the_values.get('min'),the_values.get('max') + 1):
-                                            mode.extend([str(num)])
-                                if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                    UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
-                            elif searchCode('dehumidify_set_enum', ResultValue):
-                                currentmode = StatusDeviceTuya('dehumidify_set_enum')
-                                for item in StatusProperties:
-                                    if item['code'] == 'dehumidify_set_enum':
-                                        the_values = json.loads(item['values'])
-                                        mode = ['off']
-                                        if item['type'] == 'Bitmap':
-                                            mode.extend(the_values.get('label'))
-                                        else:
-                                            mode.extend(the_values.get('range'))
-                                if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                    UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('fan_speed_enum', ResultValue):
-                            currentmode = StatusDeviceTuya('fan_speed_enum')
-                            for item in StatusProperties:
-                                if item['code'] == 'fan_speed_enum':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('mode', ResultValue):
-                            currentmode = StatusDeviceTuya('mode')
-                            for item in StatusProperties:
-                                if item['code'] == 'mode':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        # if searchCode('anion', ResultValue):
-                        #     currentstatus = StatusDeviceTuya('anion')
-                        #     UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
-                        # if searchCode('temp_indoor', ResultValue):
-                        #     currenttemp = StatusDeviceTuya('temp_indoor')
-                        #     if str(currenttemp) != str(Devices[dev['id']].Units[6].sValue):
-                        #         UpdateDevice(dev['id'], 6, currenttemp, 0, 0)
-                        # if  searchCode('humidity_indoor', ResultValue):
-                        #     currenthumi = StatusDeviceTuya('humidity_indoor')
-                        #     if str(currenthumi) != str(Devices[dev['id']].Units[7].nValue):
-                        #         UpdateDevice(dev['id'], 7, 0, currenthumi, 0)
-                        # if searchCode('temp_indoor', ResultValue) and searchCode('humidity_indoor', ResultValue):
-                        #     currentdomo = Devices[dev['id']].Units[8].sValue
-                        #     if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                        #         UpdateDevice(dev['id'], 8, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('fault', ResultValue):
-                            currentmode = StatusDeviceTuya('fault')
-                            for item in StatusProperties:
-                                if item['code'] == 'fault':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['No fault']
-                                    mode.extend(the_values.get('label'))
-                            if str(mode[currentmode]).lower().replace('_',' ') != str(Devices[dev['id']].Units[5].sValue).lower():
-                                UpdateDevice(dev['id'], 5, str(mode[currentmode]).capitalize().replace('_',' '), 0, 0)
+                        update_bool_device('switch', 1)
+                        if update_selectnum_device('dehumidify_set_value', 2):
+                            pass
+                        elif update_selectnum_device('dehumidify_set_enum', 2):
+                            pass
+                        update_select_device('mode', 3)
+                        update_select_device('fan_speed_enum', 4)
+                        # update_bool_device('anion', 5)
+                        # update_value_device('temp_indoor', 6)
+                        # update_value_device('humidity_indoor', 7)
+                        # update_dualvalue_device('temp_indoor', 'humidity_indoor', 8)
+                        update_text_device('fault', 5)
 
                     if dev_type == 'vacuum':
-                        if searchCode('power_go', ResultValue):
-                            currentstatus = StatusDeviceTuya('power_go')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('switch_charge', ResultValue):
-                            currentstatus = StatusDeviceTuya('switch_charge')
-                            UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('mode', ResultValue):
-                            currentmode = StatusDeviceTuya('mode')
-                            for item in StatusProperties:
-                                if item['code'] == 'mode':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('suction', ResultValue):
-                            currentmode = StatusDeviceTuya('suction')
-                            for item in StatusProperties:
-                                if item['code'] == 'suction':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('cistern', ResultValue):
-                            currentmode = StatusDeviceTuya('cistern')
-                            for item in StatusProperties:
-                                if item['code'] == 'cistern':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[5].sValue):
-                                UpdateDevice(dev['id'], 5, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('status', ResultValue):
-                            UpdateDevice(dev['id'], 6, StatusDeviceTuya('status').capitalize(), 0, 0)
-                        if searchCode('electricity_left', ResultValue):
-                            UpdateDevice(dev['id'], 7, StatusDeviceTuya('electricity_left'), 0, 0)
-                        if searchCode('edge_brush', ResultValue):
-                            UpdateDevice(dev['id'], 8, StatusDeviceTuya('edge_brush'), 0, 0)
-                        if searchCode('roll_brush', ResultValue):
-                            UpdateDevice(dev['id'], 9, StatusDeviceTuya('roll_brush'), 0, 0)
-                        if searchCode('filter', ResultValue):
-                            UpdateDevice(dev['id'], 10, StatusDeviceTuya('filter'), 0, 0)
-                        # if searchCode('fault', ResultValue):
-                        #     UpdateDevice(dev['id'], 11, StatusDeviceTuya('fault'), 0, 0)
-                        if searchCode('fault', ResultValue):
-                            currentnum = StatusDeviceTuya('fault')
-                            for item in StatusProperties:
-                                if item['code'] == 'fault':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['no fault']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
-                            if str(currentmode) != str(Devices[dev['id']].Units[11].nValue):
-                                UpdateDevice(dev['id'], 11, str(currentmode), 1, 0)
+                        update_bool_device('power_go', 1)
+                        update_bool_device('switch_charge', 2)
+                        update_select_device('mode', 3)
+                        update_select_device('suction', 4)
+                        update_select_device('cistern', 5)
+                        update_text_device('status', 6)
+                        update_value_device('electricity_left', 7)
+                        update_value_device('edge_brush', 8)
+                        update_value_device('roll_brush', 9)
+                        update_value_device('filter', 10)
+                        update_value_device('electricity_left', 7)
+                        update_text_device('fault', 11)
+                        battery_device
 
                     if dev_type == 'multifunctionalarm':
-                        if searchCode('master_mode', ResultValue):
-                            currenttext = Devices[dev['id']].Units[1].sValue
-                            master_mode= StatusDeviceTuya('master_mode')
-                            if str(master_mode) != str(currenttext):
-                                UpdateDevice(dev['id'], 1, str(master_mode),1, 0)
-                                Domoticz.Log('Multifunction alarm: ' + str(master_mode))
+                        update_value_device('master_mode', 1)
 
                     if dev_type == 'purifier':
-                        if searchCode('switch', ResultValue):
-                            currentstatus = StatusDeviceTuya('switch')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if  searchCode('pm25', ResultValue):
-                            currentpm25 = StatusDeviceTuya('pm25')
-                            if str(currentpm25) != str(Devices[dev['id']].Units[2].nValue):
-                                UpdateDevice(dev['id'], 2, str(currentpm25), 0, 0)
-                        if searchCode('mode', ResultValue):
-                            currentmode = StatusDeviceTuya('mode')
-                            for item in StatusProperties:
-                                if item['code'] == 'mode':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('speed', ResultValue):
-                            currentmode = StatusDeviceTuya('speed')
-                            for item in StatusProperties:
-                                if item['code'] == 'speed':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('filter', ResultValue):
-                            UpdateDevice(dev['id'], 5, StatusDeviceTuya('filter'), 0, 0)
-                        if searchCode('air_quality', ResultValue):
-                            currentindex = StatusDeviceTuya('air_quality').capitalize()
-                            if str(currentindex) != str(Devices[dev['id']].Units[6].sValue):
-                                UpdateDevice(dev['id'], 6, str(currentindex), 0, 0)
+                        update_bool_device('switch', 1)
+                        update_value_device('pm25', 2)
+                        update_select_device('mode', 3)
+                        update_select_device('speed', 4)
+                        update_value_device('filter', 5)
+                        update_value_device('air_quality', 6)
 
                     if dev_type == 'smartkettle':
-                        if searchCode('start', ResultValue):
-                            currentstatus = StatusDeviceTuya('start')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('status', ResultValue):
-                            currentmode = StatusDeviceTuya('status')
-                            for item in StatusProperties:
-                                if item['code'] == 'status':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('temperature', ResultValue):
-                            currenttemp = StatusDeviceTuya('temperature')
-                            if str(currenttemp) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, currenttemp, 0, 0)
-                        if searchCode('cook_temperature', ResultValue):
-                            currenttemp_set = StatusDeviceTuya('cook_temperature')
-                            if str(currenttemp_set) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, currenttemp_set, 0, 0)
-                        if searchCode('fault', ResultValue):
-                            UpdateDevice(dev['id'], 5, StatusDeviceTuya('fault'), 0, 0)
+                        update_bool_device('start', 1)
+                        update_text_device('status', 2)
+                        update_value_device('temperature', 3)
+                        update_value_device('cook_temperature', 4)
+                        update_text_device('fault', 5)
 
                     if dev_type == 'mower':
-                        if searchCode('MachineRainMode', ResultValue):
-                            currentstatus = StatusDeviceTuya('MachineRainMode')
-                            UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('MachineStatus', ResultValue):
-                            UpdateDevice(dev['id'], 3, StatusDeviceTuya('MachineStatus'), 0, 0)
-                        if searchCode('MachineWarning', ResultValue):
-                            UpdateDevice(dev['id'], 4, StatusDeviceTuya('MachineWarning'), 0, 0)
-                        if searchCode('MachineError', ResultValue):
-                            UpdateDevice(dev['id'], 5, StatusDeviceTuya('MachineError'), 0, 0)
+                        update_bool_device('MachineRainMode', 2)
+                        update_value_device('MachineStatus', 3)
+                        update_value_device('MachineWarning', 4)
+                        update_value_device('MachineError', 5)
                         battery_device()
 
                     if dev_type == 'human_presence':
-                        if searchCode('presence_state', ResultValue):
-                            currentstatus = StatusDeviceTuya('presence_state')
-                            if currentstatus == 'none':
-                                UpdateDevice(dev['id'], 1, False, 0, 0)
-                            elif currentstatus != 'none':
-                                UpdateDevice(dev['id'], 1, True, 1, 0)
-                        if searchCode('sensitivity', ResultValue):
-                            currentmode = StatusDeviceTuya('sensitivity')
-                            for item in StatusProperties:
-                                if item['code'] == 'sensitivity':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
-                                        mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('near_detection', ResultValue):
-                            near_detection = StatusDeviceTuya('near_detection')
-                            if str(near_detection) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, near_detection, 0, 0)
-                        if searchCode('far_detection', ResultValue):
-                            far_detection = StatusDeviceTuya('far_detection')
-                            if str(far_detection) != str(Devices[dev['id']].Units[4].sValue):
-                                UpdateDevice(dev['id'], 4, far_detection, 0, 0)
-                        if searchCode('checking_result', ResultValue):
-                            currentnum = StatusDeviceTuya('checking_result')
-                            currentmode = currentnum.replace("_", " ").capitalize()
-                            if str(currentmode) != str(Devices[dev['id']].Units[5].nValue):
-                                UpdateDevice(dev['id'], 5, str(currentmode), 1, 0)
-                        if searchCode('target_dis_closest', ResultValue):
-                            target_dis_closest = StatusDeviceTuya('target_dis_closest')
-                            if str(target_dis_closest) != str(Devices[dev['id']].Units[6].sValue):
-                                UpdateDevice(dev['id'], 6, target_dis_closest, 0, 0)
-                        if searchCode('presence_state', ResultValue):
-                            currentmode = StatusDeviceTuya('presence_state')
-                            for item in StatusProperties:
-                                if item['code'] == 'presence_state':
-                                    the_values = json.loads(item['values'])
-                                    mode = []
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[10].sValue) and str(mode.index(str(currentmode)) * 10) != str(0):
-                                UpdateDevice(dev['id'], 10, int(mode.index(str(currentmode)) * 10), 1, 0)
-                            elif str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[10].sValue) and str(mode.index(str(currentmode)) * 10) == str(0):
-                                UpdateDevice(dev['id'], 10, int(mode.index(str(currentmode)) * 10), 0, 0)
+                        update_bool_device('presence_state', 1, 'none')
+                        update_selectnum_device('sensitivity', 2)
+                        update_value_device('near_detection', 3)
+                        update_value_device('far_detection', 4)
+                        update_text_device('checking_result', 5)
+                        update_value_device('target_dis_closest', 6)
+                        update_select_device('presence_state', 10)
 
                     if dev_type == 'evcharger':
-                        if searchCode('switch', ResultValue):
-                            currentstatus = StatusDeviceTuya('switch')
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('work_state', ResultValue):
-                            currentnum = StatusDeviceTuya('work_state')
-                            currentmode = currentnum.replace("_", " ").capitalize()
-                            if str(currentmode) != str(Devices[dev['id']].Units[2].nValue):
-                                UpdateDevice(dev['id'], 2, str(currentmode), 1, 0)
-                        if searchCode('temp_current', ResultValue):
-                            currenttemp = StatusDeviceTuya('temp_current')
-                            UpdateDevice(dev['id'], 3, currenttemp, 0, 0)
-                        if searchCode('power_total', ResultValue):
-                            currentpower = StatusDeviceTuya('power_total')
-                            UpdateDevice(dev['id'], 4, str(currentpower), 0, 0)
-                        if searchCode('charge_cur_set', ResultValue):
-                            currentcurrent = StatusDeviceTuya('charge_cur_set')
-                            UpdateDevice(dev['id'], 5, str(currentcurrent), 0, 0)
-                        if searchCode('forward_energy_total', ResultValue):
-                            currentcurrent = StatusDeviceTuya('forward_energy_total')
-                            UpdateDevice(dev['id'], 6, str(currentcurrent), 0, 0)
-                        if searchCode('online_state', ResultValue):
-                            currentnum = StatusDeviceTuya('online_state')
-                            currentmode = currentnum.replace("_", " ").capitalize()
-                            if str(currentmode) != str(Devices[dev['id']].Units[7].nValue):
-                                UpdateDevice(dev['id'], 7, str(currentmode), 1, 0)
-                        # if searchCode('fault', ResultValue):
-                        #     currentnum = StatusDeviceTuya('fault')
-                        #     for item in StatusProperties:
-                        #         if item['code'] == 'fault':
-                        #             the_values = json.loads(item['values'])
-                        #             mode = ['no fault']
-                        #             if item['type'] == 'Bitmap':
-                        #                 mode.extend(the_values.get('label'))
-                        #                 currentmode = mode[currentnum].replace("_", " ").capitalize()
-                        #             else:
-                        #                 mode.extend(the_values.get('range'))
-                        #                 currentmode = mode[currentnum].replace("_", " ").capitalize()
-                        #     if str(currentmode) != str(Devices[dev['id']].Units[8].nValue):
-                        #         UpdateDevice(dev['id'], 8, str(currentmode), 1, 0)
+                        update_bool_device('switch', 1)
+                        update_text_device('work_state', 2)
+                        update_value_device('temp_current', 3)
+                        update_value_device('power_total', 4)
+                        update_value_device('charge_cur_set', 5)
+                        update_value_device('forward_energy_total', 6)
+                        update_text_device('online_state', 7)
+                        # update_text_device('fault', 8)
 
                 except Exception as err:
                     Domoticz.Error('Device read failed: ' + str(dev['id']))
