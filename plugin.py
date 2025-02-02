@@ -2756,18 +2756,38 @@ def onHandleThread(startup):
                                     UpdateDevice(dev['id'], 1, temptuya, 1, 0)
                         if currentstatus == True and workmode == 'colour':
                             color = Devices[dev['id']].Units[1].Color
-                            if len(color) != 0:
-                                color = ast.literal_eval(color)
+                            if len(color) == 0:
+                                color = {'m': 3, 't': 0, 'r': 0, 'g': 0, 'b': 0, 'cw': 0, 'ww': 0}
+                            if colortuya:
+                                if isinstance(color, str):
+                                    color = ast.literal_eval(color)  # Convert string to dictionary if needed
+
+                                # Extract RGB values correctly from colortuya
+                                r_in = int(colortuya[0:2], 16)
+                                g_in = int(colortuya[2:4], 16)
+                                b_in = int(colortuya[4:6], 16)
+
                                 if searchCode('colour_data_v2', StatusProperties):
-                                    h,s,level = rgb_to_hsv_v2(int('0x' + colortuya[0:-12],0),int('0x' + colortuya[2:-10],0),int('0x' + colortuya[4:-8],0))
-                                    r,g,b = hsv_to_rgb_v2(h, s, 1000)
+                                    h, s, level = rgb_to_hsv_v2(r_in, g_in, b_in)
+                                    r, g, b = hsv_to_rgb_v2(h, s, 1000)  # Adjusted scale to 1000 if needed
                                 else:
-                                    h,s,level = rgb_to_hsv(int('0x' + colortuya[0:-12],0),int('0x' + colortuya[2:-10],0),int('0x' + colortuya[4:-8],0))
-                                    r,g,b = hsv_to_rgb(h, s, 100)
-                                colorupdate = {'b':b,'cw':0,'g':g,'m':3,'r':r,'t':0,'ww':0}
-                                if (color['r'] != r or color['g'] != g or color['b'] != b ) or len(Devices[dev['id']].Units[1].Color) == 0:
+                                    h, s, level = rgb_to_hsv(r_in, g_in, b_in)
+                                    r, g, b = hsv_to_rgb(h, s, 100)
+
+                                # Preserve 'cw' and 'ww' values from existing color struct
+                                colorupdate = {
+                                    'm': 3,        # Color mode remains 3 (assuming this means RGB mode)
+                                    't': color.get('t', 0),  # Retain temperature if applicable
+                                    'r': r,
+                                    'g': g,
+                                    'b': b,
+                                    'cw': color.get('cw', 0),  # Preserve Cold White level
+                                    'ww': color.get('ww', 0),  # Preserve Warm White level
+                                }
+                                # Check if RGB values have changed before updating the device
+                                if r_in != colorupdate['r'] or g_in != colorupdate['g'] or b_in != colorupdate['b']:#or not Devices[dev['id']].Units[1].get("Color"):
                                     UpdateDevice(dev['id'], 1, colorupdate, 1, 0)
-                                    UpdateDevice(dev['id'], 1, brightness_to_pct(StatusProperties, 'bright_value', int(inv_val(level))), 1, 0)
+                                    # UpdateDevice(dev['id'], 1, brightness_to_pct(StatusProperties, 'bright_value', int(inv_val(level))), 1, 0)
 
                     if dev_type == 'cover':
                         if searchCode('position', StatusProperties) or searchCode('percent_control', StatusProperties):
