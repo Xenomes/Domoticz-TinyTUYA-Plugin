@@ -2787,10 +2787,8 @@ def onHandleThread(startup):
                                 currenttemp_set = StatusDeviceTuya('target_temp')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[3].sValue):
                                     UpdateDevice(dev['id'], 3, currenttemp_set, 0, 0)
-                        if (searchCode('running_mode', ResultValue) or searchCode('work_mode', ResultValue) or searchCode('Mode', ResultValue) or searchCode('mode', ResultValue))and checkDevice(dev['id'],4):
-                            if searchCode('running_mode', ResultValue):
-                                modetype = 'running_mode'
-                            elif searchCode('work_mode', ResultValue):
+                        if (searchCode('work_mode', ResultValue) or searchCode('Mode', ResultValue) or searchCode('mode', ResultValue))and checkDevice(dev['id'],4):
+                            if searchCode('work_mode', ResultValue):
                                 modetype = 'work_mode'
                             elif searchCode('Mode', ResultValue):
                                 modetype = 'Mode'
@@ -2811,7 +2809,6 @@ def onHandleThread(startup):
                             new_value = mode.index(str(currentmode)) * 10
                             if str(new_value) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(new_value), 1, 0)
-
                         if searchCode('window_check', ResultValue):
                             currentstatus = StatusDeviceTuya('window_check')
                             UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
