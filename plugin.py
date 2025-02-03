@@ -365,7 +365,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, switch3, Level)
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
-                    mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, switch4, mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
                 if Command == 'Off' and Unit == 5:
@@ -2798,7 +2798,7 @@ def onHandleThread(startup):
                             mode = getConfigItem(dev['id'] + '-4', 'mode')
                             if mode is None:
                                 for item in StatusProperties:
-                                    if item['code'] == code:
+                                    if item['code'] == modetype:
                                         the_values = json.loads(item['values'])
                                         mode = ['off']
                                         if item['type'] == 'Bitmap':
