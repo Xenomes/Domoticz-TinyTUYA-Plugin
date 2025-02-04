@@ -1443,10 +1443,13 @@ def onHandleThread(startup):
                         options = {}
                         options['Custom'] = '1;inHg'
                         Domoticz.Unit(Name=dev['name'] + ' (inHg)', DeviceID=dev['id'], Unit=47, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
-                    # if createDevice(dev['id'], 47) and searchCode('alarm_switch', FunctionProperties):
-                    #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 48) and searchCode('pir', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Pir)', DeviceID=dev['id'], Unit=48, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 49) and searchCode('temper_alarm', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temper alarm)', DeviceID=dev['id'], Unit=49, Type=244, Subtype=73, Switchtype=0, Image=13, Used=1).Create()
+                    # if createDevice(dev['id'], 47) and searchCode('alarm_switch', FunctionProperties):
+                    #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+
                     if dev_type in ('smartir') and dev['id'] not in str(Devices):
                         Domoticz.Log('Infrared device: ' + str(dev['name']))
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
@@ -3051,9 +3054,12 @@ def onHandleThread(startup):
                             if str(currentlux) != str(Devices[dev['id']].Units[47].nValue):
                                 UpdateDevice(dev['id'], 47, str(currentlux), 0, 0)
                         if searchCode('pir', StatusProperties):
-                            currentstatus = StatusDeviceTuya('pir')
-                            UpdateDevice(dev['id'], 48, False if currentstatus == 'none' else True, 0, 0)
-
+                            current = StatusDeviceTuya('pir')
+                            currentstatus = False if current == 'none' else True
+                            UpdateDevice(dev['id'], 48, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('temper_alarm', ResultValue):
+                            currentstatus = StatusDeviceTuya('temper_alarm')
+                            UpdateDevice(dev['id'], 49, bool(currentstatus), int(bool(currentstatus)), 0)
                         # if searchCode('alarm_switch', ResultValue):
                         #     currentstatus = StatusDeviceTuya('alarm_switch')
                         #     UpdateDevice(dev['id'], 47, bool(currentstatus), int(bool(currentstatus)), 0)
