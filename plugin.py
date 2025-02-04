@@ -1519,10 +1519,13 @@ def onHandleThread(startup):
                         options = {}
                         options['Custom'] = '1;inHg'
                         Domoticz.Unit(Name=dev['name'] + ' (inHg)', DeviceID=dev['id'], Unit=47, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
-                    # if createDevice(dev['id'], 47) and searchCode('alarm_switch', StatusProperties):
-                    #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 48) and searchCode('pir', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Pir)', DeviceID=dev['id'], Unit=48, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 49) and searchCode('temper_alarm', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temper alarm)', DeviceID=dev['id'], Unit=49, Type=244, Subtype=73, Switchtype=0, Image=13, Used=1).Create()
+                    # if createDevice(dev['id'], 47) and searchCode('alarm_switch', FunctionProperties):
+                    #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+
                     if dev_type in ('smartir') and dev['id'] not in str(Devices):
                         Domoticz.Log('Infrared device: ' + str(dev['name']))
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
@@ -3013,6 +3016,7 @@ def onHandleThread(startup):
                         update_value_device('atmosphere', 47)
                         update_value_device('temp_current_2', 44)
                         update_bool_device('pir', 48, 'none')
+                        update_bool_device('temper_alarm', 49)
                         battery_device()
 
                     if dev_type == 'doorbell':
