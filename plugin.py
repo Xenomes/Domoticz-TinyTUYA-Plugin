@@ -169,14 +169,14 @@ class BasePlugin:
         except:
             return
         # signal queue thread to exit
-        messageQueue.put(None)
-        Domoticz.Log("Clearing message queue...")
+        # messageQueue.put(None)
+        # Domoticz.Log("Clearing message queue...")
         # messageQueue.join()
         # messageQueue.empty()
-        try:
-            open_pulsar.stop()
-        except:
-            return
+        # try:
+        #     open_pulsar.stop()
+        # except:
+        #     return
         # Wait until queue thread has exited
         Domoticz.Log("Threads still active: " + str(threading.active_count())+", should be 1.")
         while (threading.active_count() > 1):
@@ -2959,6 +2959,8 @@ def onHandleThread(startup):
                         elif update_value_device('Hin', 2):
                             pass
                         if update_dualvalue_device('va_temperature','va_humidity', 3):
+                            pass
+                        elif update_dualvalue_device('va_temperature','humidity_value', 3):
                             pass
                         elif update_dualvalue_device('temp_current','humidity', 3):
                             pass
