@@ -2500,6 +2500,16 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], unit, currentvalue, 0, 0)
                         return True
 
+                    def update_nvalue_device(code, unit, codeunit=None):
+                        # Check if the given code is present and device is valid
+                        if not searchCode(code, StatusProperties) or not get_unit(code, StatusProperties) not in [codeunit, None] or not checkDevice(dev['id'], unit):
+                            return False
+                        # Get the current value of the device
+                        currentvalue = StatusDeviceTuya(code)
+                        if str(currentvalue) != str(Devices[dev['id']].Units[unit].nValue):
+                            UpdateDevice(dev['id'], unit, 0, currentvalue, 0)
+                        return True
+
                     def update_dualvalue_device(code1, code2, unit):
                         # Check if the given code is present and device is valid
                         if not searchCode(code1, StatusProperties) or not searchCode(code2, StatusProperties) or not checkDevice(dev['id'], unit):
@@ -2920,7 +2930,7 @@ def onHandleThread(startup):
                             pass
                         elif update_select_device('fan_speed_enum', 9):
                             pass
-                        update_value_device('humidity_current', 10)
+                        update_nvalue_device('humidity_current', 10)
                         if update_value_device('currentcurrent', 15, 'mA'):
                             pass
                         elif update_value_device('currentcurrent', 11):
@@ -2948,15 +2958,15 @@ def onHandleThread(startup):
                             pass
                         elif update_value_device('Tin', 1):
                             pass
-                        if update_value_device('va_humidity', 2):
+                        if update_nvalue_device('va_humidity', 2):
                             pass
-                        elif update_value_device('humidity_value', 2):
+                        elif update_nvalue_device('humidity_value', 2):
                             pass
-                        elif update_value_device('local_hum', 2):
+                        elif update_nvalue_device('local_hum', 2):
                             pass
-                        elif update_value_device('humidity', 2):
+                        elif update_nvalue_device('humidity', 2):
                             pass
-                        elif update_value_device('Hin', 2):
+                        elif update_nvalue_device('Hin', 2):
                             pass
                         if update_dualvalue_device('va_temperature','va_humidity', 3):
                             pass
@@ -2980,7 +2990,7 @@ def onHandleThread(startup):
                             pass
                         elif update_value_device('ToutCh1', 21):
                             pass
-                        if update_value_device('sub1_hum', 22):
+                        if update_nvalue_device('sub1_hum', 22):
                             pass
                         elif update_value_device('HoutCh1', 22):
                             pass
@@ -2992,7 +3002,7 @@ def onHandleThread(startup):
                             pass
                         elif update_value_device('ToutCh2', 31):
                             pass
-                        if update_value_device('sub2_hum', 32):
+                        if update_nvalue_device('sub2_hum', 32):
                             pass
                         elif update_value_device('HoutCh2', 32):
                             pass
@@ -3004,7 +3014,7 @@ def onHandleThread(startup):
                             pass
                         elif update_value_device('ToutCh3', 41):
                             pass
-                        if update_value_device('sub3_hum', 42):
+                        if update_nvalue_device('sub3_hum', 42):
                             pass
                         elif update_value_device('HoutCh3', 42):
                             pass
@@ -3253,7 +3263,7 @@ def onHandleThread(startup):
                         update_select_device('fan_speed_enum', 4)
                         # update_bool_device('anion', 5)
                         # update_value_device('temp_indoor', 6)
-                        # update_value_device('humidity_indoor', 7)
+                        # update_nvalue_device('humidity_indoor', 7)
                         # update_dualvalue_device('temp_indoor', 'humidity_indoor', 8)
                         update_text_device('fault', 5)
 
