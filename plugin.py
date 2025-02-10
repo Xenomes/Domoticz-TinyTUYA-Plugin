@@ -1019,8 +1019,9 @@ def onHandleThread(startup):
             ResultValuePulsar = []
             if not messageQueue.empty():
                 ResultValuePulsar = json.loads(messageQueue.get())
-                Domoticz.Log('Update device: ' + str(ResultValuePulsar['devId']) + ' Switch: ' + str(ResultValuePulsar['status'][0]['code']) + ' Value: '+ str(ResultValuePulsar['status'][0]['value']))
                 Domoticz.Debug('Pulsar message: ' + str(ResultValuePulsar))
+                if 'status' in ResultValuePulsar and isinstance(ResultValuePulsar['status'], list) and len(ResultValuePulsar['status']) > 0:
+                    Domoticz.Log('Update device: ' + str(ResultValuePulsar['devId']) + ' Switch: ' + str(ResultValuePulsar['status'][0]['code']) + ' Value: '+ str(ResultValuePulsar['status'][0]['value']))
                 messageQueue.task_done()
         for dev in devs:
             run += 1
@@ -1044,13 +1045,16 @@ def onHandleThread(startup):
                     t = rData['t']
             elif pulsaractive == True and startup == False:
                 if isinstance(ResultValuePulsar, dict):
-                    if str(ResultValuePulsar['devId']) == str(dev['id']):
-                        t = ResultValuePulsar['status'][0]['t']
-                        for item in result[dev['id']]['result']:
-                            if item['code'] == ResultValuePulsar['status'][0]['code']:
-                                item['value'] = ResultValuePulsar['status'][0]['value']
-                                break
-                        ResultValue = result[dev['id']]['result']
+                    if 'status' in ResultValuePulsar and isinstance(ResultValuePulsar['status'], list) and len(ResultValuePulsar['status']) > 0:
+                        if str(ResultValuePulsar['devId']) == str(dev['id']):
+                            t = ResultValuePulsar['status'][0]['t']
+                            for item in result[dev['id']]['result']:
+                                if item['code'] == ResultValuePulsar['status'][0]['code']:
+                                    item['value'] = ResultValuePulsar['status'][0]['value']
+                                    break
+                            ResultValue = result[dev['id']]['result']
+                        else:
+                            continue
                     else:
                         continue
                 else:
