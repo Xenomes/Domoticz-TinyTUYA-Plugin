@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.4</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.5</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -2028,11 +2028,6 @@ def onHandleThread(startup):
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                             Domoticz.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev['id'], Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
-                if dev_type == 'lightsensor':
-                    if createDevice(dev['id'], 1):
-                        Domoticz.Log('Create device light sensor')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=246, Subtype=1, Switchtype=11, Used=1).Create()
-
                 if dev_type == 'starlight':
                     if createDevice(dev['id'], 1) and searchCode('switch_led', StatusProperties):
                         Domoticz.Log('Create device Starlight')
@@ -3211,9 +3206,6 @@ def onHandleThread(startup):
                                 pass
                         battery_device()
 
-                    if dev_type == 'lightsensor':
-                        update_value_device('bright_value', 1)
-
                     if dev_type == 'starlight':
                         update_bool_device('switch_led', 1)
                         colortuya = StatusDeviceTuya('colour_data')
@@ -3378,7 +3370,7 @@ def DeviceType(category, product_id=None):
         result = 'heater'
     elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt','hwktwkq', 'ydkt', 'cjkg'}:
         result = 'thermostat'
-    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','wsdcg','pir'}:
+    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','wsdcg','pir','dgnbj'}:
         result = 'sensor'
     elif category in {'rs'}:
         result = 'heatpump'
@@ -3414,8 +3406,6 @@ def DeviceType(category, product_id=None):
         result = 'irrigation'
     elif category in {'wxkg'}:
         result = 'wswitch'
-    elif category in {'dgnbj'}:
-        result = 'lightsensor'
     elif category in {'xktyd'}:
         result = 'starlight'
     elif category in {'ms'}:

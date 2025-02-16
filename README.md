@@ -81,11 +81,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 2.2.0 | Add Pulsar Push system |
 | 2.2.1 | Add Camera Motion Detection #154 |
 | 2.2.2 | Clean up the code  |
 | 2.2.3 | Change ResultValue to StatusProperties |
 | 2.2.4 | Change update lines to use defs |
+| 2.2.5 | Merge lightsensor in to sensor group |
 
  [The full Change log](CHANGELOG.md)
 
