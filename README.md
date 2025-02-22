@@ -80,11 +80,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 2.1.1 | Fix issue #153 |
 | 2.1.2 | Add outside lamp #156 |
 | 2.1.3 | Add EV-Chargers #145 #148 |
 | 2.1.4 | Fix for issue #147 #157 |
 | 2.1.5 | Merge lightsensor in to sensor group |
+| 2.1.5 | Add Contact Sensor (category mismatch) #159 |
 
  [The full Change log](CHANGELOG.md)
 
