@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.5</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.6</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -160,30 +160,46 @@ class BasePlugin:
 
     def onStop(self):
         Domoticz.Log('onStop called')
+
         try:
+            # Cleanup devices that are not recognized
             devs = Devices
             for dev in devs:
-                # Delete device is not recognised
                 if 'This device is not recognized.' in Devices[dev].Units[1].sValue:
                     Devices[dev].Units[1].Delete()
-        except:
-            return
-        # signal queue thread to exit
-        # messageQueue.put(None)
-        # Domoticz.Log("Clearing message queue...")
-        # messageQueue.join()
-        # messageQueue.empty()
-        # try:
-        #     open_pulsar.stop()
-        # except:
-        #     return
-        # Wait until queue thread has exited
-        Domoticz.Log("Threads still active: " + str(threading.active_count())+", should be 1.")
-        while (threading.active_count() > 1):
-            for thread in threading.enumerate():
-                if (thread.name != threading.current_thread().name):
-                    Domoticz.Log("'" + thread.name + "' is still running, waiting otherwise Domoticz will abort on plugin exit.")
-            time.sleep(1.0)
+        except Exception as e:
+            Domoticz.Log(f"Error during device cleanup: {e}")
+
+        # Start the shutdown process
+        start_time = time.time()
+
+        # Attempt to stop Pulsar gracefully
+        Domoticz.Log("Stopping Pulsar message queue...")
+        open_pulsar.stop()
+
+        # Polling for active threads and timeout mechanism
+        while True:
+            # Get active threads excluding the current thread
+            active_threads = [thread for thread in threading.enumerate() if thread.name != threading.current_thread().name]
+
+            # Check if no active threads remain
+            if len(active_threads) == 0:
+                Domoticz.Log("No active threads left, exiting plugin.")
+                break
+
+            # Check if we've exceeded the timeout
+            if time.time() - start_time > 60:  # 60 seconds timeout
+                Domoticz.Log("Timeout reached, some threads may not have finished. Exiting plugin.")
+                break
+
+            # Log number of threads still running
+            Domoticz.Log(f"{len(active_threads)} threads still running, waiting...")
+
+            # Sleep for a while to avoid constant polling
+            time.sleep(5.0)
+
+        Domoticz.Log("Exiting plugin.")
+
 
     def onConnect(self, Connection, Status, Description):
         Domoticz.Log('onConnect called')
@@ -3358,6 +3374,8 @@ def DeviceType(category, product_id=None):
         result = 'dimmer'
     elif product_id == 'x3o8epevyeo3z3oa':
         result = 'sensor'
+    elif product_id == 'p6sqiuesvhmhvv4f':
+        result = 'doorcontact'
     elif category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr', 'aqcz'}:
         result = 'switch'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj', 'tyd'}:
