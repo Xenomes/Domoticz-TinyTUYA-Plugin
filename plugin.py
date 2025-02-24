@@ -1041,7 +1041,7 @@ def onHandleThread(startup):
                 messageQueue.task_done()
         for dev in devs:
             run += 1
-            Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'], dev['product_id'])))
+            Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'], str(dev['product_id']))))
             try:
                 if testData == True:
                     online = True
