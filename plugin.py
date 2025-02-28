@@ -4041,7 +4041,7 @@ def DeviceType(category, product_id=None):
         result = 'heater'
     elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt','hwktwkq', 'ydkt', 'cjkg'}:
         result = 'thermostat'
-    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','wsdcg','pir','dgnbj'}:
+    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','pir','dgnbj'}:
         result = 'sensor'
     elif category in {'rs'}:
         result = 'heatpump'
