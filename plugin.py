@@ -966,7 +966,7 @@ def onHandleThread(startup):
         run = 0
         for dev in devs:
             run += 1
-            Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'],  str(dev['product_id']))))
+            Domoticz.Debug('Device name=' + str(dev.get('name', 'Unknown')) + ' id=' + str(dev.get('id', 'Unknown')) + ' category=' + str(DeviceType(int(dev.get('category', 0)), str(dev.get('product_id', 'Unknown')))))
             try:
                 last_update = time.time()
                 if testData == True:
