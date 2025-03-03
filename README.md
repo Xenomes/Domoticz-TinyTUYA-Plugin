@@ -84,7 +84,7 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 2.1.3 | Add EV-Chargers #145 #148 |
 | 2.1.4 | Fix for issue #147 #157 |
 | 2.1.5 | Merge lightsensor in to sensor group |
-| 2.1.5 | Add Contact Sensor (category mismatch) #159 |
+| 2.1.6 | Add Contact Sensor (category mismatch) #159 |
 
  [The full Change log](CHANGELOG.md)
 
