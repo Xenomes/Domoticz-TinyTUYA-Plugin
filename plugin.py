@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.6a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.6b" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.1.6a</h2><br/>
+        <h2>TinyTUYA Plugin version 2.1.6b</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -966,7 +966,12 @@ def onHandleThread(startup):
         run = 0
         for dev in devs:
             run += 1
-            Domoticz.Debug('Device name=' + str(dev.get('name', 'Unknown')) + ' id=' + str(dev.get('id', 'Unknown')) + ' category=' + str(DeviceType(dev.get('category', 0), str(dev.get('product_id', 'Unknown')))))
+            # Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'],  str(dev['product_id']))))
+            Domoticz.Debug('Device name=' + str(dev['name']))
+            Domoticz.Debug('Id=' + str(dev['id']))
+            Domoticz.Debug('Category=' + str(dev['category']))
+            Domoticz.Debug('product_id=' + str(dev['product_id']))
+            Domoticz.Debug('Category=' + str(DeviceType(dev['category'],  str(dev['product_id']))))
             try:
                 last_update = time.time()
                 if testData == True:
