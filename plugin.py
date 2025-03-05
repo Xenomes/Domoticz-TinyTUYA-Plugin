@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.6b" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.6c" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.1.6b</h2><br/>
+        <h2>TinyTUYA Plugin version 2.1.6c</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -966,13 +966,8 @@ def onHandleThread(startup):
         run = 0
         for dev in devs:
             run += 1
-            # Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'],  str(dev['product_id']))))
-            Domoticz.Debug('Device name=' + str(dev['name']))
-            Domoticz.Debug('Id=' + str(dev['id']))
-            Domoticz.Debug('Category=' + str(dev['category']))
-            Domoticz.Debug('product_id=' + str(dev['product_id']))
-            Domoticz.Debug('Category=' + str(DeviceType(dev['category'],  str(dev['product_id']))))
             try:
+                Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'],  dev['product_id'])))
                 last_update = time.time()
                 if testData == True:
                     online = True
@@ -982,24 +977,25 @@ def onHandleThread(startup):
                 FunctionProperties = properties[dev['id']]['functions']
                 dev_type = DeviceType(properties[dev['id']]['category'], dev['product_id'])
                 StatusProperties = properties[dev['id']]['status']
+
+                if testData == True:
+                    with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
+                        rData = json.load(rFile)
+                        ResultValue = rData['result']
+                        t = rData['t']
+                else:
+                    Result = tuya.getstatus(dev['id'])
+                    ResultValue = Result['result']
+                    t = Result['t']
+
+                product_id = getConfigItem(dev['id'],'product_id')
+
+                Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' FunctionProperties= ' + str(properties[dev['id']]['functions']))
+                Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' StatusProperties= ' + str(properties[dev['id']]['status']))
+                Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(ResultValue))
             except:
                 raise Exception('Credentials are incorrect or tuya subscription has expired!')
                 return
-            if testData == True:
-                with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
-                    rData = json.load(rFile)
-                    ResultValue = rData['result']
-                    t = rData['t']
-            else:
-                Result = tuya.getstatus(dev['id'])
-                ResultValue = Result['result']
-                t = Result['t']
-
-            product_id = getConfigItem(dev['id'],'product_id')
-
-            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' FunctionProperties= ' + str(properties[dev['id']]['functions']))
-            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' StatusProperties= ' + str(properties[dev['id']]['status']))
-            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(ResultValue))
 
             # Create devices
             if startup == True:
