@@ -107,3 +107,4 @@
 | 2.2.4 | Change update lines to use defs |
 | 2.2.5 | Merge lightsensor in to sensor group |
 | 2.2.6 | Add Contact Sensor (category mismatch) |
+| 3.0.0 | Release of the Pulsar |

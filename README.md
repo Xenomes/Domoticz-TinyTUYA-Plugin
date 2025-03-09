@@ -81,12 +81,7 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 2.2.1 | Add Camera Motion Detection #154 |
-| 2.2.2 | Clean up the code  |
-| 2.2.3 | Change ResultValue to StatusProperties |
-| 2.2.4 | Change update lines to use defs |
-| 2.2.5 | Merge lightsensor in to sensor group |
-| 2.2.6 | Add Contact Sensor (category mismatch) |
+| 3.0.0 | Release of the Pulsar |
 
  [The full Change log](CHANGELOG.md)
 

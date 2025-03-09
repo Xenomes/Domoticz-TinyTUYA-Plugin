@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="3.0.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.6</h2><br/>
+        <h2>TinyTUYA Plugin version 3.0.0</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1041,8 +1041,8 @@ def onHandleThread(startup):
                 messageQueue.task_done()
         for dev in devs:
             run += 1
-            Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'], str(dev['product_id']))))
             try:
+                Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'], str(dev['product_id']))))
                 if testData == True:
                     online = True
                 else:
@@ -1051,40 +1051,41 @@ def onHandleThread(startup):
                 FunctionProperties = properties[dev['id']]['functions']
                 dev_type = DeviceType(properties[dev['id']]['category'], dev['product_id'])
                 StatusProperties = properties[dev['id']]['status']
-            except:
-                raise Exception('Credentials are incorrect or tuya subscription has expired!')
-                return
-            if testData == True:
-                with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
-                    rData = json.load(rFile)
-                    ResultValue = rData['result']
-                    t = rData['t']
-            elif pulsaractive == True and startup == False:
-                if isinstance(ResultValuePulsar, dict):
-                    if 'status' in ResultValuePulsar and isinstance(ResultValuePulsar['status'], list) and len(ResultValuePulsar['status']) > 0:
-                        if str(ResultValuePulsar['devId']) == str(dev['id']):
-                            t = ResultValuePulsar['status'][0]['t']
-                            for item in result[dev['id']]['result']:
-                                if item['code'] == ResultValuePulsar['status'][0]['code']:
-                                    item['value'] = ResultValuePulsar['status'][0]['value']
-                                    break
-                            ResultValue = result[dev['id']]['result']
+
+                if testData == True:
+                    with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
+                        rData = json.load(rFile)
+                        ResultValue = rData['result']
+                        t = rData['t']
+                elif pulsaractive == True and startup == False:
+                    if isinstance(ResultValuePulsar, dict):
+                        if 'status' in ResultValuePulsar and isinstance(ResultValuePulsar['status'], list) and len(ResultValuePulsar['status']) > 0:
+                            if str(ResultValuePulsar['devId']) == str(dev['id']):
+                                t = ResultValuePulsar['status'][0]['t']
+                                for item in result[dev['id']]['result']:
+                                    if item['code'] == ResultValuePulsar['status'][0]['code']:
+                                        item['value'] = ResultValuePulsar['status'][0]['value']
+                                        break
+                                ResultValue = result[dev['id']]['result']
+                            else:
+                                continue
                         else:
                             continue
                     else:
                         continue
                 else:
-                    continue
-            else:
-                Result = tuya.getstatus(dev['id'])
-                ResultValue = Result['result']
-                t = Result['t']
+                    Result = tuya.getstatus(dev['id'])
+                    ResultValue = Result['result']
+                    t = Result['t']
 
-            product_id = getConfigItem(dev['id'],'product_id')
+                product_id = getConfigItem(dev['id'],'product_id')
 
-            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' FunctionProperties= ' + str(properties[dev['id']]['functions']) + '\n')
-            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' StatusProperties= ' + str(properties[dev['id']]['status']) + '\n')
-            Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(ResultValue) + '\n')
+                Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' FunctionProperties= ' + str(properties[dev['id']]['functions']) + '\n')
+                Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' StatusProperties= ' + str(properties[dev['id']]['status']) + '\n')
+                Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(ResultValue) + '\n')
+            except:
+                raise Exception('Credentials are incorrect or tuya subscription has expired!')
+                return
 
             # Create devices
             if startup == True:
