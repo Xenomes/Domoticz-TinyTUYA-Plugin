@@ -173,9 +173,13 @@ class BasePlugin:
         # Start the shutdown process
         start_time = time.time()
 
-        # Attempt to stop Pulsar gracefully
-        Domoticz.Log("Stopping Pulsar message queue...")
-        open_pulsar.stop()
+        try:
+            if len(str(open_pulsar)) != 0:
+                # Attempt to stop Pulsar gracefully
+                Domoticz.Log("Stopping Pulsar message queue...")
+                open_pulsar.stop()
+        except:
+            return
 
         # Polling for active threads and timeout mechanism
         while True:
@@ -1062,10 +1066,17 @@ def onHandleThread(startup):
                         if 'status' in ResultValuePulsar and isinstance(ResultValuePulsar['status'], list) and len(ResultValuePulsar['status']) > 0:
                             if str(ResultValuePulsar['devId']) == str(dev['id']):
                                 t = ResultValuePulsar['status'][0]['t']
-                                for item in result[dev['id']]['result']:
-                                    if item['code'] == ResultValuePulsar['status'][0]['code']:
-                                        item['value'] = ResultValuePulsar['status'][0]['value']
-                                        break
+                                for status_item in ResultValuePulsar['status']:
+                                    for result_item in result[dev['id']]['result']:
+                                        if result_item['code'] == status_item['code']:
+                                            result_item['value'] = status_item['value']
+                                            print(f"Updated {status_item['code']} to {status_item['value']}")
+                                            break
+
+                                # for item in result[dev['id']]['result']:
+                                #     if item['code'] == ResultValuePulsar['status'][0]['code']:
+                                #         item['value'] = ResultValuePulsar['status'][0]['value']
+                                #         break
                                 ResultValue = result[dev['id']]['result']
                             else:
                                 continue
