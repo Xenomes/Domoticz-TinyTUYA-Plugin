@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.6c" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.1.6c</h2><br/>
+        <h2>TinyTUYA Plugin version 2.1.7</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1028,19 +1028,27 @@ def onHandleThread(startup):
                     elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and not searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (not searchCode('bright_value', StatusProperties) or not searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light On/Off')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
-                    else:
+                    elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)):
                         Domoticz.Log('Create device Light On/Off (Unknown Light Device)')
                         Domoticz.Unit(Name=dev['name'] + ' (Unknown Light Device)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
+                    # elif not (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)):
+                    #     deleteDevice(dev['id'],1)
 
                 if dev_type == 'dimmer':
                     if  createDevice(dev['id'], 1) and searchCode('switch_led_1', FunctionProperties) and not searchCode('switch_led_2', FunctionProperties):
                         Domoticz.Log('Create device Dimmer')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
+                    # elif not createDevice(dev['id'], 1) and not searchCode('switch_led_1', FunctionProperties) and not searchCode('switch_led_2', FunctionProperties):
+                    #     deleteDevice(dev['id'],1)
                     if searchCode('switch_led_2', FunctionProperties):
                         if createDevice(dev['id'], 1):
                             Domoticz.Unit(Name=dev['name'] + ' (Dimmer 1)', DeviceID=dev['id'], Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
+                        # elif not createDevice(dev['id'], 1) and not searchCode('switch_led_1', FunctionProperties):
+                        #     deleteDevice(dev['id'],1)
                         if createDevice(dev['id'], 2):
                             Domoticz.Unit(Name=dev['name'] + ' (Dimmer 2)', DeviceID=dev['id'], Unit=2, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
+                        # elif not createDevice(dev['id'], 2) and not searchCode('switch_led_2', FunctionProperties):
+                        #     deleteDevice(dev['id'],2)
 
                 if dev_type == 'switch':
                     if  createDevice(dev['id'], 1) and (searchCode('switch_1', FunctionProperties) or searchCode('switch', FunctionProperties)) and not searchCode('switch_2', FunctionProperties):
@@ -1315,6 +1323,8 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 7) and searchCode('Eco', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Eco)', DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    # elif not createDevice(dev['id'], 7) and not searchCode('Eco', FunctionProperties):
+                    #     deleteDevice(dev['id'],7)
                     if createDevice(dev['id'], 8) and searchCode('temp_floor', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=8, Type=80, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 9) and (searchCode('windspeed', StatusProperties) or searchCode('fan_level', StatusProperties) or searchCode('fan_speed_enum', StatusProperties)):
@@ -2309,7 +2319,7 @@ def onHandleThread(startup):
                                 options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
                                 options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                 options['ValueUnit'] = the_values.get('unit')
-                        Domoticz.Unit(Name=dev['name'] + ' (Traget)', DeviceID=dev['id'], Unit=6, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Target)', DeviceID=dev['id'], Unit=6, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 10) and searchCode('presence_state', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'presence_state':
@@ -4368,6 +4378,13 @@ def createDevice(ID, Unit):
         value = True
 
     return value
+
+def deleteDevice(ID, Unit):
+    if ID in Devices:
+        Domoticz.Log("Deleting device with ID " + str(ID) + " Unit " + str(Unit) + ".")
+        Devices[ID].Units[Unit].Delete()
+    else:
+        Domoticz.Debug("Device with ID " + str(ID) + " not found. Cannot delete.")
 
 # Configuration Helpers
 def getConfigItem(Key=None, Values=None):
