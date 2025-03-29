@@ -102,3 +102,4 @@
 | 2.1.4 | Fix for issue #147 #157 |
 | 2.1.5 | Merge lightsensor in to sensor group |
 | 2.1.6 | Add Contact Sensor (category mismatch) |
+| 2.1.7 | Reduce api calls |

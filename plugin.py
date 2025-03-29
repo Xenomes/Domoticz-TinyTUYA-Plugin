@@ -907,31 +907,32 @@ def onHandleThread(startup):
                             properties[dev['id']]['status'] = []
                             Domoticz.Error('!! Warning Status data is missing !!')
                 # Domoticz.Debug(properties[dev['id']])
-
             else:
                 # if version(tinytuya.version) >= version('1.11.0'):
                 #     tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'])
                 # else:
-                tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
+                if 'tuya' not in globals():
+                    tuya = tinytuya.Cloud(apiRegion=Parameters['Mode1'], apiKey=Parameters['Username'], apiSecret=Parameters['Password'], apiDeviceID=Parameters['Mode2'])
                 tuya.use_old_device_list = True
                 tuya.new_sign_algorithm = True
                 Error = tuya.error
 
                 if Error is not None:
                     raise Exception(Error['Payload'])
-                devs = []
-                i = 0
-                while len(devs) == 0 and i < 4:
-                    try:
-                        devs = tuya.getdevices()
-                    except:
-                        devs = ''
-                    if i > 0:
-                        Domoticz.Log('No device data returned for Tuya. Trying again!')
-                    i += 1
-                if i > 4:
-                    raise Exception('No device data returned for Tuya. Check if subscription cloud development plan has expired!')
-                token = tuya.token
+                if 'devs' not in globals():
+                    devs = []
+                    i = 0
+                    while len(devs) == 0 and i < 4:
+                        try:
+                            devs = tuya.getdevices()
+                        except:
+                            devs = ''
+                        if i > 1:
+                            Domoticz.Log('No device data returned for Tuya. Trying again!')
+                        i += 1
+                    if i > 4:
+                        raise Exception('No device data returned for Tuya. Check if subscription cloud development plan has expired!')
+                    token = tuya.token
 
                 # # Check credentials
                 # if 'sign invalid' in str(devs) or token == None:
@@ -943,24 +944,27 @@ def onHandleThread(startup):
                 #     login = False
                 #     raise Exception('ID search device not found!')
 
-                properties = {}
-                for dev in devs:
-                    try:
-                        properties[dev['id']] = tuya.getproperties(dev['id'])['result']
+                    properties = {}
+                    result = {}
+                    for dev in devs:
                         try:
-                            properties[dev['id']]['functions']
-                        except:
-                            properties[dev['id']]['functions'] = []
-                        try:
-                            properties[dev['id']]['status']
-                        except:
-                            properties[dev['id']]['status'] = []
-                    except:
-                        Domoticz.Log('No device data returned for Tuya! Check if subscription cloud plan has expired!')
+                            properties[dev['id']] = tuya.getproperties(dev['id'])['result']
+                            try:
+                                properties[dev['id']]['functions']
+                            except:
+                                properties[dev['id']]['functions'] = []
+                            try:
+                                properties[dev['id']]['status']
+                            except:
+                                properties[dev['id']]['status'] = []
 
-            Domoticz.Log('Scanning for tuya devices on network...')
-            if testData == False:
-                scan = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
+                            result[dev['id']] = tuya.getstatus(dev['id'])
+                        except:
+                            Domoticz.Log('No device data returned for Tuya! Check if subscription cloud plan has expired!')
+
+            # Domoticz.Log('Scanning for tuya devices on network...')
+            # if testData == False:
+            #     scan = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
 
         # Initialize/Update devices from TUYA API
         run = 0
