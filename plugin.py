@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.1.7</h2><br/>
+        <h2>TinyTUYA Plugin version 2.1.8</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1412,6 +1412,18 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Lux)', DeviceID=dev['id'], Unit=10, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
                     if createDevice(dev['id'], 11) and searchCode('switch', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch)', DeviceID=dev['id'], Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 12) and searchCode('ph_current', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;pH'
+                        Domoticz.Unit(Name=dev['name'] + ' (pH)', DeviceID=dev['id'], Unit=12, Type=243, Subtype=31, Options=options, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 13) and searchCode('pro_current', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;kPa'
+                        Domoticz.Unit(Name=dev['name'] + ' (kPa)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=31, Options=options, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 14) and searchCode('orp_current', ResultValue):
+                        options = {}
+                        options['Custom'] = '1;ORP'
+                        Domoticz.Unit(Name=dev['name'] + ' (ORP)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=31, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 21) and (searchCode('sub1_temp', ResultValue) or searchCode('ToutCh1', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + '_ext1 (Temperature)', DeviceID=dev['id'], Unit=21, Type=80, Subtype=5, Used=0).Create()
                     if createDevice(dev['id'], 22) and (searchCode('sub1_hum', ResultValue) or searchCode('HoutCh1', ResultValue)):
@@ -2975,6 +2987,18 @@ def onHandleThread(startup):
                         if searchCode('switch', ResultValue):
                             currentstatus = StatusDeviceTuya('switch')
                             UpdateDevice(dev['id'], 11, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if  searchCode('ph_current', ResultValue):
+                            currentlux = StatusDeviceTuya('ph_current')
+                            if str(currentlux) != str(Devices[dev['id']].Units[12].nValue):
+                                UpdateDevice(dev['id'], 12, str(currentlux), 0, 0)
+                        if  searchCode('pro_current', ResultValue):
+                            currentlux = StatusDeviceTuya('pro_current')
+                            if str(currentlux) != str(Devices[dev['id']].Units[13].nValue):
+                                UpdateDevice(dev['id'], 13, str(currentlux), 0, 0)
+                        if  searchCode('orp_current', ResultValue):
+                            currentlux = StatusDeviceTuya('orp_current')
+                            if str(currentlux) != str(Devices[dev['id']].Units[14].nValue):
+                                UpdateDevice(dev['id'], 14, str(currentlux), 0, 0)
                         if searchCode('sub1_temp', ResultValue):
                             currenttemp = StatusDeviceTuya('sub1_temp')
                             if str(currenttemp) != str(Devices[dev['id']].Units[21].sValue):
