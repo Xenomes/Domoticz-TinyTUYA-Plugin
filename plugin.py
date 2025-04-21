@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.8a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.1.8</h2><br/>
+        <h2>TinyTUYA Plugin version 2.1.8a</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -403,6 +403,30 @@ class BasePlugin:
                     UpdateDevice(DeviceID, Unit, True, 1, 0)
 
             if dev_type == 'sensor':
+                if Command == 'Set Level' and Unit == 15:
+                    SendCommandCloud(DeviceID, 'ph_warn_min', Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                if Command == 'Set Level' and Unit == 16:
+                    SendCommandCloud(DeviceID, 'ph_warn_max', Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                if Command == 'Set Level' and Unit == 17:
+                    SendCommandCloud(DeviceID, 'pro_warn_min', Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                if Command == 'Set Level' and Unit == 18:
+                    SendCommandCloud(DeviceID, 'pro_warn_max', Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                if Command == 'Set Level' and Unit == 19:
+                    SendCommandCloud(DeviceID, 'orp_warn_min', Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                if Command == 'Set Level' and Unit == 20:
+                    SendCommandCloud(DeviceID, 'orp_warn_max', Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                if Command == 'Set Level' and Unit == 24:
+                    SendCommandCloud(DeviceID, 'temp_warn_min', Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                if Command == 'Set Level' and Unit == 25:
+                    SendCommandCloud(DeviceID, 'temp_warn_max', Level)
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 if Command == 'Set Level' and Unit == 45:
                     SendCommandCloud(DeviceID, 'cook_temperature', Level)
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
@@ -1424,12 +1448,100 @@ def onHandleThread(startup):
                         options = {}
                         options['Custom'] = '1;ORP'
                         Domoticz.Unit(Name=dev['name'] + ' (ORP)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=31, Options=options, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 15) and searchCode('ph_warn_min', FunctionProperties):
+                        for item in FunctionProperties:
+                            temp = 'ph_warn_min'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Min pH)', DeviceID=dev['id'], Unit=15, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                    if createDevice(dev['id'], 16) and searchCode('ph_warn_max', FunctionProperties):
+                        for item in FunctionProperties:
+                            temp = 'ph_warn_max'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Max pH)', DeviceID=dev['id'], Unit=16, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                    if createDevice(dev['id'], 17) and searchCode('pro_warn_min', FunctionProperties):
+                        for item in FunctionProperties:
+                            temp = 'pro_warn_min'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Min kPa)', DeviceID=dev['id'], Unit=17, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                    if createDevice(dev['id'], 18) and searchCode('pro_warn_max', FunctionProperties):
+                        for item in FunctionProperties:
+                            temp = 'pro_warn_max'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Max kPa)', DeviceID=dev['id'], Unit=18, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                    if createDevice(dev['id'], 19) and searchCode('orp_warn_min', FunctionProperties):
+                        for item in FunctionProperties:
+                            temp = 'orp_warn_min'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Min ORP)', DeviceID=dev['id'], Unit=19, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                    if createDevice(dev['id'], 20) and searchCode('orp_warn_max', FunctionProperties):
+                        for item in FunctionProperties:
+                            temp = 'orp_warn_max'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Max ORP)', DeviceID=dev['id'], Unit=20, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                     if createDevice(dev['id'], 21) and (searchCode('sub1_temp', ResultValue) or searchCode('ToutCh1', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + '_ext1 (Temperature)', DeviceID=dev['id'], Unit=21, Type=80, Subtype=5, Used=0).Create()
                     if createDevice(dev['id'], 22) and (searchCode('sub1_hum', ResultValue) or searchCode('HoutCh1', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + '_ext1 (Humidity)', DeviceID=dev['id'], Unit=22, Type=81, Subtype=1, Used=0).Create()
                     if createDevice(dev['id'], 23) and ((searchCode('sub1_temp', ResultValue) and searchCode('sub1_hum', ResultValue)) or (searchCode('ToutCh1', ResultValue) and searchCode('HoutCh1', ResultValue))):
                         Domoticz.Unit(Name=dev['name'] + '_ext1 (Temperature + Humidity)', DeviceID=dev['id'], Unit=23, Type=82, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 24) and searchCode('temp_warn_min', FunctionProperties):
+                        for item in FunctionProperties:
+                            temp = 'temp_warn_min'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Min Temp)', DeviceID=dev['id'], Unit=24, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                    if createDevice(dev['id'], 25) and searchCode('temp_warn_max', FunctionProperties):
+                        for item in FunctionProperties:
+                            temp = 'temp_warn_max'
+                            if item['code'] == temp:
+                                the_values = json.loads(item['values'])
+                                options = {}
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                options['ValueUnit'] = the_values.get('unit')
+                        Domoticz.Unit(Name=dev['name'] + ' (Max Temp)', DeviceID=dev['id'], Unit=25, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                     if createDevice(dev['id'], 31) and (searchCode('sub2_temp', ResultValue) or searchCode('ToutCh2', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + '_ext2 (Temperature)', DeviceID=dev['id'], Unit=31, Type=80, Subtype=5, Used=0).Create()
                     if createDevice(dev['id'], 32) and (searchCode('sub2_hum', ResultValue) or searchCode('HoutCh2', ResultValue)):
@@ -2999,6 +3111,30 @@ def onHandleThread(startup):
                             currentlux = StatusDeviceTuya('orp_current')
                             if str(currentlux) != str(Devices[dev['id']].Units[14].nValue):
                                 UpdateDevice(dev['id'], 14, str(currentlux), 0, 0)
+                        if  searchCode('ph_warn_min', ResultValue):
+                            currentlux = StatusDeviceTuya('ph_warn_min')
+                            if str(currentlux) != str(Devices[dev['id']].Units[15].nValue):
+                                UpdateDevice(dev['id'], 15, str(currentlux), 0, 0)
+                        if  searchCode('ph_warn_max', ResultValue):
+                            currentlux = StatusDeviceTuya('ph_warn_max')
+                            if str(currentlux) != str(Devices[dev['id']].Units[16].nValue):
+                                UpdateDevice(dev['id'], 16, str(currentlux), 0, 0)
+                        if  searchCode('pro_warn_min', ResultValue):
+                            currentlux = StatusDeviceTuya('pro_warn_min')
+                            if str(currentlux) != str(Devices[dev['id']].Units[17].nValue):
+                                UpdateDevice(dev['id'], 17, str(currentlux), 0, 0)
+                        if  searchCode('pro_warn_max', ResultValue):
+                            currentlux = StatusDeviceTuya('pro_warn_max')
+                            if str(currentlux) != str(Devices[dev['id']].Units[18].nValue):
+                                UpdateDevice(dev['id'], 18, str(currentlux), 0, 0)
+                        if  searchCode('orp_warn_min', ResultValue):
+                            currentlux = StatusDeviceTuya('orp_warn_min')
+                            if str(currentlux) != str(Devices[dev['id']].Units[19].nValue):
+                                UpdateDevice(dev['id'], 19, str(currentlux), 0, 0)
+                        if  searchCode('orp_warn_max', ResultValue):
+                            currentlux = StatusDeviceTuya('orp_warn_max')
+                            if str(currentlux) != str(Devices[dev['id']].Units[20].nValue):
+                                UpdateDevice(dev['id'], 20, str(currentlux), 0, 0)
                         if searchCode('sub1_temp', ResultValue):
                             currenttemp = StatusDeviceTuya('sub1_temp')
                             if str(currenttemp) != str(Devices[dev['id']].Units[21].sValue):
@@ -3023,6 +3159,14 @@ def onHandleThread(startup):
                             currentdomo = Devices[dev['id']].Units[23].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 23, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
+                        if  searchCode('temp_warn_min', ResultValue):
+                            currentlux = StatusDeviceTuya('temp_warn_min')
+                            if str(currentlux) != str(Devices[dev['id']].Units[24].nValue):
+                                UpdateDevice(dev['id'], 24, str(currentlux), 0, 0)
+                        if  searchCode('temp_warn_max', ResultValue):
+                            currentlux = StatusDeviceTuya('temp_warn_max')
+                            if str(currentlux) != str(Devices[dev['id']].Units[25].nValue):
+                                UpdateDevice(dev['id'], 25, str(currentlux), 0, 0)
                         if searchCode('sub2_temp', ResultValue):
                             currenttemp = StatusDeviceTuya('sub2_temp')
                             if str(currenttemp) != str(Devices[dev['id']].Units[31].sValue):
