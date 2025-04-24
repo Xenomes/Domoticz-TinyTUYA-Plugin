@@ -100,6 +100,10 @@
 | 2.1.2 | Add outside lamp #156 |
 | 2.1.3 | Add EV-Chargers #145 #148 |
 | 2.1.4 | Fix for issue #147 #157 |
+| 2.1.5 | Merge lightsensor in to sensor group |
+| 2.1.6 | Add Contact Sensor (category mismatch) |
+| 2.1.7 | Reduce api calls |
+| 2.1.8 | Add W2839 Pool Digital Monitor #166 |
 | 2.2.0 | Add Pulsar Push system |
 | 2.2.1 | Add Camera Motion Detection #154 |
 | 2.2.2 | Clean up the code  |
