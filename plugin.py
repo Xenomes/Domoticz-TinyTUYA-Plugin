@@ -3899,6 +3899,7 @@ def setConfigItem(Key=None, Value=None):
     except Exception as inst:
         Domoticz.Error('Domoticz.Configuration operation failed: ' + str(inst))
         clearConfigItem()
+        onHandleThread(True)
     return Config
 
 def clearConfigItem():
