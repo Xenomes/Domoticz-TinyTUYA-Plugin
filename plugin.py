@@ -3898,7 +3898,15 @@ def setConfigItem(Key=None, Value=None):
         Config = Domoticz.Configuration(Config)
     except Exception as inst:
         Domoticz.Error('Domoticz.Configuration operation failed: ' + str(inst))
+        clearConfigItem()
     return Config
+
+def clearConfigItem():
+    try:
+        Domoticz.Configuration({})
+        Domoticz.Log("Configuration reset to empty.")
+    except Exception as e:
+        Domoticz.Error("Failed to reset configuration: " + str(e))
 
 def version(ver):
     return tuple(map(int, (ver.split("."))))
