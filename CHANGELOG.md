@@ -104,3 +104,4 @@
 | 2.1.6 | Add Contact Sensor (category mismatch) |
 | 2.1.7 | Reduce api calls |
 | 2.1.8 | Add W2839 Pool Digital Monitor #166 |
+| 2.1.9 | Fix update to Domoticz 2025.1 |
