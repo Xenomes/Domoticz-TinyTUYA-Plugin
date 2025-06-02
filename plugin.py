@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.1.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.1.9</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.0</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -365,7 +365,7 @@ class BasePlugin:
                     SendCommandCloud(DeviceID, switch3, Level)
                     UpdateDevice(DeviceID, 3, Level, 1, 0)
                 elif Command == 'Set Level' and Unit == 4:
-                    mode = getConfigItem(DeviceID + '-' + str(Unit), 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    mode = getConfigItem(str(DeviceID) + '-4', 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     SendCommandCloud(DeviceID, switch4, mode[int(Level / 10)])
                     UpdateDevice(DeviceID, 4, Level, 1, 0)
                 if Command == 'Off' and Unit == 5:
@@ -1342,7 +1342,8 @@ def onHandleThread(startup):
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
-                                setConfigItem(dev['id'] + '-4', {'mode': mode})
+                                # Domoticz.Error('Write: ' + str(((dev['id']) + '-4', {'mode': mode})))
+                                setConfigItem(str(dev['id']) + '-4', {'mode': mode})
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=image, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('window_check', FunctionProperties):
@@ -2932,7 +2933,8 @@ def onHandleThread(startup):
                             elif searchCode('mode', ResultValue):
                                 modetype = 'mode'
                             currentmode = StatusDeviceTuya(modetype)
-                            mode = getConfigItem(dev['id'] + '-4', 'mode')
+                            mode = getConfigItem(str(dev['id']) + '-4', 'mode')
+                            Domoticz.Error('Read: ' + str(mode))
                             if mode is None:
                                 for item in StatusProperties:
                                     if item['code'] == modetype:
@@ -4585,16 +4587,7 @@ def setConfigItem(Key=None, Value=None):
         Config = Domoticz.Configuration(Config)
     except Exception as inst:
         Domoticz.Error('Domoticz.Configuration operation failed: ' + str(inst))
-        clearConfigItem()
-        onHandleThread(True)
     return Config
-
-def clearConfigItem():
-    try:
-        Domoticz.Configuration({})
-        Domoticz.Log("Configuration reset to empty.")
-    except Exception as e:
-        Domoticz.Error("Failed to reset configuration: " + str(e))
 
 def version(ver):
     return tuple(map(int, (ver.split("."))))
