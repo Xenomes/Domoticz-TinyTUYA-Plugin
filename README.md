@@ -24,12 +24,19 @@ To install:
 * Go in your Domoticz Docker directory using a command line and open the plugins directory.
 * Run: ```git clone https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git```
 * Add the next lines to your customstart.sh file after the 'apt-get -qq update' command.
+#### Bullseye
 ```
 echo 'install tinytuya'
 apt install libffi-dev build-essential pkg-config libssl-dev -y
 pip3 install cryptography==3.4.8 requests==2.23.0 charset-normalizer==3.0.1 tuya-connector-python tinytuya -U
 ```
+#### Bookworm
+```
+echo 'install tinytuya'
+pip3 install tinytuya PyCryptodome==3.21.0 chardet==3.0.4 requests==2.23.0 charset-normalizer==3.0.1 tuya-connector-python --break-system-packages
 * Rebuild the Domoticz Docker container.
+```
+
 ```
 docker compose down
 docker compose up -d
