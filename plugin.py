@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.1</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.2</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -818,6 +818,10 @@ class BasePlugin:
                     elif Command == 'On' and Unit == 2:
                         SendCommandCloud(DeviceID, 'MachineRainMode', True)
                         UpdateDevice(DeviceID, 2, True, 1, 0)
+                    if Command == 'Set Level' and Unit == 6:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'MachineWorkMode', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 6, Level, 1, 0)
 
                 if dev_type == 'human_presence':
                     if Command == 'Set Level' and Unit == 2:
@@ -2422,11 +2426,26 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 2) and searchCode('MachineRainMode', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Rain Mode)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('MachineStatus', ResultValue):
-                            Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=3, Type=243, Subtype=19, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=3, Type=243, Subtype=19, Image=13, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('MachineWarning', ResultValue):
-                            Domoticz.Unit(Name=dev['name'] + ' (Warnig)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=19, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Warnig)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=19, Image=13, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('MachineError', ResultValue):
-                            Domoticz.Unit(Name=dev['name'] + ' (Error)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=19, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Error)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
+                    if createDevice(dev['id'], 6) and searchCode('MachineWorkMode', FunctionProperties):
+                        for item in FunctionProperties:
+                            if item['code'] == 'MachineWorkMode':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                        Domoticz.Unit(Name=dev['name'] + ' (WorkMode)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
 
                 if dev_type == 'human_presence':
                     if createDevice(dev['id'], 1) and searchCode('presence_state', ResultValue):
@@ -4178,16 +4197,63 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 5, StatusDeviceTuya('fault'), 0, 0)
 
                     if dev_type == 'mower':
+                        if searchCode('MachineControlCmd', ResultValue):
+                            UpdateDevice(dev['id'], 1, StatusDeviceTuya('MachineControlCmd'), 0, 0)
                         if searchCode('MachineRainMode', ResultValue):
                             currentstatus = StatusDeviceTuya('MachineRainMode')
                             UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
                         if searchCode('MachineStatus', ResultValue):
-                            UpdateDevice(dev['id'], 3, StatusDeviceTuya('MachineStatus'), 0, 0)
+                            currentnum = StatusDeviceTuya('MachineStatus')
+                            for item in StatusProperties:
+                                if item['code'] == 'MachineStatus':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['no fault']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
+                                    else:
+                                        currentmode = currentnum.replace("_", " ").capitalize()
+                            if str(currentmode) != str(Devices[dev['id']].Units[3].nValue):
+                                UpdateDevice(dev['id'], 3, str(currentmode), 1, 0)
                         if searchCode('MachineWarning', ResultValue):
-                            UpdateDevice(dev['id'], 4, StatusDeviceTuya('MachineWarning'), 0, 0)
+                            currentnum = StatusDeviceTuya('MachineWarning')
+                            for item in StatusProperties:
+                                if item['code'] == 'MachineWarning':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['no fault']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
+                                    else:
+                                        currentmode = currentnum.replace("_", " ").capitalize()
+                            if str(currentmode) != str(Devices[dev['id']].Units[4].nValue):
+                                UpdateDevice(dev['id'], 4, str(currentmode), 1, 0)
                         if searchCode('MachineError', ResultValue):
-                            UpdateDevice(dev['id'], 5, StatusDeviceTuya('MachineError'), 0, 0)
-                        battery_device()
+                            currentnum = StatusDeviceTuya('MachineError')
+                            for item in StatusProperties:
+                                if item['code'] == 'MachineError':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['no fault']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                        currentmode = mode[currentnum].replace("_", " ").capitalize()
+                                    else:
+                                        currentmode = currentnum.replace("_", " ").capitalize()
+                            if str(currentmode) != str(Devices[dev['id']].Units[5].nValue):
+                                UpdateDevice(dev['id'], 5, str(currentmode), 1, 0)
+                        if searchCode('MachineWorkMode', ResultValue):
+                            currentmode = StatusDeviceTuya('MachineWorkMode')
+                            for item in StatusProperties:
+                                if item['code'] == 'MachineWorkMode':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[6].sValue):
+                                UpdateDevice(dev['id'], 6, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            battery_device()
 
                     if dev_type == 'human_presence':
                         if searchCode('presence_state', ResultValue):

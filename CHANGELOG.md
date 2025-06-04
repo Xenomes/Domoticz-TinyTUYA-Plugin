@@ -107,3 +107,4 @@
 | 2.1.9 | Fix update to Domoticz 2025.1 |
 | 2.2.0 | remove update to Domoticz 2025.1 was bug |
 | 2.2.1 | Add Aromatherapy |
+| 2.2.2 | Add Extra Mower devices |
