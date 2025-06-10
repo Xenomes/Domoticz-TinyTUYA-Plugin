@@ -248,10 +248,10 @@ class BasePlugin:
                 if dev_type in ('light') and Unit == 2:
                     if searchCode('Power', function):
                         if Command == 'Off':
-                            SendCommandCloud(DeviceID, 'switch', False)
+                            SendCommandCloud(DeviceID, 'Power', False)
                             UpdateDevice(DeviceID, Unit, False, 0, 0)
                         elif Command == 'On':
-                            SendCommandCloud(DeviceID, 'switch', True)
+                            SendCommandCloud(DeviceID, 'Power', True)
                             UpdateDevice(DeviceID, Unit, True, 1, 0)
                 if dev_type in ('light') and Unit == 3:
                     if searchCode('lightmode', function):
