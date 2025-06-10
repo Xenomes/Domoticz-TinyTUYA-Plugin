@@ -187,7 +187,7 @@ class BasePlugin:
                         SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
                         UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
-                elif dev_type in ('light') or ((dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1):
+                elif (dev_type in ('light') or dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1:
                     if searchCode('led_switch', function):
                         switch = 'led_switch' 
                     elif searchCode('switch_led', function):
