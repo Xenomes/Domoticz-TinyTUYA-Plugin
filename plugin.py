@@ -2550,8 +2550,8 @@ def onHandleThread(startup):
 
                 if dev_type in ('light'):
                     if createDevice(dev['id'], 1) and searchCode('Light', FunctionProperties) and searchCode('work_mode', FunctionProperties) and (searchCode('colour_data', FunctionProperties) or searchCode('colour_data_v2', FunctionProperties)):
-                        Domoticz.Log('Create device Light RGB')
-                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
+                        Domoticz.Log('Create device Light RGBW')
+                        Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=1, Switchtype=7, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('Power', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('lightmode', FunctionProperties):
