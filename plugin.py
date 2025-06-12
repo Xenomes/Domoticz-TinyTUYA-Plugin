@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.2</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.3</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -178,7 +178,7 @@ class BasePlugin:
                             SendCommandCloud(DeviceID, 'switch_mode' + str(Unit), mode[int(Level / 10)])
                         UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
-                elif dev_type in ('dimmer'):
+                if dev_type in ('dimmer'):
                     if Command == 'Off':
                         SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), False)
                         UpdateDevice(DeviceID, Unit, False, 0, 0)
@@ -187,7 +187,7 @@ class BasePlugin:
                         SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
                         UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
-                elif (dev_type in ('light') or dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1:
+                if (dev_type in ('light') or dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1:
                     if searchCode('led_switch', function):
                         switch = 'led_switch' 
                     elif searchCode('switch_led', function):
@@ -205,10 +205,11 @@ class BasePlugin:
                         if searchCode('bright_value_v2', function):
                             SendCommandCloud(DeviceID, switch, True)
                             SendCommandCloud(DeviceID, 'bright_value_v2', Level)
-                        else:
+                            UpdateDevice(DeviceID, 1, Level, 1, 0)
+                        elif searchCode('bright_value', function):
                             SendCommandCloud(DeviceID, switch, True)
                             SendCommandCloud(DeviceID, 'bright_value', Level)
-                        UpdateDevice(DeviceID, 1, Level, 1, 0)
+                            UpdateDevice(DeviceID, 1, Level, 1, 0)
                     elif (Command == 'Set Color' or Command == 'Set Level') and len(Color) != 0:
                         if Color['m'] == 2:
                             SendCommandCloud(DeviceID, switch, True)
@@ -216,11 +217,13 @@ class BasePlugin:
                             if searchCode('bright_value_v2', function):
                                 SendCommandCloud(DeviceID, 'bright_value_v2', Level)
                                 SendCommandCloud(DeviceID, 'temp_value_v2', int(Color['t']))
-                            else:
+                                UpdateDevice(DeviceID, 1, Level, 1, 0)
+                                UpdateDevice(DeviceID, 1, Color, 1, 0)
+                            elif searchCode('bright_value', function):
                                 SendCommandCloud(DeviceID, 'bright_value', Level)
                                 SendCommandCloud(DeviceID, 'temp_value', int(Color['t']))
-                            UpdateDevice(DeviceID, 1, Level, 1, 0)
-                            UpdateDevice(DeviceID, 1, Color, 1, 0)
+                                UpdateDevice(DeviceID, 1, Level, 1, 0)
+                                UpdateDevice(DeviceID, 1, Color, 1, 0)
                         # elif Color['m'] == 3:
                         #     if scalemode == 'v2':
                         #         h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
@@ -236,14 +239,18 @@ class BasePlugin:
                         #     UpdateDevice(DeviceID, 1, Color, 1, 0)
                         elif Color['m'] == 3:
                             rgbcolor = format(rgb_temp(Color['r'], Level), '02x') + format(rgb_temp(Color['g'], Level), '02x') + format(rgb_temp(Color['b'], Level), '02x') + '0000ffff'
-                            SendCommandCloud(DeviceID, switch, True)
-                            SendCommandCloud(DeviceID, 'work_mode', 'colour')
                             if searchCode('colour_data_v2', function):
+                                SendCommandCloud(DeviceID, switch, True)
+                                SendCommandCloud(DeviceID, 'work_mode', 'colour')
                                 SendCommandCloud(DeviceID, 'colour_data_v2', rgbcolor)
-                            else:
+                                UpdateDevice(DeviceID, 1, Level, 1, 0)
+                                UpdateDevice(DeviceID, 1, Color, 1, 0)
+                            elif searchCode('colour_data', function):
+                                SendCommandCloud(DeviceID, switch, True)
+                                SendCommandCloud(DeviceID, 'work_mode', 'colour')
                                 SendCommandCloud(DeviceID, 'colour_data', rgbcolor)
-                            UpdateDevice(DeviceID, 1, Level, 1, 0)
-                            UpdateDevice(DeviceID, 1, Color, 1, 0)
+                                UpdateDevice(DeviceID, 1, Level, 1, 0)
+                                UpdateDevice(DeviceID, 1, Color, 1, 0)
 
                 if dev_type in ('light') and Unit == 2:
                     if searchCode('Power', function):
@@ -257,14 +264,16 @@ class BasePlugin:
                     if searchCode('lightmode', function):
                         switch = 'lightmode'
                         if Command == 'Set Level' and Unit  == 3:
-                            SendCommandCloud(DeviceID, switch, Level)
-                            UpdateDevice(DeviceID, 3, Level, 1, 0)
+                            mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                            SendCommandCloud(DeviceID, switch, mode[int(Level / 10)])
+                            UpdateDevice(DeviceID, Unit, Level, 1, 0)
                 if dev_type in ('light') and Unit == 4:
                     if searchCode('dp_mist_grade', function):
                         switch = 'dp_mist_grade'
                         if Command == 'Set Level' and Unit  == 4:
-                            SendCommandCloud(DeviceID, switch, Level)
-                            UpdateDevice(DeviceID, 4, Level, 1, 0)
+                            mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                            SendCommandCloud(DeviceID, switch, mode[int(Level / 10)])
+                            UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
                 if dev_type == ('cover'):
                     ext = '_' + str(Unit) if Unit > 1 else ''
