@@ -109,3 +109,4 @@
 | 2.2.1 | Add Aromatherapy |
 | 2.2.2 | Add Extra Mower devices |
 | 2.2.3 | Fix Aromatherapy |
+| 2.2.4 | Add another variant of the cover control |

@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.3</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.4</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -280,18 +280,24 @@ class BasePlugin:
                     if Command == 'Open':
                         if searchCode('mach_operate' + ext, function):
                             SendCommandCloud(DeviceID, 'mach_operate' + ext, 'FZ')
+                        elif searchCode('status' + ext , function):
+                            SendCommandCloud(DeviceID, 'status', '1')
                         else:
                             SendCommandCloud(DeviceID, 'control' + ext, 'open')
                         UpdateDevice(DeviceID, Unit, 'Open', 0, 0)
                     elif Command == 'Close':
                         if searchCode('mach_operate' + ext, function):
                             SendCommandCloud(DeviceID, 'mach_operate' + ext, 'ZZ')
+                        elif searchCode('status' + ext , function):
+                            SendCommandCloud(DeviceID, 'status', '2')
                         else:
                             SendCommandCloud(DeviceID, 'control' + ext, 'close')
                         UpdateDevice(DeviceID, Unit, 'Close', 1, 0)
                     elif Command == 'Stop':
                         if searchCode('mach_operate' + ext, function):
                             SendCommandCloud(DeviceID, 'mach_operate' + ext, 'STOP')
+                        elif searchCode('status' + ext , function):
+                            SendCommandCloud(DeviceID, 'status', '3')
                         else:
                             SendCommandCloud(DeviceID, 'control' + ext, 'stop')
                         UpdateDevice(DeviceID, Unit, 'Stop', 1, 0)
@@ -1183,6 +1189,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=14, Used=1).Create()
                     if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
+                
                 if dev_type == 'smartheatpump':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
                         Domoticz.Log('Create device Smartheatpump')
@@ -2851,8 +2858,6 @@ def onHandleThread(startup):
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
 
-
-
                     if dev_type == 'cover':
                         if searchCode('position', StatusProperties) or searchCode('percent_control', FunctionProperties):
                             if searchCode('position', StatusProperties):
@@ -2866,13 +2871,13 @@ def onHandleThread(startup):
                             if str(currentposition) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, currentposition, 2, 0)
                         elif searchCode('mach_operate', StatusProperties):
-                            currentstatus = StatusDeviceTuya('control')
-                            if currentstatus == 'close':
-                                UpdateDevice(dev['id'], 1, 'ZZ', 0, 0)
-                            elif currentstatus == 'open':
-                                UpdateDevice(dev['id'], 1, 'FZ', 1, 0)
-                            elif currentstatus == 'stop':
-                                UpdateDevice(dev['id'], 1, 'STOP', 1, 0)
+                            currentstatus = StatusDeviceTuya('mach_operate')
+                            if currentstatus == 'ZZ':
+                                UpdateDevice(dev['id'], 1, 'Open', 0, 0)
+                            elif currentstatus == 'FZ':
+                                UpdateDevice(dev['id'], 1, 'Close', 1, 0)
+                            elif currentstatus == 'STOP':
+                                UpdateDevice(dev['id'], 1, 'Stop', 1, 0)
                         elif searchCode('control', StatusProperties):
                             currentstatus = StatusDeviceTuya('control')
                             if currentstatus == 'close':
@@ -2881,7 +2886,15 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Close', 1, 0)
                             elif currentstatus == 'stop':
                                 UpdateDevice(dev['id'], 1, 'Stop', 1, 0)
-                        if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', FunctionProperties):
+                        elif searchCode('status', StatusProperties):
+                            currentstatus = StatusDeviceTuya('status')
+                            if currentstatus == '1':
+                                UpdateDevice(dev['id'], 1, 'Open', 1, 0)
+                            elif currentstatus == '2':
+                                UpdateDevice(dev['id'], 1, 'Close', 0, 0)
+                            elif currentstatus == '3':
+                                UpdateDevice(dev['id'], 1, 'Stop', 0, 0)
+                        elif searchCode('position_2', StatusProerties) or searchCode('percent_control_2', FunctionProperties):
                             if searchCode('position_2', StatusProperties):
                                 currentposition = StatusDeviceTuya('position_2')
                             elif searchCode('percent_control_2', FunctionProperties):
