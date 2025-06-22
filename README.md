@@ -94,6 +94,7 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 2.2.2 | Add Extra Mower devices |
 | 2.2.3 | Fix Aromatherapy |
 | 2.2.4 | Add another variant of the cover control |
+| 2.2.5 | Add another variant Powercontrol |
 
  [The full Change log](CHANGELOG.md)
 

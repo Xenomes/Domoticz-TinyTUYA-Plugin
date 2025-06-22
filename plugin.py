@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.4</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.5</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1826,7 +1826,7 @@ def onHandleThread(startup):
 
                 if dev_type == 'powermeter' and searchCode('Current', ResultValue):
                     if createDevice(dev['id'], 1) :
-                        Domoticz.Log('Create device Powermeter')
+                        Domoticz.Log('Create Powermeter')
                         Domoticz.Unit(Name=dev['name'] + ' (3P A)', DeviceID=dev['id'], Unit=1, Type=89, Subtype=1, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('Current', ResultValue):
                         options = {}
@@ -1853,6 +1853,7 @@ def onHandleThread(startup):
 
                 if dev_type == 'powermeter' and searchCode('phase_a', ResultValue):
                     if createDevice(dev['id'], 1):
+                        Domoticz.Log('Create Powermeter')
                         Domoticz.Unit(Name=dev['name'] + ' (A)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=23, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('phase_a', ResultValue):
                         Domoticz.Unit(Name=dev['name'] + ' (W)', DeviceID=dev['id'], Unit=2, Type=248, Subtype=1, Used=1).Create()
@@ -1865,10 +1866,11 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 6) and searchCode('fault', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=6, Type=243, Subtype=19, Image=13, Used=1).Create()
 
-                if dev_type == 'powermeter' and searchCode('direction_a', ResultValue):
-                    if createDevice(dev['id'], 1) and searchCode('voltage_a', ResultValue):
+                if dev_type == 'powermeter' and (searchCode('direction_a', ResultValue) or searchCode('power_direction_a', ResultValue)):
+                    if createDevice(dev['id'], 1) and (searchCode('voltage_a', ResultValue) or searchCode('f_ac_v', ResultValue)):
+                        Domoticz.Log('Create Powermeter')
                         Domoticz.Unit(Name=dev['name'] + ' (V)', DeviceID=dev['id'], Unit=1, Type=243, Subtype=8, Used=1).Create()
-                    if createDevice(dev['id'], 2) and searchCode('freq', ResultValue):
+                    if createDevice(dev['id'], 2) and (searchCode('freq', ResultValue) or searchCode('f_ac_line_freq', ResultValue)):
                         options = {}
                         options['Custom'] = '1;Hz'
                         Domoticz.Unit(Name=dev['name'] + ' (Hz)', DeviceID=dev['id'], Unit=2, Type=243, Subtype=31, Options=options, Used=1).Create()
@@ -1882,12 +1884,12 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' A (mA)', DeviceID=dev['id'], Unit=12, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 13) and searchCode('direction_a', ResultValue):
                         Domoticz.Unit(Name=dev['name']+ ' A (Direction)', DeviceID=dev['id'], Unit=13, Type=243, Subtype=19, Used=1).Create()
-                    if createDevice(dev['id'], 14) and searchCode('energy_forword_a', ResultValue):
+                    if createDevice(dev['id'], 14) and (searchCode('energy_forword_a', ResultValue) or searchCode('forward_energy_a', ResultValue)):
                         # Domoticz.Unit(Name=dev['name'] + ' A Forward (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=29, Used=1).Create()
                         options = {}
                         options['Custom'] = '1;kWh'
                         Domoticz.Unit(Name=dev['name'] + ' A Forward (kWh)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=31, Options=options, Used=1).Create()
-                    if createDevice(dev['id'], 15) and searchCode('energy_reverse_a', ResultValue):
+                    if createDevice(dev['id'], 15) and (searchCode('energy_reverse_a', ResultValue) or searchCode('reverse_energy_a', ResultValue)):
                         # Domoticz.Unit(Name=dev['name'] + ' A Reverse (kWh)', DeviceID=dev['id'], Unit=15, Type=243, Subtype=29, Used=1).Create()
                         options = {}
                         options['Custom'] = '1;kWh'
@@ -1900,12 +1902,12 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' B (mA)', DeviceID=dev['id'], Unit=22, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 23) and searchCode('direction_b', ResultValue):
                         Domoticz.Unit(Name=dev['name']+ ' B (Direction)', DeviceID=dev['id'], Unit=23, Type=243, Subtype=19, Used=1).Create()
-                    if createDevice(dev['id'], 24) and searchCode('energy_forword_b', ResultValue):
+                    if createDevice(dev['id'], 24) and (searchCode('energy_forword_b', ResultValue) or searchCode('forward_energy_b', ResultValue)):
                         # Domoticz.Unit(Name=dev['name'] + ' B Forward (kWh)', DeviceID=dev['id'], Unit=24, Type=243, Subtype=29, Used=1).Create()
                         options = {}
                         options['Custom'] = '1;kWh'
                         Domoticz.Unit(Name=dev['name'] + ' B Forward (kWh)', DeviceID=dev['id'], Unit=24, Type=243, Subtype=31, Options=options, Used=1).Create()
-                    if createDevice(dev['id'], 25) and searchCode('energy_reserse_b', ResultValue):
+                    if createDevice(dev['id'], 25) and (searchCode('energy_reverse_b', ResultValue) or searchCode('reverse_energy_b', ResultValue)):
                         # Domoticz.Unit(Name=dev['name'] + ' B Reverse (kWh)', DeviceID=dev['id'], Unit=25, Type=243, Subtype=29, Used=1).Create()
                         options = {}
                         options['Custom'] = '1;kWh'
@@ -1913,7 +1915,7 @@ def onHandleThread(startup):
 
                 if dev_type == 'powermeter' and (searchCode('switch_1', StatusProperties) or searchCode('switch', StatusProperties)) and not searchCode('phase_a', ResultValue):
                     if  createDevice(dev['id'], 1) and (searchCode('switch_1', StatusProperties) or searchCode('switch', StatusProperties)):
-                        Domoticz.Log('Create device Switch')
+                        Domoticz.Log('Create Powermeter')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('cur_current', StatusProperties):
                         options = {}
@@ -3624,7 +3626,7 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 31, str(currentvoltageC), 0, 0)
 
                         # 1 phase_a Meter
-                        if searchCode('phase_a', ResultValue):
+                        if searchCode('phase_a', ResultValue) and not (searchCode('direction_a', ResultValue) or searchCode('power_direction_a', ResultValue)):
                             base64_string = StatusDeviceTuya('phase_a')
                             # Decode base64 string
                             decoded_data = base64.b64decode(base64_string)
@@ -3665,22 +3667,52 @@ def onHandleThread(startup):
                                     UpdateDevice(dev['id'], 6, str(currentmode), 1, 0)
 
                         # 2 phase Meter with reverse
-                        if searchCode('direction_a', ResultValue):
-                            currentVoltage = StatusDeviceTuya('voltage_a')
-                            currentFrequency = StatusDeviceTuya('freq')
+                        if searchCode('direction_a', ResultValue) or searchCode('power_direction_a', ResultValue):   
+                            if searchCode('voltage_a', StatusProperties):
+                                current_voltage = StatusDeviceTuya('voltage_a')
+                            elif searchCode('f_ac_v', StatusProperties):
+                                current_voltage = StatusDeviceTuya('f_ac_v')
+                            else:
+                                current_voltage = 0
+                            if searchCode('freq', StatusProperties):
+                                currentFrequency = StatusDeviceTuya('freq')
+                            elif searchCode('f_ac_line_freq', StatusProperties):
+                                currentFrequency = StatusDeviceTuya('f_ac_line_freq')
+                            else:
+                                currentFrequency = 0
                             currentPower = StatusDeviceTuya('total_power')
                             currentPowerA = StatusDeviceTuya('power_a')
                             currentCurrentA = StatusDeviceTuya('current_a')
-                            currentDirectionA = StatusDeviceTuya('direction_a').capitalize()
-                            currentForwardA = StatusDeviceTuya('energy_forword_a')
-                            currentReverseA = StatusDeviceTuya('energy_reverse_a')
+                            currentDirectionA = StatusDeviceTuya('direction_a')
+                            if searchCode('energy_forword_a', StatusProperties):
+                                currentForwardA = StatusDeviceTuya('energy_forword_a')
+                            elif searchCode('forward_energy_a', StatusProperties):
+                                currentForwardA = StatusDeviceTuya('forward_energy_a')
+                            else:
+                                currentForwardA = 0
+                            if searchCode('energy_reverse_a', StatusProperties):
+                                currentReverseA = StatusDeviceTuya('energy_reverse_a')
+                            elif searchCode('reverse_energy_a', StatusProperties):
+                                currentReverseA = StatusDeviceTuya('reverse_energy_a')
+                            else:
+                                currentReverseA = 0
                             currentPowerB = StatusDeviceTuya('power_b')
                             currentCurrentB = StatusDeviceTuya('current_b')
-                            currentDirectionB = StatusDeviceTuya('direction_b').capitalize()
-                            currentForwardB = StatusDeviceTuya('energy_forword_b')
-                            currentReverseB = StatusDeviceTuya('energy_reserse_b')
+                            currentDirectionB = StatusDeviceTuya('direction_b')
+                            if searchCode('energy_forword_b', StatusProperties):
+                                currentForwardB = StatusDeviceTuya('energy_forword_b')
+                            elif searchCode('forward_energy_b', StatusProperties):
+                                currentForwardB = StatusDeviceTuya('forward_energy_b')
+                            else:
+                                currentForwardB = 0
+                            if searchCode('energy_reverse_b', StatusProperties):
+                                currentReverseB = StatusDeviceTuya('energy_reverse_b')
+                            elif searchCode('reverse_energy_b', StatusProperties):
+                                currentReverseB = StatusDeviceTuya('reverse_energy_b')
+                            else:
+                                currentReverseB = 0
 
-                            UpdateDevice(dev['id'], 1, str(currentVoltage), 0, 0)
+                            UpdateDevice(dev['id'], 1, str(current_voltage), 0, 0)
                             UpdateDevice(dev['id'], 2, str(currentFrequency), 0, 0)
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev['id']].Units[3].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev['id']].Units[3].sValue if len(Devices[dev['id']].Units[3].sValue) > 0 else '0;0'
