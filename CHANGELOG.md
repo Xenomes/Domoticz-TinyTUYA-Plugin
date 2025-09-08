@@ -111,5 +111,6 @@
 | 2.2.3 | Fix Aromatherapy |
 | 2.2.4 | Add another variant of the cover control |
 | 2.2.5 | Add another variant Powercontrol |
-| 2.2.6 | Update Smartlock |
-| 2.2.7 | Update CO detection/alarm device |
+| 2.2.6 | Update Smartlock #176 |
+| 2.2.7 | Update CO detection/alarm device #179 |
+| 2.2.8 | Update Dehumidifier MEDION DH30S #180 |

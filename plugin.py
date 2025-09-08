@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.7</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.8</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -774,6 +774,18 @@ class BasePlugin:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
                         UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                    if Command == 'Off' and Unit == 9:
+                        SendCommandCloud(DeviceID, 'child_lock', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 9:
+                        SendCommandCloud(DeviceID, 'child_lock', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 10:
+                        SendCommandCloud(DeviceID, 'anion', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 10:
+                        SendCommandCloud(DeviceID, 'anion', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
 
                 if dev_type == 'vacuum':
                     if Command == 'Off' and Unit == 1:
@@ -2263,6 +2275,16 @@ def onHandleThread(startup):
                                 Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('fault', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
+                    if createDevice(dev['id'], 6) and (searchCode('temp_indoor', ResultValue)):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev['id'], Unit=6, Type=80, Subtype=5, Used=0).Create()
+                    if createDevice(dev['id'], 7) and (searchCode('humidity_indoor', ResultValue)):
+                        Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=7, Type=81, Subtype=1, Used=0).Create()
+                    if createDevice(dev['id'], 8) and ((searchCode('temp_indoor', ResultValue) and searchCode('humidity_indoor', ResultValue))):
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=8, Type=82, Subtype=5, Used=1).Create()                    
+                    if createDevice(dev['id'], 9) and searchCode('child_lock', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 10) and searchCode('switch', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name']+ ' (Anion)', DeviceID=dev['id'], Unit=10, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
                 if dev_type == 'infrared_ac':
                     if createDevice(dev['id'], 1):
@@ -4145,21 +4167,6 @@ def onHandleThread(startup):
                                         mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[4].sValue):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        # if searchCode('anion', ResultValue):
-                        #     currentstatus = StatusDeviceTuya('anion')
-                        #     UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
-                        # if searchCode('temp_indoor', ResultValue):
-                        #     currenttemp = StatusDeviceTuya('temp_indoor')
-                        #     if str(currenttemp) != str(Devices[dev['id']].Units[6].sValue):
-                        #         UpdateDevice(dev['id'], 6, currenttemp, 0, 0)
-                        # if  searchCode('humidity_indoor', ResultValue):
-                        #     currenthumi = StatusDeviceTuya('humidity_indoor')
-                        #     if str(currenthumi) != str(Devices[dev['id']].Units[7].nValue):
-                        #         UpdateDevice(dev['id'], 7, 0, currenthumi, 0)
-                        # if searchCode('temp_indoor', ResultValue) and searchCode('humidity_indoor', ResultValue):
-                        #     currentdomo = Devices[dev['id']].Units[8].sValue
-                        #     if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
-                        #         UpdateDevice(dev['id'], 8, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
                         if searchCode('fault', ResultValue):
                             currentmode = StatusDeviceTuya('fault')
                             for item in StatusProperties:
@@ -4169,6 +4176,24 @@ def onHandleThread(startup):
                                     mode.extend(the_values.get('label'))
                             if str(mode[currentmode]).lower().replace('_',' ') != str(Devices[dev['id']].Units[5].sValue).lower():
                                 UpdateDevice(dev['id'], 5, str(mode[currentmode]).capitalize().replace('_',' '), 0, 0)
+                        if searchCode('temp_indoor', ResultValue):
+                            currenttemp = StatusDeviceTuya('temp_indoor')
+                            if str(currenttemp) != str(Devices[dev['id']].Units[6].sValue):
+                                UpdateDevice(dev['id'], 6, currenttemp, 0, 0)
+                        if  searchCode('humidity_indoor', ResultValue):
+                            currenthumi = StatusDeviceTuya('humidity_indoor')
+                            if str(currenthumi) != str(Devices[dev['id']].Units[7].nValue):
+                                UpdateDevice(dev['id'], 7, 0, currenthumi, 0)
+                        if searchCode('temp_indoor', ResultValue) and searchCode('humidity_indoor', ResultValue):
+                            currentdomo = Devices[dev['id']].Units[8].sValue
+                            if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
+                                UpdateDevice(dev['id'], 8, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
+                        if searchCode('child_lock', ResultValue):
+                            currentstatus = StatusDeviceTuya('child_lock')
+                            UpdateDevice(dev['id'], 9, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('anion', ResultValue):
+                            currentstatus = StatusDeviceTuya('anion')
+                            UpdateDevice(dev['id'], 10, bool(currentstatus), int(bool(currentstatus)), 0)
 
                     if dev_type == 'vacuum':
                         if searchCode('power_go', ResultValue):
