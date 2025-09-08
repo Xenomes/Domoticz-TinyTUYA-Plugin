@@ -1652,7 +1652,7 @@ def onHandleThread(startup):
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                        Domoticz.Unit(Name=dev['name'] + ' (CO status)', DeviceID=dev['id'], Unit=50, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (CO status)', DeviceID=dev['id'], Unit=50, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 51) and searchCode('checking_result', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'checking_result':
@@ -1667,7 +1667,7 @@ def onHandleThread(startup):
                                 options['LevelActions'] = ''
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                        Domoticz.Unit(Name=dev['name'] + ' (Checking result)', DeviceID=dev['id'], Unit=51, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Checking result)', DeviceID=dev['id'], Unit=51, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     # if createDevice(dev['id'], 47) and searchCode('alarm_switch', FunctionProperties):
                     #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
