@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.5</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.6</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -2162,6 +2162,10 @@ def onHandleThread(startup):
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=13, Used=1).Create()
+                    if createDevice(dev['id'], 3) and searchCode('unlock_ble', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ('unlock ble'), DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                    if createDevice(dev['id'], 4) and searchCode('unlock_card', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ('unlock card'), DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                 if dev_type == 'dehumidifier':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
@@ -2625,7 +2629,7 @@ def onHandleThread(startup):
                 try:
                     def battery_device():
                         # Battery_device
-                        if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue):
+                        if searchCode('battery_state', ResultValue) or searchCode('battery', ResultValue) or searchCode('va_battery', ResultValue) or searchCode('battery_percentage', ResultValue) or searchCode('residual_electricity', ResultValue):
                             if searchCode('battery_state', ResultValue):
                                 if StatusDeviceTuya('battery_state') == 'high':
                                     currentbattery = 100
@@ -4028,6 +4032,12 @@ def onHandleThread(startup):
                                         mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('unlock_ble', ResultValue):
+                            currentstatus = StatusDeviceTuya('unlock_ble')
+                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('unlock_card', ResultValue):
+                            currentstatus = StatusDeviceTuya('unlock_card')
+                            UpdateDevice(dev['id'], 4, bool(currentstatus), int(bool(currentstatus)), 0)
                         battery_device()
 
                     if dev_type == 'dehumidifier':
@@ -4487,7 +4497,7 @@ def DeviceType(category, product_id=None):
         result = 'wswitch'
     elif category in {'xktyd'}:
         result = 'starlight'
-    elif category in {'ms'}:
+    elif category in {'ms','jtmspro'}:
         result = 'smartlock'
     elif category in {'cs'}:
         result = 'dehumidifier'

@@ -88,13 +88,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 2.1.9 | Fix update to Domoticz 2025.1 |
-| 2.2.0 | remove update to Domoticz 2025.1 was bug |
-| 2.2.1 | Add Aromatherapy |
 | 2.2.2 | Add Extra Mower devices |
 | 2.2.3 | Fix Aromatherapy |
 | 2.2.4 | Add another variant of the cover control |
 | 2.2.5 | Add another variant Powercontrol |
+| 2.2.6 | Update Smartlock |
 
  [The full Change log](CHANGELOG.md)
 
