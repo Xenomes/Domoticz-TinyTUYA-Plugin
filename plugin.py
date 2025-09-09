@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.8a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.8</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.8a</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -743,13 +743,19 @@ class BasePlugin:
                         UpdateDevice(DeviceID, 4, True, 1, 0)
                         UpdateDevice(DeviceID, 4, Level, 1, 0)
 
-                # if dev_type == 'smartlock':
-                #     if Command == 'Off' and Unit == 3:
-                #         SendCommandCloud(DeviceID, 'switch', False)
-                #         UpdateDevice(DeviceID, 1, 10, 0, 0)
-                #     elif Command == 'On' and Unit == 3:
-                #         SendCommandCloud(DeviceID, 'switch', True)
-                #         UpdateDevice(DeviceID, 1, 0, 1, 0)
+                if dev_type == 'smartlock':
+                    if searchCode('lock_motor_state', function):
+                        switch = 'lock_motor_state'
+                    elif searchCode('rtc_lock', function):
+                        switch = 'rtc_lock'
+                    else:
+                        switch = 'switch'
+                    if Command == 'Off' and Unit == 1:
+                        SendCommandCloud(DeviceID, switch, False)
+                        UpdateDevice(DeviceID, 1, 10, 0, 0)
+                    elif Command == 'On' and Unit == 1:
+                        SendCommandCloud(DeviceID, switch, True)
+                        UpdateDevice(DeviceID, 1, 0, 1, 0)
 
                 if dev_type == 'dehumidifier':
                     if Command == 'Off' and Unit == 1:
@@ -2184,7 +2190,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=241, Subtype=3, Switchtype=7, Image=7, Used=1).Create()
 
                 if dev_type == 'smartlock':
-                    if createDevice(dev['id'], 1) and searchCode('lock_motor_state', StatusProperties):
+                    if createDevice(dev['id'], 1) and (searchCode('lock_motor_state', StatusProperties) or searchCode('rtc_lock', StatusProperties)):
                         Domoticz.Log('Create device smart lock')
                         Domoticz.Unit(Name=dev['name'] + ('State'), DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
                     # if createDevice(dev['id'], 3):
@@ -4089,6 +4095,9 @@ def onHandleThread(startup):
                     if dev_type == 'smartlock':
                         if searchCode('lock_motor_state', ResultValue):
                             currentstatus = StatusDeviceTuya('lock_motor_state')
+                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
+                        elif searchCode('rtc_lock', ResultValue):
+                            currentstatus = StatusDeviceTuya('rtc_lock')
                             UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
                         # if searchCode('unlock_temporary', ResultValue):
                         #     currentstatus = StatusDeviceTuya('unlock_temporary')
