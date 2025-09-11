@@ -41,7 +41,7 @@ pip3 install tinytuya PyCryptodome==3.21.0 chardet==3.0.4 requests==2.23.0 chars
 docker compose down
 docker compose up -d
 ```
-* Monitor the install this can take some time. ```docker logs -f domoticz```
+* Monitor the install this can take some time. ```docker logs -f --tail 0 domoticz```
 
 ## Updating
 
