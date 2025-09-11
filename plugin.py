@@ -2835,7 +2835,6 @@ def onHandleThread(startup):
                         currentmode = StatusDeviceTuya(code)
                         # Get the mode configuration once
                         mode = getConfigItem(dev['id'] + '-' + str(unit), 'mode')
-                        Domoticz.Log('Mode: ' + str(mode))
                         if mode is None or mode == {}:
                             # Loop through StatusProperties to set the mode
                             for item in StatusProperties:
@@ -2850,7 +2849,6 @@ def onHandleThread(startup):
                                         mode.extend(the_values.get('range'))
                                     setConfigItem(dev['id'] + '-' + str(unit), {'mode': mode})
                                     break  # Exit the loop once we find the code
-                        Domoticz.Log('Mode: ' + str(mode))
                         # Calculate the new value
                         new_value = mode.index(str(currentmode)) * 10
                         # Only update if the new value differs from the current value
