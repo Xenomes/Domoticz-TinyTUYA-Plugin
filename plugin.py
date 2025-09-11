@@ -858,12 +858,11 @@ class BasePlugin:
                         SendCommandCloud(DeviceID, 'switch', True)
                         UpdateDevice(DeviceID, Unit, True, 1, 0)
                     elif Command == 'Set Level' and Unit == 2:
-                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         if searchCode('dehumidify_set_value', function):
                             tdev = 'dehumidify_set_value'
                         elif searchCode('dehumidify_set_enum', function):
                             tdev = 'dehumidify_set_enum'
-                        SendCommandCloud(DeviceID, tdev, mode[int(Level / 10)])
+                        SendCommandCloud(DeviceID, tdev, Level)
                         UpdateDevice(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
