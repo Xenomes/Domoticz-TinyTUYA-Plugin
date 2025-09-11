@@ -2323,34 +2323,20 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 2) and (searchCode('dehumidify_set_value', FunctionProperties) or searchCode('dehumidify_set_enum', FunctionProperties)):
                         Domoticz.Log('Create device Feeder')
+                    if createDevice(dev['id'], 2) and (searchCode('dehumidify_set_value', FunctionProperties) or searchCode('dehumidify_set_enum', FunctionProperties)):
+                        Domoticz.Log('Create device Feeder')
                         if searchCode('dehumidify_set_value', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'dehumidify_set_value':
                                     the_values = json.loads(item['values'])
-                                    mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
-                                        mode.extend([str(num)])
-                                    options = {}
-                                    options['LevelOffHidden'] = 'true'
-                                    options['LevelActions'] = ''
-                                    options['LevelNames'] = '|'.join(mode)
-                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=11, Used=1).Create()
+                                    options = {'ValueStep':the_values.get('step'), 'ValueMin':the_values.get('min'), 'ValueMax':the_values.get('max'), 'ValueUnit':'%'}
+                            Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=242, Subtype=1, Options=options, Image=11, Used=1).Create()
                         elif searchCode('dehumidify_set_enum', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'dehumidify_set_enum':
                                     the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                                    options = {}
-                                    options['LevelOffHidden'] = 'true'
-                                    options['LevelActions'] = ''
-                                    options['LevelNames'] = '|'.join(mode)
-                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                        Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=11, Used=1).Create()
+                                    options = {'ValueStep':the_values.get('step'), 'ValueMin':the_values.get('min'), 'ValueMax':the_values.get('max'), 'ValueUnit':'%'}
+                            Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=242, Subtype=1, Options=options, Image=11, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('fan_speed_enum', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'fan_speed_enum':
@@ -2879,16 +2865,8 @@ def onHandleThread(startup):
                             return False
                         # Get the current mode of the device
                         current = StatusDeviceTuya(code)
-                        # Loop through StatusProperties to set the mode
-                        for item in StatusProperties:
-                            if item['code'] == code:
-                                the_values = json.loads(item['values'])
-                                mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
-                                    mode.extend([str(num)])
-                        # Only update if the new value differs from the current value
-                        if str(mode.index(str(current)) * 10) != str(Devices[dev['id']].Units[unit].sValue):
-                            UpdateDevice(dev['id'], unit, int(mode.index(str(current)) * 10), 1, 0)
+                        if str(current) != str(Devices[dev['id']].Units[unit].sValue):
+                            UpdateDevice(dev['id'], unit, current, 1, 0)
                         return True
 
                     def update_text_device(code, unit):
