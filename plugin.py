@@ -2225,30 +2225,14 @@ def onHandleThread(startup):
                             for item in FunctionProperties:
                                 if item['code'] == 'dehumidify_set_value':
                                     the_values = json.loads(item['values'])
-                                    mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
-                                        mode.extend([str(num)])
-                                    options = {}
-                                    options['LevelOffHidden'] = 'true'
-                                    options['LevelActions'] = ''
-                                    options['LevelNames'] = '|'.join(mode)
-                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=11, Used=1).Create()
+                                    options = {'ValueStep':the_values.get('step'), 'ValueMin':the_values.get('min'), 'ValueMax':the_values.get('max'), 'ValueUnit':'%'}
+                            Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=242, Subtype=1, Options=options, Image=11, Used=1).Create()
                         elif searchCode('dehumidify_set_enum', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'dehumidify_set_enum':
                                     the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                                    options = {}
-                                    options['LevelOffHidden'] = 'true'
-                                    options['LevelActions'] = ''
-                                    options['LevelNames'] = '|'.join(mode)
-                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                        Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=11, Used=1).Create()
+                                    options = {'ValueStep':the_values.get('step'), 'ValueMin':the_values.get('min'), 'ValueMax':the_values.get('max'), 'ValueUnit':'%'}
+                            Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=242, Subtype=1, Options=options, Image=11, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('fan_speed_enum', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'fan_speed_enum':
@@ -3524,14 +3508,8 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('fan_speed', ResultValue):
                             currentmode = StatusDeviceTuya('fan_speed')
-                            for item in FunctionProperties:
-                                if item['code'] == 'fan_speed':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
-                                        mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            if str(currentmode) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, currentmode, 1, 0)
                         if searchCode('temp_set', ResultValue):
                             currenttemp_set = StatusDeviceTuya('temp_set')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[4].sValue):
@@ -3582,14 +3560,8 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
                         if searchCode('fan_speed', ResultValue):
                             currentmode = StatusDeviceTuya('fan_speed')
-                            for item in FunctionProperties:
-                                if item['code'] == 'fan_speed':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
-                                        mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            if str(currentmode) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, currentmode, 1, 0)
                         if searchCode('fan_direction', ResultValue):
                             currentmode = StatusDeviceTuya('fan_direction')
                             for item in FunctionProperties:
@@ -3621,13 +3593,8 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('AlarmPeriod', ResultValue):
                             currentmode = StatusDeviceTuya('AlarmPeriod')
-                            for item in FunctionProperties:
-                                if item['code'] == 'AlarmPeriod':
-                                    the_values = json.loads(item['values'])
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
-                                        mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            if str(currentmode) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, currentmode, 1, 0)
                         battery_device()
                         # Other type of Alarm with same code
                         if searchCode('AlarmSwitch', FunctionProperties):
@@ -3925,14 +3892,8 @@ def onHandleThread(startup):
                     if dev_type == 'feeder':
                         if searchCode('manual_feed', ResultValue):
                             currentmode = StatusDeviceTuya('manual_feed')
-                            for item in FunctionProperties:
-                                if item['code'] == 'manual_feed':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
-                                        mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[1].sValue):
-                                UpdateDevice(dev['id'], 1, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            if str(currentmode) != str(Devices[dev['id']].Units[1].sValue):
+                                UpdateDevice(dev['id'], 1, currentmode, 1, 0)
                         if searchCode('feed_state', ResultValue):
                             currentmode = StatusDeviceTuya('feed_state')
                             for item in StatusProperties:
@@ -3947,14 +3908,8 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if searchCode('feed_report', ResultValue):
                             currentmode = StatusDeviceTuya('feed_report')
-                            for item in StatusProperties:
-                                if item['code'] == 'feed_report':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
-                                        mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
-                                UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            if str(currentmode) != str(Devices[dev['id']].Units[3].sValue):
+                                UpdateDevice(dev['id'], 3, currentmode, 1, 0)
                         if searchCode('light', FunctionProperties):
                             currentstatus = StatusDeviceTuya('light')
                             UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
@@ -4132,26 +4087,9 @@ def onHandleThread(startup):
                         if searchCode('dehumidify_set_value', ResultValue) or searchCode('dehumidify_set_enum', ResultValue):
                             if searchCode('dehumidify_set_value', ResultValue):
                                 currentmode = StatusDeviceTuya('dehumidify_set_value')
-                                for item in FunctionProperties:
-                                    if item['code'] == 'dehumidify_set_value':
-                                        the_values = json.loads(item['values'])
-                                        mode = ['0']
-                                        for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
-                                            mode.extend([str(num)])
-                                if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                    UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
                             elif searchCode('dehumidify_set_enum', ResultValue):
                                 currentmode = StatusDeviceTuya('dehumidify_set_enum')
-                                for item in StatusProperties:
-                                    if item['code'] == 'dehumidify_set_enum':
-                                        the_values = json.loads(item['values'])
-                                        mode = ['off']
-                                        if item['type'] == 'Bitmap':
-                                            mode.extend(the_values.get('label'))
-                                        else:
-                                            mode.extend(the_values.get('range'))
-                                if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                    UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            UpdateDevice(dev['id'], 2, currentmode, 0, 0)
                         if searchCode('fan_speed_enum', ResultValue):
                             currentmode = StatusDeviceTuya('fan_speed_enum')
                             for item in StatusProperties:
@@ -4416,14 +4354,8 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, True, 1, 0)
                         if searchCode('sensitivity', ResultValue):
                             currentmode = StatusDeviceTuya('sensitivity')
-                            for item in StatusProperties:
-                                if item['code'] == 'sensitivity':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
-                                        mode.extend([str(num)])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
-                                UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            if str(currentmode) != str(Devices[dev['id']].Units[2].sValue):
+                                UpdateDevice(dev['id'], 2, currentmode, 1, 0)
                         if searchCode('near_detection', ResultValue):
                             near_detection = StatusDeviceTuya('near_detection')
                             if str(near_detection) != str(Devices[dev['id']].Units[3].sValue):
