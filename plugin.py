@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.8b" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.8c" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.8b</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.8c</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1730,7 +1730,7 @@ def onHandleThread(startup):
                             if item['code'] == 'fan_speed':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -1781,7 +1781,7 @@ def onHandleThread(startup):
                             if item['code'] == 'fan_speed':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -1829,7 +1829,7 @@ def onHandleThread(startup):
                             if item['code'] == 'AlarmPeriod':
                                 the_values = json.loads(item['values'])
                                 mode = []
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'false'
@@ -2046,7 +2046,7 @@ def onHandleThread(startup):
                             if item['code'] == 'manual_feed':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -2074,7 +2074,7 @@ def onHandleThread(startup):
                             if item['code'] == 'feed_report':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -2226,7 +2226,7 @@ def onHandleThread(startup):
                                 if item['code'] == 'dehumidify_set_value':
                                     the_values = json.loads(item['values'])
                                     mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                         mode.extend([str(num)])
                                     options = {}
                                     options['LevelOffHidden'] = 'true'
@@ -2303,7 +2303,7 @@ def onHandleThread(startup):
                             if item['code'] == 'mode':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -2316,7 +2316,7 @@ def onHandleThread(startup):
                             if item['code'] == 'wind':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -2536,7 +2536,7 @@ def onHandleThread(startup):
                             if item['code'] == 'sensitivity':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -3528,7 +3528,7 @@ def onHandleThread(startup):
                                 if item['code'] == 'fan_speed':
                                     the_values = json.loads(item['values'])
                                     mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                         mode.extend([str(num)])
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
@@ -3586,7 +3586,7 @@ def onHandleThread(startup):
                                 if item['code'] == 'fan_speed':
                                     the_values = json.loads(item['values'])
                                     mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                         mode.extend([str(num)])
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
@@ -3624,7 +3624,7 @@ def onHandleThread(startup):
                             for item in FunctionProperties:
                                 if item['code'] == 'AlarmPeriod':
                                     the_values = json.loads(item['values'])
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                         mode.extend([str(num)])
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
@@ -3929,7 +3929,7 @@ def onHandleThread(startup):
                                 if item['code'] == 'manual_feed':
                                     the_values = json.loads(item['values'])
                                     mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                         mode.extend([str(num)])
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, int(mode.index(str(currentmode)) * 10), 1, 0)
@@ -3951,7 +3951,7 @@ def onHandleThread(startup):
                                 if item['code'] == 'feed_report':
                                     the_values = json.loads(item['values'])
                                     mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                         mode.extend([str(num)])
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[3].sValue):
                                 UpdateDevice(dev['id'], 3, int(mode.index(str(currentmode)) * 10), 1, 0)
@@ -4136,7 +4136,7 @@ def onHandleThread(startup):
                                     if item['code'] == 'dehumidify_set_value':
                                         the_values = json.loads(item['values'])
                                         mode = ['0']
-                                        for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                        for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                             mode.extend([str(num)])
                                 if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                     UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
@@ -4420,7 +4420,7 @@ def onHandleThread(startup):
                                 if item['code'] == 'sensitivity':
                                     the_values = json.loads(item['values'])
                                     mode = ['0']
-                                    for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                    for num in range(the_values.get('min'),the_values.get('max') + 1, the_values.get('step')):
                                         mode.extend([str(num)])
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, int(mode.index(str(currentmode)) * 10), 1, 0)
