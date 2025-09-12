@@ -156,6 +156,7 @@ class BasePlugin:
                 Domoticz.Heartbeat(2)
             else:
                 Domoticz.Heartbeat(10)
+        updateDevice()
         onHandleThread(True)
 
     def onStop(self):
@@ -282,7 +283,7 @@ class BasePlugin:
 
                 if (dev_type in ('light') or dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1:
                     if searchCode('led_switch', function):
-                        switch = 'led_switch' 
+                        switch = 'led_switch'
                     elif searchCode('switch_led', function):
                         switch = 'switch_led'
                     elif searchCode('Light', function):
@@ -838,17 +839,26 @@ class BasePlugin:
 
                 if dev_type == 'smartlock':
                     if searchCode('lock_motor_state', function):
-                        switch = 'lock_motor_state'
-                    elif searchCode('rtc_lock', function):
-                        switch = 'rtc_lock'
+                        if Command == 'Off' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'lock_motor_state', False)
+                            UpdateDevice(DeviceID, 1, 10, 0, 0)
+                        elif Command == 'On' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'lock_motor_state', True)
+                            UpdateDevice(DeviceID, 1, 0, 1, 0)
+                    elif searchCode('remote_no_dp_key', function):
+                        if Command == 'Off' and Unit == 1:
+                            # SendCommandCloud(DeviceID, 'remote_no_dp_key', False)
+                            UpdateDevice(DeviceID, 1, 10, 0, 0)
+                        elif Command == 'On' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'remote_no_dp_key', 'AAAB')
+                            UpdateDevice(DeviceID, 1, 0, 1, 0)
                     else:
-                        switch = 'switch'
-                    if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, switch, False)
-                        UpdateDevice(DeviceID, 1, 10, 0, 0)
-                    elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, switch, True)
-                        UpdateDevice(DeviceID, 1, 0, 1, 0)
+                        if Command == 'Off' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'switch', False)
+                            UpdateDevice(DeviceID, 1, 10, 0, 0)
+                        elif Command == 'On' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'switch', True)
+                            UpdateDevice(DeviceID, 1, 0, 1, 0)
 
                 if dev_type == 'dehumidifier':
                     if Command == 'Off' and Unit == 1:
@@ -1308,7 +1318,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=14, Used=1).Create()
                     if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
-                
+
                 if dev_type == 'smartheatpump':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
                         Domoticz.Log('Create device Smartheatpump')
@@ -2321,21 +2331,18 @@ def onHandleThread(startup):
                         Domoticz.Log('Create device Dehumidifier')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 2) and (searchCode('dehumidify_set_value', FunctionProperties) or searchCode('dehumidify_set_enum', FunctionProperties)):
-                        Domoticz.Log('Create device Feeder')
-                    if createDevice(dev['id'], 2) and (searchCode('dehumidify_set_value', FunctionProperties) or searchCode('dehumidify_set_enum', FunctionProperties)):
-                        Domoticz.Log('Create device Feeder')
                         if searchCode('dehumidify_set_value', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'dehumidify_set_value':
                                     the_values = json.loads(item['values'])
                                     options = {'ValueStep':the_values.get('step'), 'ValueMin':the_values.get('min'), 'ValueMax':the_values.get('max'), 'ValueUnit':'%'}
-                            Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=242, Subtype=1, Options=options, Image=11, Used=1).Create()
+                            Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                         elif searchCode('dehumidify_set_enum', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'dehumidify_set_enum':
                                     the_values = json.loads(item['values'])
                                     options = {'ValueStep':the_values.get('step'), 'ValueMin':the_values.get('min'), 'ValueMax':the_values.get('max'), 'ValueUnit':'%'}
-                            Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=242, Subtype=1, Options=options, Image=11, Used=1).Create()
+                            Domoticz.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev['id'], Unit=2, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('fan_speed_enum', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'fan_speed_enum':
@@ -2373,7 +2380,7 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 7) and (searchCode('humidity_indoor', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=7, Type=81, Subtype=1, Used=0).Create()
                     if createDevice(dev['id'], 8) and ((searchCode('temp_indoor', ResultValue) and searchCode('humidity_indoor', ResultValue))):
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=8, Type=82, Subtype=5, Used=1).Create()                    
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=8, Type=82, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 9) and searchCode('child_lock', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 10) and searchCode('switch', FunctionProperties):
@@ -4031,6 +4038,43 @@ def deleteDevice(ID, Unit):
         Devices[ID].Units[Unit].Delete()
     else:
         Domoticz.Debug("Device with ID " + str(ID) + " not found. Cannot delete.")
+
+def updateDevice():
+    templates = [
+        {'name_suffix': ' (dehumidify)', 'unit': 2, 'dtype': 244, 'subtype': 62, 'switchtype': 18, 'image': 11},
+        {'name_suffix': ' (dehumidify)', 'unit': 2, 'dtype': 242, 'subtype': 1, 'image': 11},
+    ]
+
+    def _matches_template(dev, tpl):
+        try:
+            if 'name_suffix' in tpl and not dev.Name.endswith(tpl['name_suffix']):
+                return False
+            if 'unit' in tpl and int(dev.Unit) != int(tpl['unit']):
+                return False
+            if 'dtype' in tpl and int(dev.Type) != int(tpl['dtype']):
+                return False
+            if 'subtype' in tpl and int(dev.SubType) != int(tpl['subtype']):
+                return False
+            if 'switchtype' in tpl and int(dev.SwitchType) != int(tpl['switchtype']):
+                return False
+            if 'image' in tpl and int(dev.Image) != int(tpl['image']):
+                return False
+            return True
+        except Exception:
+            return False
+    for idx, dev in list(Domoticz.Devices.items()):
+        for tpl in templates:
+            if _matches_template(dev, tpl):
+                Domoticz.Log("Removing device matching template: idx={} Name='{}'".format(idx, dev.Name))
+                try:
+                    Domoticz.Device(Unit=dev.Unit, DeviceID=dev.DeviceID).Delete()
+                except Exception:
+                    try:
+                        Domoticz.Device(idx).Delete()
+                    except Exception as e:
+                        Domoticz.Log("Failed to remove device idx {}: {}".format(idx, e), Domoticz.LOG_ERROR)
+                break
+    return
 
 # Configuration Helpers
 def getConfigItem(Key=None, Values=None):
