@@ -189,7 +189,7 @@ class BasePlugin:
 
                 if (dev_type in ('light') or dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1:
                     if searchCode('led_switch', function):
-                        switch = 'led_switch' 
+                        switch = 'led_switch'
                     elif searchCode('switch_led', function):
                         switch = 'switch_led'
                     elif searchCode('Light', function):
@@ -745,17 +745,26 @@ class BasePlugin:
 
                 if dev_type == 'smartlock':
                     if searchCode('lock_motor_state', function):
-                        switch = 'lock_motor_state'
-                    elif searchCode('rtc_lock', function):
-                        switch = 'rtc_lock'
+                        if Command == 'Off' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'lock_motor_state', False)
+                            UpdateDevice(DeviceID, 1, 10, 0, 0)
+                        elif Command == 'On' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'lock_motor_state', True)
+                            UpdateDevice(DeviceID, 1, 0, 1, 0)
+                    elif searchCode('remote_no_dp_key', function):
+                        if Command == 'Off' and Unit == 1:
+                            # SendCommandCloud(DeviceID, 'remote_no_dp_key', False)
+                            UpdateDevice(DeviceID, 1, 10, 0, 0)
+                        elif Command == 'On' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'remote_no_dp_key', 'AAAB')
+                            UpdateDevice(DeviceID, 1, 0, 1, 0)
                     else:
-                        switch = 'switch'
-                    if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, switch, False)
-                        UpdateDevice(DeviceID, 1, 10, 0, 0)
-                    elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, switch, True)
-                        UpdateDevice(DeviceID, 1, 0, 1, 0)
+                        if Command == 'Off' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'switch', False)
+                            UpdateDevice(DeviceID, 1, 10, 0, 0)
+                        elif Command == 'On' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'switch', True)
+                            UpdateDevice(DeviceID, 1, 0, 1, 0)
 
                 if dev_type == 'dehumidifier':
                     if Command == 'Off' and Unit == 1:
@@ -1206,7 +1215,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=14, Used=1).Create()
                     if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
-                
+
                 if dev_type == 'smartheatpump':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
                         Domoticz.Log('Create device Smartheatpump')
@@ -2269,7 +2278,7 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 7) and (searchCode('humidity_indoor', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev['id'], Unit=7, Type=81, Subtype=1, Used=0).Create()
                     if createDevice(dev['id'], 8) and ((searchCode('temp_indoor', ResultValue) and searchCode('humidity_indoor', ResultValue))):
-                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=8, Type=82, Subtype=5, Used=1).Create()                    
+                        Domoticz.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev['id'], Unit=8, Type=82, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 9) and searchCode('child_lock', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 10) and searchCode('switch', FunctionProperties):
@@ -3719,7 +3728,7 @@ def onHandleThread(startup):
                                     UpdateDevice(dev['id'], 6, str(currentmode), 1, 0)
 
                         # 2 phase Meter with reverse
-                        if searchCode('direction_a', ResultValue) or searchCode('power_direction_a', ResultValue):   
+                        if searchCode('direction_a', ResultValue) or searchCode('power_direction_a', ResultValue):
                             if searchCode('voltage_a', StatusProperties):
                                 current_voltage = StatusDeviceTuya('voltage_a')
                             elif searchCode('f_ac_v', StatusProperties):
