@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.8c" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.8d" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.2.8c</h2><br/>
+        <h2>TinyTUYA Plugin version 2.2.8d</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -798,6 +798,18 @@ class BasePlugin:
                         SendCommandCloud(DeviceID, 'anion', False)
                         UpdateDevice(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 10:
+                        SendCommandCloud(DeviceID, 'anion', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 11:
+                        SendCommandCloud(DeviceID, 'anion', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 11:
+                        SendCommandCloud(DeviceID, 'anion', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 13:
+                        SendCommandCloud(DeviceID, 'anion', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 13:
                         SendCommandCloud(DeviceID, 'anion', True)
                         UpdateDevice(DeviceID, Unit, True, 1, 0)
 
@@ -2283,6 +2295,16 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 10) and searchCode('switch', FunctionProperties):
                         Domoticz.Unit(Name=dev['name']+ ' (Anion)', DeviceID=dev['id'], Unit=10, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 11) and searchCode('filter_reset', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name']+ ' (Filter reset)', DeviceID=dev['id'], Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 12) and searchCode('filter_life', StatusProperties):
+                        Domoticz.Unit(Name=dev['name']+ ' (Filter life)', DeviceID=dev['id'], Unit=12, Type=243, Subtype=6, Used=1).Create()
+                    if createDevice(dev['id'], 13) and searchCode('runtime_total_reset', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name']+ ' (Runtime total Reset)', DeviceID=dev['id'], Unit=13, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 14) and searchCode('type_of_equipment', StatusProperties):
+                        options = {}
+                        options['Custom'] = '1;Hour'
+                        Domoticz.Unit(Name=dev['name'] + ' (Runtime)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=31, Options=options, Used=1).Create()
 
                 if dev_type == 'infrared_ac':
                     if createDevice(dev['id'], 1):
@@ -4149,6 +4171,18 @@ def onHandleThread(startup):
                         if searchCode('anion', ResultValue):
                             currentstatus = StatusDeviceTuya('anion')
                             UpdateDevice(dev['id'], 10, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('filter_reset', ResultValue):
+                            currentstatus = StatusDeviceTuya('filter_reset')
+                            UpdateDevice(dev['id'], 11, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('filter_life', ResultValue):
+                            currentcurrent = StatusDeviceTuya('filter_life')
+                            UpdateDevice(dev['id'], 12, str(currentcurrent), 0, 0)                       
+                        if searchCode('runtime_total_reset', ResultValue):
+                            currentstatus = StatusDeviceTuya('runtime_total_reset')
+                            UpdateDevice(dev['id'], 13, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('type_of_equipment', ResultValue):
+                            currentcurrent = StatusDeviceTuya('type_of_equipment')
+                            UpdateDevice(dev['id'], 14, str(currentcurrent), 0, 0)
 
                     if dev_type == 'vacuum':
                         if searchCode('power_go', ResultValue):
