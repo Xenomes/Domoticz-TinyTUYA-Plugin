@@ -845,12 +845,12 @@ class BasePlugin:
                         elif Command == 'On' and Unit == 1:
                             SendCommandCloud(DeviceID, 'lock_motor_state', True)
                             UpdateDevice(DeviceID, 1, 0, 1, 0)
-                    elif searchCode('remote_no_dp_key', function):
+                    elif searchCode('unlock_ble', function):
                         if Command == 'Off' and Unit == 1:
-                            # SendCommandCloud(DeviceID, 'remote_no_dp_key', False)
+                            SendCommandCloud(DeviceID, 'unlock_ble', 0)
                             UpdateDevice(DeviceID, 1, 10, 0, 0)
                         elif Command == 'On' and Unit == 1:
-                            SendCommandCloud(DeviceID, 'remote_no_dp_key', 'AAAB')
+                            SendCommandCloud(DeviceID, 'unlock_ble', 1)
                             UpdateDevice(DeviceID, 1, 0, 1, 0)
                     else:
                         if Command == 'Off' and Unit == 1:
@@ -2313,7 +2313,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=241, Subtype=3, Switchtype=7, Image=7, Used=1).Create()
 
                 if dev_type == 'smartlock':
-                    if createDevice(dev['id'], 1) and (searchCode('lock_motor_state', StatusProperties) or searchCode('rtc_lock', StatusProperties)):
+                    if createDevice(dev['id'], 1) and (searchCode('lock_motor_state', StatusProperties) or searchCode('unlock_ble', StatusProperties)):
                         Domoticz.Log('Create device smart lock')
                         Domoticz.Unit(Name=dev['name'] + ('State'), DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     # if createDevice(dev['id'], 3):
@@ -3601,7 +3601,7 @@ def onHandleThread(startup):
                     if dev_type == 'smartlock':
                         if update_bool_device('lock_motor_state', 1):
                             pass
-                        elif update_bool_device('rtc_lock', 1):
+                        elif update_bool_device('unlock_ble', 1):
                             pass
                         update_select_device('alarm_lock', 2)
                         update_bool_device('unlock_ble', 3)
