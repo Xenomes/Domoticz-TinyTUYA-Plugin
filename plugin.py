@@ -156,7 +156,7 @@ class BasePlugin:
                 Domoticz.Heartbeat(2)
             else:
                 Domoticz.Heartbeat(10)
-        updateDevice()
+        # updateDevice()
         onHandleThread(True)
 
     def onStop(self):
@@ -893,6 +893,18 @@ class BasePlugin:
                         UpdateDevice(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 10:
                         SendCommandCloud(DeviceID, 'anion', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 11:
+                        SendCommandCloud(DeviceID, 'filter_life', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 11:
+                        SendCommandCloud(DeviceID, 'filter_life', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 13:
+                        SendCommandCloud(DeviceID, 'runtime_total_reset', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 13:
+                        SendCommandCloud(DeviceID, 'anruntime_total_resetion', True)
                         UpdateDevice(DeviceID, Unit, True, 1, 0)
 
                 if dev_type == 'vacuum':
@@ -2385,6 +2397,16 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 10) and searchCode('switch', FunctionProperties):
                         Domoticz.Unit(Name=dev['name']+ ' (Anion)', DeviceID=dev['id'], Unit=10, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 11) and searchCode('filter_reset', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name']+ ' (Filter reset)', DeviceID=dev['id'], Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 12) and searchCode('filter_life', StatusProperties):
+                        Domoticz.Unit(Name=dev['name']+ ' (Filter life)', DeviceID=dev['id'], Unit=12, Type=243, Subtype=6, Used=1).Create()
+                    if createDevice(dev['id'], 13) and searchCode('runtime_total_reset', FunctionProperties):
+                        Domoticz.Unit(Name=dev['name']+ ' (Runtime total Reset)', DeviceID=dev['id'], Unit=13, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 14) and searchCode('type_of_equipment', StatusProperties):
+                        options = {}
+                        options['Custom'] = '1;Hour'
+                        Domoticz.Unit(Name=dev['name'] + ' (Runtime)', DeviceID=dev['id'], Unit=14, Type=243, Subtype=31, Options=options, Used=1).Create()
 
                 if dev_type == 'infrared_ac':
                     if createDevice(dev['id'], 1):
@@ -3600,6 +3622,10 @@ def onHandleThread(startup):
                         update_dualvalue_device('temp_indoor', 'humidity_indoor', 8)
                         update_bool_device('child_lock', 9)
                         update_bool_device('anion', 10)
+                        update_bool_device('filter_reset', 11)
+                        update_value_device('filter_life', 12)
+                        update_bool_device('runtime_total_reset', 13)
+                        update_value_device('type_of_equipment', 14)
 
                     if dev_type == 'vacuum':
                         update_bool_device('power_go', 1)
