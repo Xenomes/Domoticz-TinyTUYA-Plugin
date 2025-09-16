@@ -845,12 +845,12 @@ class BasePlugin:
                         elif Command == 'On' and Unit == 1:
                             SendCommandCloud(DeviceID, 'lock_motor_state', True)
                             UpdateDevice(DeviceID, 1, 0, 1, 0)
-                    elif searchCode('unlock_ble', function):
+                    elif searchCode('rtc_lock', function):
                         if Command == 'Off' and Unit == 1:
-                            SendCommandCloud(DeviceID, 'unlock_ble', 0)
+                            SendCommandCloud(DeviceID, 'rtc_lock', 0)
                             UpdateDevice(DeviceID, 1, 10, 0, 0)
                         elif Command == 'On' and Unit == 1:
-                            SendCommandCloud(DeviceID, 'unlock_ble', 1)
+                            SendCommandCloud(DeviceID, 'rtc_lock', 1)
                             UpdateDevice(DeviceID, 1, 0, 1, 0)
                     else:
                         if Command == 'Off' and Unit == 1:
@@ -2313,9 +2313,9 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev['id'], Unit=4, Type=241, Subtype=3, Switchtype=7, Image=7, Used=1).Create()
 
                 if dev_type == 'smartlock':
-                    if createDevice(dev['id'], 1) and (searchCode('lock_motor_state', StatusProperties) or searchCode('unlock_ble', StatusProperties)):
+                    if createDevice(dev['id'], 1) and (searchCode('lock_motor_state', StatusProperties) or searchCode('rtc_lock', StatusProperties)):
                         Domoticz.Log('Create device smart lock')
-                        Domoticz.Unit(Name=dev['name'] + ('State'), DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     # if createDevice(dev['id'], 3):
                     #     Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=19, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('alarm_lock', StatusProperties):
@@ -2334,9 +2334,9 @@ def onHandleThread(startup):
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=13, Used=1).Create()
                     if createDevice(dev['id'], 3) and searchCode('unlock_ble', StatusProperties):
-                        Domoticz.Unit(Name=dev['name'] + ('unlock ble'), DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (unlock ble)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('unlock_card', StatusProperties):
-                        Domoticz.Unit(Name=dev['name'] + ('unlock card'), DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (unlock card)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                 if dev_type == 'dehumidifier':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
@@ -3601,7 +3601,7 @@ def onHandleThread(startup):
                     if dev_type == 'smartlock':
                         if update_bool_device('lock_motor_state', 1):
                             pass
-                        elif update_bool_device('unlock_ble', 1):
+                        elif update_bool_device('rtc_lock', 1):
                             pass
                         update_select_device('alarm_lock', 2)
                         update_bool_device('unlock_ble', 3)
