@@ -1215,6 +1215,7 @@ def onHandleThread(startup):
                 Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(ResultValue) + '\n')
             except:
                 raise Exception('Credentials are incorrect or tuya subscription has expired!')
+                Domoticz.Error('Credentials: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
                 return
 
             # Create devices
