@@ -88,11 +88,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 2.2.4 | Add another variant of the cover control |
 | 2.2.5 | Add another variant Powercontrol |
 | 2.2.6 | Update Smartlock |
 | 2.2.7 | Update CO detection/alarm device |
 | 2.2.8 | Update Dehumidifier MEDION DH30S |
+| 2.2.9 | Fix bug with vacuum |
 
  [The full Change log](CHANGELOG.md)
 
