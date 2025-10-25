@@ -1543,7 +1543,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Window check)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 6) and searchCode('child_lock', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    if createDevice(dev['id'], 7) and searchCode('Eco', FunctionProperties):
+                    if createDevice(dev['id'], 7) and searchCode('eco', FunctionProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Eco)', DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     # elif not createDevice(dev['id'], 7) and not searchCode('Eco', FunctionProperties):
                     #     deleteDevice(dev['id'],7)
@@ -2830,7 +2830,11 @@ def onHandleThread(startup):
                         if not searchCode(code, StatusProperties) or not get_unit(code, StatusProperties) not in [codeunit, None] or not checkDevice(dev['id'], unit):
                             return False
                         # Get the current value of the device
-                        currentvalue = StatusDeviceTuya(code)
+                        value = StatusDeviceTuya(code)
+                        if isinstance(value, (int, float)):
+                            currentvalue = int(value)
+                        else:
+                            currentvalue = value
                         if str(currentvalue) != str(Devices[dev['id']].Units[unit].nValue):
                             UpdateDevice(dev['id'], unit, 0, currentvalue, 0)
                         return True
@@ -3735,7 +3739,7 @@ def DeviceType(category, product_id=None):
         result = 'light'
     elif category in {'tgq', 'tgkg'}:
         result = 'dimmer'
-    elif category in {'cl', 'clkg', 'jdcljqr'}:
+    elif category in {'cl', 'clkg', 'jdcljqr', 'mc'}:
         result = 'cover'
     elif category in {'qn'}:
         result = 'heater'
