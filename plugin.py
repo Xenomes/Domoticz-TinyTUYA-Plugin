@@ -4518,7 +4518,7 @@ def DeviceType(category, product_id=None):
         result = 'light'
     elif category in {'tgq', 'tgkg'}:
         result = 'dimmer'
-    elif category in {'cl', 'clkg', 'jdcljqr'}:
+    elif category in {'cl', 'clkg', 'jdcljqr', 'mc'}:
         result = 'cover'
     elif category in {'qn'}:
         result = 'heater'
