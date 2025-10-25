@@ -3206,7 +3206,7 @@ def onHandleThread(startup):
                         if  hum:
                             currenthumi = StatusDeviceTuya('humidity_current')
                             if str(currenthumi) != str(Devices[dev['id']].Units[10].nValue):
-                                UpdateDevice(dev['id'], 10, 0, currenthumi, 0)
+                                UpdateDevice(dev['id'], 10, 0, int(currenthumi), 0)
                         if searchCode('cur_current', ResultValue):
                             currentcurrent = StatusDeviceTuya('cur_current')
                             currentpower = StatusDeviceTuya('cur_power')
@@ -3273,23 +3273,23 @@ def onHandleThread(startup):
                             if  searchCode('va_humidity', ResultValue):
                                 currenthumi = StatusDeviceTuya('va_humidity')
                                 if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
+                                    UpdateDevice(dev['id'], 2, 0, int(currenthumi), 0)
                             if  searchCode('humidity_value', ResultValue):
                                 currenthumi = StatusDeviceTuya('humidity_value')
                                 if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
+                                    UpdateDevice(dev['id'], 2, 0, int(currenthumi), 0)
                             if  searchCode('local_hum', ResultValue):
                                 currenthumi = StatusDeviceTuya('local_hum')
                                 if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
+                                    UpdateDevice(dev['id'], 2, 0, int(currenthumi), 0)
                             if  searchCode('humidity', ResultValue):
                                 currenthumi = StatusDeviceTuya('humidity')
                                 if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
+                                    UpdateDevice(dev['id'], 2, 0, int(currenthumi), 0)
                             if  searchCode('Hin', ResultValue):
                                 currenthumi = StatusDeviceTuya('Hin')
                                 if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
-                                    UpdateDevice(dev['id'], 2, 0, currenthumi, 0)
+                                    UpdateDevice(dev['id'], 2, 0, int(currenthumi), 0)
                         if temp and hum:
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -3368,7 +3368,7 @@ def onHandleThread(startup):
                         if  searchCode('sub1_hum', ResultValue):
                             currenthumi = StatusDeviceTuya('sub1_hum')
                             if str(currenthumi) != str(Devices[dev['id']].Units[22].nValue):
-                                UpdateDevice(dev['id'], 22, 0, currenthumi, 0)
+                                UpdateDevice(dev['id'], 22, 0, int(currenthumi), 0)
                         if searchCode('sub1_temp', ResultValue) and searchCode('sub1_hum', ResultValue):
                             currentdomo = Devices[dev['id']].Units[23].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -3380,7 +3380,7 @@ def onHandleThread(startup):
                         if  searchCode('HoutCh1', ResultValue):
                             currenthumi = StatusDeviceTuya('HoutCh1')
                             if str(currenthumi) != str(Devices[dev['id']].Units[22].nValue):
-                                UpdateDevice(dev['id'], 22, 0, currenthumi, 0)
+                                UpdateDevice(dev['id'], 22, 0, int(currenthumi), 0)
                         if searchCode('ToutCh1', ResultValue) and searchCode('HoutCh1', ResultValue):
                             currentdomo = Devices[dev['id']].Units[23].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -3400,7 +3400,7 @@ def onHandleThread(startup):
                         if  searchCode('sub2_hum', ResultValue):
                             currenthumi = StatusDeviceTuya('sub2_hum')
                             if str(currenthumi) != str(Devices[dev['id']].Units[32].nValue):
-                                UpdateDevice(dev['id'], 32, 0, currenthumi, 0)
+                                UpdateDevice(dev['id'], 32, 0, int(currenthumi), 0)
                         if searchCode('sub2_temp', ResultValue) and searchCode('sub2_hum', ResultValue):
                             currentdomo = Devices[dev['id']].Units[33].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -3412,7 +3412,7 @@ def onHandleThread(startup):
                         if  searchCode('HoutCh2', ResultValue):
                             currenthumi = StatusDeviceTuya('HoutCh2')
                             if str(currenthumi) != str(Devices[dev['id']].Units[32].nValue):
-                                UpdateDevice(dev['id'], 32, 0, currenthumi, 0)
+                                UpdateDevice(dev['id'], 32, 0, int(currenthumi), 0)
                         if searchCode('ToutCh2', ResultValue) and searchCode('HoutCh2', ResultValue):
                             currentdomo = Devices[dev['id']].Units[33].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -3424,7 +3424,7 @@ def onHandleThread(startup):
                         if  searchCode('sub3_hum', ResultValue):
                             currenthumi = StatusDeviceTuya('sub3_hum')
                             if str(currenthumi) != str(Devices[dev['id']].Units[42].nValue):
-                                UpdateDevice(dev['id'], 42, 0, currenthumi, 0)
+                                UpdateDevice(dev['id'], 42, 0, int(currenthumi), 0)
                         if searchCode('sub3_temp', ResultValue) and searchCode('sub3_hum', ResultValue):
                             currentdomo = Devices[dev['id']].Units[43].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -3436,7 +3436,7 @@ def onHandleThread(startup):
                         if  searchCode('HoutCh3', ResultValue):
                             currenthumi = StatusDeviceTuya('HoutCh3')
                             if str(currenthumi) != str(Devices[dev['id']].Units[42].nValue):
-                                UpdateDevice(dev['id'], 42, 0, currenthumi, 0)
+                                UpdateDevice(dev['id'], 42, 0, int(currenthumi), 0)
                         if searchCode('ToutCh3', ResultValue) and searchCode('HoutCh3', ResultValue):
                             currentdomo = Devices[dev['id']].Units[43].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
@@ -4163,7 +4163,7 @@ def onHandleThread(startup):
                         if  searchCode('humidity_indoor', ResultValue):
                             currenthumi = StatusDeviceTuya('humidity_indoor')
                             if str(currenthumi) != str(Devices[dev['id']].Units[7].nValue):
-                                UpdateDevice(dev['id'], 7, 0, currenthumi, 0)
+                                UpdateDevice(dev['id'], 7, 0, int(currenthumi), 0)
                         if searchCode('temp_indoor', ResultValue) and searchCode('humidity_indoor', ResultValue):
                             currentdomo = Devices[dev['id']].Units[8].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
