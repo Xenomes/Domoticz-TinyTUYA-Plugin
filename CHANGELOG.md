@@ -116,3 +116,4 @@
 | 2.2.8 | Update Dehumidifier MEDION DH30S #180 |
 | 2.2.9 | Fix bug with vacuum #178 |
 | 2.3.0 | Add new window smart remote control system |
+| 2.3.1 | Fixed humidity can not have decimals #183 |
