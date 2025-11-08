@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.2.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.3.1</h2><br/>
+        <h2>TinyTUYA Plugin version 2.3.2</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -2950,7 +2950,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, currentposition, 1, 0)
                             if str(currentposition) != str(Devices[dev['id']].Units[1].sValue):
                                 UpdateDevice(dev['id'], 1, currentposition, 2, 0)
-                        elif searchCode('mach_operate', StatusProperties):
+                        if searchCode('mach_operate', StatusProperties):
                             currentstatus = StatusDeviceTuya('mach_operate')
                             if currentstatus == 'ZZ':
                                 UpdateDevice(dev['id'], 1, 'Open', 0, 0)
@@ -2958,7 +2958,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Close', 1, 0)
                             elif currentstatus == 'STOP':
                                 UpdateDevice(dev['id'], 1, 'Stop', 1, 0)
-                        elif searchCode('control', StatusProperties):
+                        if searchCode('control', StatusProperties):
                             currentstatus = StatusDeviceTuya('control')
                             if currentstatus == 'close':
                                 UpdateDevice(dev['id'], 1, 'Open', 0, 0)
@@ -2966,7 +2966,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Close', 1, 0)
                             elif currentstatus == 'stop':
                                 UpdateDevice(dev['id'], 1, 'Stop', 1, 0)
-                        elif searchCode('status', StatusProperties):
+                        if searchCode('status', StatusProperties):
                             currentstatus = StatusDeviceTuya('status')
                             if currentstatus == '1':
                                 UpdateDevice(dev['id'], 1, 'Open', 1, 0)
@@ -2974,7 +2974,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Close', 0, 0)
                             elif currentstatus == '3':
                                 UpdateDevice(dev['id'], 1, 'Stop', 0, 0)
-                        elif searchCode('position_2', StatusProerties) or searchCode('percent_control_2', FunctionProperties):
+                        if searchCode('position_2', StatusProerties) or searchCode('percent_control_2', FunctionProperties):
                             if searchCode('position_2', StatusProperties):
                                 currentposition = StatusDeviceTuya('position_2')
                             elif searchCode('percent_control_2', FunctionProperties):
@@ -2985,7 +2985,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 2, currentposition, 1, 0)
                             if str(currentposition) != str(Devices[dev['id']].Units[2].sValue):
                                 UpdateDevice(dev['id'], 2, currentposition, 2, 0)
-                        elif searchCode('mach_operate_2', StatusProperties):
+                        if searchCode('mach_operate_2', StatusProperties):
                             currentstatus = StatusDeviceTuya('control_2')
                             if currentstatus == 'close':
                                 UpdateDevice(dev['id'], 2, 'ZZ', 0, 0)
@@ -2993,7 +2993,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 2, 'FZ', 1, 0)
                             elif currentstatus == 'stop':
                                 UpdateDevice(dev['id'], 2, 'STOP', 1, 0)
-                        elif searchCode('control_2', StatusProperties):
+                        if searchCode('control_2', StatusProperties):
                             currentstatus = StatusDeviceTuya('control_2')
                             if currentstatus == 'close':
                                 UpdateDevice(dev['id'], 2, 'Open', 0, 0)

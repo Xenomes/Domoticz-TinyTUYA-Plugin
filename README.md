@@ -88,11 +88,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 2.2.7 | Update CO detection/alarm device |
 | 2.2.8 | Update Dehumidifier MEDION DH30S |
 | 2.2.9 | Fix bug with vacuum |
 | 2.3.0 | Add new window smart remote control system |
 | 2.3.1 | Fixed humidity can not have decimals #183 |
+| 2.3.2 | Fixed cover channel 2 #184 |
 
  [The full Change log](CHANGELOG.md)
 

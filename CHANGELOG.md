@@ -117,3 +117,4 @@
 | 2.2.9 | Fix bug with vacuum #178 |
 | 2.3.0 | Add new window smart remote control system |
 | 2.3.1 | Fixed humidity can not have decimals #183 |
+| 2.3.2 | Fixed cover channel 2 #184 |
