@@ -1810,6 +1810,32 @@ def onHandleThread(startup):
                                 options['LevelNames'] = '|'.join(mode)
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Checking result)', DeviceID=dev['id'], Unit=51, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                    # Create devices for channels 1-7
+                    for channel in range(1, 8):
+                        temp = searchCode(f'ch{channel}_temp', ResultValue)
+                        hum = searchCode(f'ch{channel}_humi', ResultValue)
+                        unit_base = 50 + (channel * 3)  # Unit 51, 54, 57, 60, 63, 66, 69
+                        
+                        # Get current values to check if they're valid
+                        current_temp = StatusDeviceTuya(f'ch{channel}_temp') if temp else None
+                        current_hum = StatusDeviceTuya(f'ch{channel}_humi') if hum else None
+                        
+                        # Check if temperature is valid (not -40)
+                        temp_valid = temp and current_temp is not None and current_temp != -40
+                        # Check if humidity is valid (not 0)
+                        hum_valid = hum and current_hum is not None and current_hum != 0
+                        
+                        if createDevice(dev['id'], unit_base - 2) and temp_valid:
+                            Domoticz.Log(f'Create Temperature Sensor device for channel {channel}')
+                            Domoticz.Unit(Name=dev['name'] + f' (CH{channel} Temperature)', DeviceID=dev['id'], Unit=unit_base - 2, Type=80, Subtype=5, Used=0 if hum_valid else 1).Create()
+                        
+                        if createDevice(dev['id'], unit_base - 1) and hum_valid:
+                            Domoticz.Log(f'Create Humidity Sensor device for channel {channel}')
+                            Domoticz.Unit(Name=dev['name'] + f' (CH{channel} Humidity)', DeviceID=dev['id'], Unit=unit_base - 1, Type=81, Subtype=1, Used=0).Create()
+                        
+                        if createDevice(dev['id'], unit_base) and temp_valid and hum_valid:
+                            Domoticz.Log(f'Create Combined Sensor device for channel {channel}')
+                            Domoticz.Unit(Name=dev['name'] + f' (CH{channel} Temperature + Humidity)', DeviceID=dev['id'], Unit=unit_base, Type=82, Subtype=5, Used=1).Create()
                     # if createDevice(dev['id'], 47) and searchCode('alarm_switch', FunctionProperties):
                     #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
@@ -3395,6 +3421,21 @@ def onHandleThread(startup):
                         update_bool_device('temper_alarm', 49)
                         update_select_device('co_status', 50)
                         update_select_device('checking_result', 51)
+                        # Update virtual devices for channels 1-7
+                        for channel in range(1, 8):
+                            unit_base = 50 + (channel * 3)  # Unit 51, 54, 57, 60, 63, 66, 69
+                            
+                            # Update temperature virtual device (Unit 51, 54, 57, 60, 63, 66, 69)
+                            if update_value_device(f'ch{channel}_temp', unit_base - 2):
+                                pass
+                            
+                            # Update humidity virtual device (Unit 52, 55, 58, 61, 64, 67, 70)
+                            if update_nvalue_device(f'ch{channel}_humi', unit_base - 1):
+                                pass
+                            
+                            # Update combined virtual device (Unit 53, 56, 59, 62, 65, 68, 71)
+                            if update_dualvalue_device(f'ch{channel}_temp', f'ch{channel}_humi', unit_base):
+                                pass
                         battery_device()
 
                     if dev_type == 'doorbell':
