@@ -3421,19 +3421,12 @@ def onHandleThread(startup):
                         update_bool_device('temper_alarm', 49)
                         update_select_device('co_status', 50)
                         update_select_device('checking_result', 51)
-                        # Update virtual devices for channels 1-7
                         for channel in range(1, 8):
-                            unit_base = 50 + (channel * 3)  # Unit 51, 54, 57, 60, 63, 66, 69
-                            
-                            # Update temperature virtual device (Unit 51, 54, 57, 60, 63, 66, 69)
+                            unit_base = 50 + (channel * 3)  # Unit 51 => 71
                             if update_value_device(f'ch{channel}_temp', unit_base - 2):
                                 pass
-                            
-                            # Update humidity virtual device (Unit 52, 55, 58, 61, 64, 67, 70)
                             if update_nvalue_device(f'ch{channel}_humi', unit_base - 1):
                                 pass
-                            
-                            # Update combined virtual device (Unit 53, 56, 59, 62, 65, 68, 71)
                             if update_dualvalue_device(f'ch{channel}_temp', f'ch{channel}_humi', unit_base):
                                 pass
                         battery_device()
