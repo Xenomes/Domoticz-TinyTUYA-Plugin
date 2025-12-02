@@ -1776,7 +1776,7 @@ def onHandleThread(startup):
                         options = {}
                         options['Custom'] = '1;inHg'
                         Domoticz.Unit(Name=dev['name'] + ' (inHg)', DeviceID=dev['id'], Unit=47, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
-                    if createDevice(dev['id'], 48) and searchCode('pir', StatusProperties):
+                    if createDevice(dev['id'], 48) and (searchCode('pir', StatusProperties) or searchCode('pir_state', StatusProperties)):
                         Domoticz.Unit(Name=dev['name'] + ' (Pir)', DeviceID=dev['id'], Unit=48, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 49) and searchCode('temper_alarm', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Temper alarm)', DeviceID=dev['id'], Unit=49, Type=244, Subtype=73, Switchtype=0, Image=13, Used=1).Create()
@@ -3418,6 +3418,7 @@ def onHandleThread(startup):
                         update_value_device('atmosphere', 47)
                         update_value_device('temp_current_2', 44)
                         update_bool_device('pir', 48, 'none')
+                        update_bool_device('pir_state', 48, 'none')
                         update_bool_device('temper_alarm', 49)
                         update_select_device('co_status', 50)
                         update_select_device('checking_result', 51)
@@ -3759,13 +3760,13 @@ def DumpConfigToLog():
 def DeviceType(category, product_id=None):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
-    if product_id == 'uoa3mayicscacseb' or product_id == 'igtakqsfhbr7qsp7':
+    if product_id in {'uoa3mayicscacseb', 'igtakqsfhbr7qsp7'}:
         result = 'cover'
-    elif product_id == 'chfpey4klfcp1ipl':
+    elif product_id in {'chfpey4klfcp1ipl'}:
         result = 'dimmer'
-    elif product_id == 'x3o8epevyeo3z3oa':
+    elif product_id in {'x3o8epevyeo3z3oa', 'gk0d4i8g5akryd9d'}:
         result = 'sensor'
-    elif product_id == 'p6sqiuesvhmhvv4f':
+    elif product_id in {'p6sqiuesvhmhvv4f'}:
         result = 'doorcontact'
     elif category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr', 'aqcz'}:
         result = 'switch'
