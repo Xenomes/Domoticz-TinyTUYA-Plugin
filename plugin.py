@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.3.3</h2><br/>
+        <h2>TinyTUYA Plugin version 2.3.4</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1672,7 +1672,7 @@ def onHandleThread(startup):
                         options = {}
                         options['Custom'] = '1;inHg'
                         Domoticz.Unit(Name=dev['name'] + ' (inHg)', DeviceID=dev['id'], Unit=47, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
-                    if createDevice(dev['id'], 48) and searchCode('pir', StatusProperties):
+                    if createDevice(dev['id'], 48) and (searchCode('pir', StatusProperties) or searchCode('pir_state', StatusProperties)):
                         Domoticz.Unit(Name=dev['name'] + ' (Pir)', DeviceID=dev['id'], Unit=48, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 49) and searchCode('temper_alarm', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Temper alarm)', DeviceID=dev['id'], Unit=49, Type=244, Subtype=73, Switchtype=0, Image=13, Used=1).Create()
@@ -3484,8 +3484,11 @@ def onHandleThread(startup):
                             currentlux = StatusDeviceTuya('atmosphere')
                             if str(currentlux) != str(Devices[dev['id']].Units[47].nValue):
                                 UpdateDevice(dev['id'], 47, str(currentlux), 0, 0)
-                        if searchCode('pir', StatusProperties):
-                            current = StatusDeviceTuya('pir')
+                        if searchCode('pir', StatusProperties) or searchCode('pir_state', StatusProperties):
+                            if searchCode('pir', StatusProperties):
+                                current = StatusDeviceTuya('pir')
+                            elif searchCode('pir_state', StatusProperties):
+                                current = StatusDeviceTuya('pir_state')
                             currentstatus = False if current == 'none' else True
                             UpdateDevice(dev['id'], 48, bool(currentstatus), int(bool(currentstatus)), 0)
                         if searchCode('temper_alarm', ResultValue):
@@ -4560,11 +4563,11 @@ def DumpConfigToLog():
 def DeviceType(category, product_id=None):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
-    if product_id == 'uoa3mayicscacseb' or product_id == 'igtakqsfhbr7qsp7':
+    if product_id in {'uoa3mayicscacseb', 'igtakqsfhbr7qsp7'}:
         result = 'cover'
     elif product_id == 'chfpey4klfcp1ipl':
         result = 'dimmer'
-    elif product_id == 'x3o8epevyeo3z3oa':
+    elif product_id in {'x3o8epevyeo3z3oa', 'gk0d4i8g5akryd9d'}:
         result = 'sensor'
     elif product_id == 'p6sqiuesvhmhvv4f':
         result = 'doorcontact'

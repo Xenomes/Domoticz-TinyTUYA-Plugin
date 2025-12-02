@@ -119,3 +119,4 @@
 | 2.3.1 | Fixed humidity can not have decimals #183 |
 | 2.3.2 | Fixed cover channel 2 #184 |
 | 2.3.3 | Add multi-channel weather station #187 |
+| 2.3.4 | Add mismatch pir deivce #188 |
