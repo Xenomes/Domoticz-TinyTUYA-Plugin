@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.4a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.3.4</h2><br/>
+        <h2>TinyTUYA Plugin version 2.3.4a</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1102,6 +1102,37 @@ def onHandleThread(startup):
                         t = rData['t']
                 else:
                     Result = tuya.getstatus(dev['id'])
+                    # Check if result contains error information
+                    if isinstance(Result, dict):
+                        if 'Error' in Result or 'Err' in Result:
+                            error_msg = Result.get('Error', 'Unknown error')
+                            error_code = Result.get('Err', 'No error code')
+                            error_payload = Result.get('Payload', 'No payload')
+                            
+                            Domoticz.Error(f"Tinytuya API Error - Device: {dev['name']} (ID: {dev['id']})")
+                            Domoticz.Error(f"Error: {error_msg}, Code: {error_code}, Payload: {error_payload}")
+                            
+                            # Handle specific error cases
+                            if error_code == '911' or 'Unable to Get Cloud Token' in error_msg:
+                                if 'clientId is invalid' in str(error_payload):
+                                    raise Exception("Tuya API Credentials Error: Client ID is invalid. Please check your API credentials.")
+                                elif 'sign invalid' in str(error_payload):
+                                    raise Exception("Tuya API Credentials Error: Sign is invalid. Please check your API secret key.")
+                                elif 'token invalid' in str(error_payload):
+                                    raise Exception("Tuya Token Error: Cloud token is invalid or expired. The plugin will attempt to renew it.")
+                                else:
+                                    raise Exception(f"Tuya Cloud Authentication Failed: {error_msg} - {error_payload}")
+                            elif error_code == '1106' or 'permission deny' in str(error_msg).lower():
+                                raise Exception("Tuya API Permission Denied: Your API credentials don't have access to this device or API subscription may have expired.")
+                            elif error_code == '1004' or 'devId invalid' in str(error_msg).lower():
+                                raise Exception(f"Device ID Error: Device '{dev['name']}' (ID: {dev['id']}) is not accessible with current credentials.")
+                            elif error_code == '1009' or 'system busy' in str(error_msg).lower():
+                                Domoticz.Log("Tuya API System Busy - Retrying later...")
+                                # Don't raise exception for temporary errors
+                                return
+                            else:
+                                raise Exception(f"Tuya API Error ({error_code}): {error_msg}")
+                    
                     ResultValue = Result['result']
                     t = Result['t']
 
@@ -1110,9 +1141,28 @@ def onHandleThread(startup):
                 Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' FunctionProperties= ' + str(properties[dev['id']]['functions']))
                 Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' StatusProperties= ' + str(properties[dev['id']]['status']))
                 Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(ResultValue))
-            except:
-                raise Exception('Credentials are incorrect or tuya subscription has expired!')
-                return
+                
+            except KeyError as e:
+                if 'result' in str(e):
+                    Domoticz.Error(f"Device '{dev['name']}' returned invalid response format")
+                    Domoticz.Debug(f"Full response: {Result}")
+                    raise Exception(f"Invalid response from device '{dev['name']}': Missing 'result' field")
+                else:
+                    raise Exception(f"Data structure error for device '{dev['name']}': {str(e)}")
+                    
+            except Exception as e:
+                error_msg = str(e)
+                # Don't re-raise if it's already a custom exception with clear message
+                if any(keyword in error_msg for keyword in ['Tuya', 'API', 'Credentials', 'Token']):
+                    raise
+                else:
+                    # Check for connection/network errors
+                    if 'timed out' in error_msg.lower() or 'connection' in error_msg.lower():
+                        Domoticz.Log(f"Network/Connection error for device '{dev['name']}': {error_msg}")
+                    elif 'JSON' in error_msg or 'json' in error_msg:
+                        raise Exception(f"Invalid JSON response from Tuya API for device '{dev['name']}'")
+                    else:
+                        raise Exception(f"Unexpected error for device '{dev['name']}': {error_msg}")
 
             # Create devices
             if startup == True:
