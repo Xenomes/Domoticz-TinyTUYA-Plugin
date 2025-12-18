@@ -157,7 +157,7 @@ class BasePlugin:
             else:
                 Domoticz.Heartbeat(10)
         # updateDevice()
-        onHandleThread(True)
+        onHandleThread(True, False)
 
     def onStop(self):
         Domoticz.Log('onStop called')
@@ -1023,6 +1023,7 @@ class BasePlugin:
 
     def onHeartbeat(self):
         Domoticz.Debug('onHeartbeat called')
+        onHandleThread(False, True)
         if time.time() - last_update < synctime and testData == False and pulsaractive == False:
             Domoticz.Debug("onHeartbeat called skipped, " +  str(int(time.time() - last_update)) + " < " + str(synctime) + " seconds")
             return
@@ -1031,9 +1032,9 @@ class BasePlugin:
             if Error is not None:
                 Domoticz.Error(Error['Payload'])
             else:
-                onHandleThread(False)
+                onHandleThread(False, False)
         else:
-            onHandleThread(False)
+            onHandleThread(False, False)
 
 global _plugin
 _plugin = BasePlugin()
@@ -1070,10 +1071,10 @@ def onHeartbeat():
     global _plugin
     _plugin.onHeartbeat()
 
-def onHandleThread(startup):
+def onHandleThread(startup, local):
     # Run for every device on startup and heartbeat
     try:
-        if startup == True:
+        if startup == True and local == False:
             global tuya, devs, properties, result, FunctionProperties, StatusProperties, ResultValue, Error, last_update, product_id, t, synctime
             last_update = time.time()
             try:
@@ -1316,14 +1317,18 @@ def onHandleThread(startup):
                     
                     raise  # Re-raise the exception for Domoticz to handle
 
-            # Domoticz.Log('Scanning for tuya devices on network...')
-            # if testData == False:
-            #     scan = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
+            Domoticz.Log('Searching for tuya devices on network...\nPlease Wait.')
+            if testData == False:
+                scan = tinytuya.deviceScan(verbose=True, maxretry=None, byID=True)
 
         # Initialize/Update devices from TUYA API
         last_update = time.time()
         run = 0
-        if pulsaractive == True and startup == False and testData == False:
+        try:
+            deviceinfo = scan[dev['id']]
+        except:
+            deviceinfo = {'version': 3.3, 'ip': '127.0.0.1'}
+        if pulsaractive == True and startup == False and testData == False and local == False:
             Domoticz.Debug('Running Pulsar')
             ResultValuePulsar = []
             if not messageQueue.empty():
@@ -1344,13 +1349,65 @@ def onHandleThread(startup):
                 FunctionProperties = properties[dev['id']]['functions']
                 dev_type = DeviceType(properties[dev['id']]['category'], dev['product_id'])
                 StatusProperties = properties[dev['id']]['status']
+                ResultValue = None
 
-                if testData == True:
+                if testData == True and local == False:
                     with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
                         rData = json.load(rFile)
                         ResultValue = rData['result']
                         t = rData['t']
-                elif pulsaractive == True and startup == False:
+
+                elif local == True and startup == False and dev['category'] in ('dj'):  #pir
+                    try:
+                        # Check if this is actually a PIR device (motion sensor)
+                        if dev.get('category') == 'dj':
+                            # Create TinyTuya device object using the configuration data
+                            tuya_device = tinytuya.Device(
+                                dev['id'],
+                                deviceinfo['ip'],  # IP from deviceinfo
+                                dev['key'],        # Local key from dev
+                                deviceinfo['version']        # Using version 3.3
+                            )
+                            Domoticz.Error(deviceinfo)
+                            # Get device status
+                            status_data = tuya_device.status()
+                            
+                            if status_data and 'dps' in status_data:
+                                # For PIR devices, check for motion status at dps 101
+                                # According to your mapping, dps 101 has values: "pir" or "none"
+                                if '101' in status_data['dps']:
+                                    pir_value = status_data['dps']['101']
+                                    
+                                    # Convert TinyTuya value to your expected format
+                                    # "pir" = motion detected, "none" = no motion
+                                    # You might need to adjust this based on how your system expects the value
+                                    if pir_value == "True":
+                                        motion_detected = True
+                                        pir_status = "True"  # or "motion" depending on your system
+                                    else:
+                                        motion_detected = False
+                                        pir_status = "False"  # or "no_motion"
+                                    
+                                    # Update the result dictionary with PIR value
+                                    for result_item in result[dev['id']]['result']:
+                                        # Check for PIR-related codes (could be 'pir', 'motion', 'pir_state', etc.)
+                                        if result_item['code'] in ['led_switch', 'pir_state', 'motion']:
+                                            result_item['value'] = pir_status
+                                            Domoticz.Dedug(f"Updated {result_item['code']} to: {pir_status} (dps 101: {pir_value})")
+                                            break
+                                    
+                                    ResultValue = result[dev['id']]['result']
+                                else:
+                                    Domoticz.Dedug(f"No PIR data found in dps for device {dev['id']}. Available dps: {list(status_data['dps'].keys())}")
+                                    continue
+                            else:
+                                Domoticz.Dedug(f"Failed to get status from device {dev['id']} or no dps data")
+                                continue
+                            
+                    except Exception as e:
+                        Domoticz.Dedug(f"Error communicating with device {dev['id']}: {str(e)}")
+
+                elif pulsaractive == True and startup == False and local == False:
                     if isinstance(ResultValuePulsar, dict):
                         if 'status' in ResultValuePulsar and isinstance(ResultValuePulsar['status'], list) and len(ResultValuePulsar['status']) > 0:
                             if str(ResultValuePulsar['devId']) == str(dev['id']):
@@ -1359,7 +1416,7 @@ def onHandleThread(startup):
                                     for result_item in result[dev['id']]['result']:
                                         if result_item['code'] == status_item['code']:
                                             result_item['value'] = status_item['value']
-                                            print(f"Updated {status_item['code']} to {status_item['value']}")
+                                            Domoticz.Dedug(f"Updated {status_item['code']} to {status_item['value']}")
                                             break
 
                                 # for item in result[dev['id']]['result']:
@@ -1374,29 +1431,38 @@ def onHandleThread(startup):
                     else:
                         continue
                 else:
-                    Result = tuya.getstatus(dev['id'])
-                    ResultValue = Result['result']
-                    t = Result['t']
-
+                    continue
                 product_id = getConfigItem(dev['id'],'product_id')
 
                 Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' FunctionProperties= ' + str(properties[dev['id']]['functions']) + '\n')
                 Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' StatusProperties= ' + str(properties[dev['id']]['status']) + '\n')
                 Domoticz.Debug('Device name= ' + str(dev['name']) + ' id= ' + str(dev['id']) + ' result= ' + str(ResultValue) + '\n')
-            except:
-                raise Exception('Credentials are incorrect or tuya subscription has expired!')
-                Domoticz.Error('Credentials: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
+            except Exception as e:
+                # Get the original traceback
+                import traceback
+                
+                # This shows the full traceback including the line where the error originated
+                error_traceback = traceback.format_exc()
+                Domoticz.Error(f"Error occurred: {str(e)}")
+                Domoticz.Error(f"Traceback:\n{error_traceback}")
+                
+                # Or to get just the line number where it was raised:
+                tb = sys.exc_info()[2]
+                if tb:
+                    # Get the frame where the exception was raised
+                    frame = tb.tb_frame
+                    # Walk through the traceback to find where it originated
+                    while tb.tb_next:
+                        tb = tb.tb_next
+                    line_number = tb.tb_lineno
+                    filename = tb.tb_frame.f_code.co_filename
+                    Domoticz.Error(f"Error originated at line {line_number} in {filename}")
                 return
 
             # Create devices
             if startup == True:
                 if run == 1:
                     Domoticz.Debug('Run Startup script')
-                try:
-                    deviceinfo = scan[dev['id']]
-                except:
-                    deviceinfo = {'version': 3.3}
-
                 if dev_type in ('light', 'fanlight', 'pirlight') and createDevice(dev['id'], 1):
                     if (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light RGBWW')
@@ -2983,7 +3049,7 @@ def onHandleThread(startup):
                     UpdateDevice(dev['id'], 1, 'This device is not recognized. Please run the debug_discovery with Python from the tools directory and create an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.', 0, 0)
 
                 # Set extra info
-                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'product_id': dev['product_id'] , 'version': deviceinfo['version']})  #, 'scalemode': scalemode})
+                setConfigItem(dev['id'], {'key': dev['key'], 'category': dev_type, 'mac': dev['mac'], 'ip': deviceinfo['ip'], 'product_id': dev['product_id'], 'version': deviceinfo['version']})  #, 'scalemode': scalemode})
                 # Domoticz.Debug('ConfigItem:' + str(getConfigItem()))
 
             # Check device is removed
