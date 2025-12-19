@@ -33,7 +33,12 @@ pip3 install cryptography==3.4.8 requests==2.23.0 charset-normalizer==3.0.1 tiny
 #### Bookworm
 ```
 echo 'install tinytuya'
-pip3 install tinytuya PyCryptodome==3.21.0 chardet==3.0.4 requests==2.23.0 charset-normalizer==3.0.1 tuya-connector-python --break-system-packages
+pip3 install tinytuya PyCryptodome==3.21.0 chardet==3.0.4 requests==2.23.0 charset-normalizer==3.0.1 --break-system-packages
+```
+#### Trixie
+```
+echo 'install tinytuya'
+pip3 install tinytuya PyCryptodome chardet requests charset-normalizer urllib3 --break-system-packages
 ```
 
 * Rebuild the Domoticz Docker container.
@@ -88,11 +93,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 2.3.0 | Add new window smart remote control system |
-| 2.3.1 | Fixed humidity can not have decimals #183 |
 | 2.3.2 | Fixed cover channel 2 #184 |
 | 2.3.3 | Add multi-channel weather station #187 |
 | 2.3.4 | Add mismatch pir deivce #188 |
+| 2.3.5 | Modification for Thermostat #190 |
+| 2.3.6 | Add Cover detection #191 |
 
  [The full Change log](CHANGELOG.md)
 
