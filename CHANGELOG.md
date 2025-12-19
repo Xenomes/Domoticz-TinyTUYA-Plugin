@@ -121,4 +121,4 @@
 | 2.3.3 | Add multi-channel weather station #187 |
 | 2.3.4 | Add mismatch pir deivce #188 |
 | 2.3.5 | Modification for Thermostat #190 |
-| 2.3.6 | Add Cover detection #191 |
+| 2.3.6 | Add Cover detection #192 |
