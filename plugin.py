@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.6a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.3.5</h2><br/>
+        <h2>TinyTUYA Plugin version 2.3.6a</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1662,8 +1662,25 @@ def onHandleThread(startup):
                         options = {}
                         options['Custom'] = '1;ppm'
                         Domoticz.Unit(Name=dev['name'] + ' (CO2)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=31, Options=options, Used=1).Create()
-                    if createDevice(dev['id'], 5) and searchCode('air_quality_index', ResultValue):
-                        Domoticz.Unit(Name=dev['name'] + ' (Index)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=19, Used=1).Create()
+                    if createDevice(dev['id'], 5) == False:
+                        unit = Devices[dev['id']].Units[5]
+                        if unit.Type == 243 and unit.SubType == 19:
+                            deleteDevice(dev['id'],5) # Removing Air Quality Index device due update new device type
+                    if createDevice(dev['id'], 5) and searchCode('air_quality_index', StatusProperties):
+                        for item in StatusProperties:
+                            if item['code'] == 'air_quality_index':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                        Domoticz.Unit(Name=dev['name'] + ' (Index)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=62, Switchtype=18, Options=options, Image=27, Used=1).Create()
                     if createDevice(dev['id'], 6) and searchCode('ch2o_value', ResultValue):
                         options = {}
                         options['Custom'] = '1;mg/m3'
@@ -3492,10 +3509,22 @@ def onHandleThread(startup):
                             currentco2 = StatusDeviceTuya('co2_value')
                             if str(currentco2) != str(Devices[dev['id']].Units[4].nValue):
                                 UpdateDevice(dev['id'], 4, str(currentco2), 0, 0)
+                        # if searchCode('air_quality_index', ResultValue):
+                        #     currentindex = StatusDeviceTuya('air_quality_index')
+                        #     if str(currentindex) != str(Devices[dev['id']].Units[5].sValue):
+                        #         UpdateDevice(dev['id'], 5, str(currentindex), 0, 0)
                         if searchCode('air_quality_index', ResultValue):
-                            currentindex = StatusDeviceTuya('air_quality_index')
-                            if str(currentindex) != str(Devices[dev['id']].Units[5].sValue):
-                                UpdateDevice(dev['id'], 5, str(currentindex), 0, 0)
+                            currentmode = StatusDeviceTuya('air_quality_index')
+                            for item in StatusProperties:
+                                if item['code'] == 'air_quality_index':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[5].sValue):
+                                UpdateDevice(dev['id'], 5, int(mode.index(str(currentmode)) * 10), 1, 0)
                         if  searchCode('ch2o_value', ResultValue):
                             currentch2o = StatusDeviceTuya('ch2o_value')
                             if str(currentch2o) != str(Devices[dev['id']].Units[6].nValue):
