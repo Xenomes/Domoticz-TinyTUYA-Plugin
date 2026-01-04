@@ -1664,23 +1664,10 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (CO2)', DeviceID=dev['id'], Unit=4, Type=243, Subtype=31, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 5) == False:
                         unit = Devices[dev['id']].Units[5]
-                        if unit.Type == 243 and unit.SubType == 19:
+                        if unit.Type == 243 and unit.SubType == 19 or unit.Type == 244 and unit.SubType == 62:
                             deleteDevice(dev['id'],5) # Removing Air Quality Index device due update new device type
                     if createDevice(dev['id'], 5) and searchCode('air_quality_index', StatusProperties):
-                        for item in StatusProperties:
-                            if item['code'] == 'air_quality_index':
-                                the_values = json.loads(item['values'])
-                                mode = ['off']
-                                if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
-                                else:
-                                    mode.extend(the_values.get('range'))
-                                options = {}
-                                options['LevelOffHidden'] = 'true'
-                                options['LevelActions'] = ''
-                                options['LevelNames'] = '|'.join(mode)
-                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                        Domoticz.Unit(Name=dev['name'] + ' (Index)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=62, Switchtype=18, Options=options, Image=27, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Index)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=22, Used=1).Create()
                     if createDevice(dev['id'], 6) and searchCode('ch2o_value', ResultValue):
                         options = {}
                         options['Custom'] = '1;mg/m3'
@@ -3509,22 +3496,15 @@ def onHandleThread(startup):
                             currentco2 = StatusDeviceTuya('co2_value')
                             if str(currentco2) != str(Devices[dev['id']].Units[4].nValue):
                                 UpdateDevice(dev['id'], 4, str(currentco2), 0, 0)
-                        # if searchCode('air_quality_index', ResultValue):
-                        #     currentindex = StatusDeviceTuya('air_quality_index')
-                        #     if str(currentindex) != str(Devices[dev['id']].Units[5].sValue):
-                        #         UpdateDevice(dev['id'], 5, str(currentindex), 0, 0)
                         if searchCode('air_quality_index', ResultValue):
-                            currentmode = StatusDeviceTuya('air_quality_index')
-                            for item in StatusProperties:
-                                if item['code'] == 'air_quality_index':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
-                                    else:
-                                        mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[5].sValue):
-                                UpdateDevice(dev['id'], 5, int(mode.index(str(currentmode)) * 10), 1, 0)
+                            currentindex = StatusDeviceTuya('air_quality_index')
+                            level_mapping = {
+                                "level_1": 1,  # Map level_1 to 4
+                                "level_2": 2,  # Assuming pattern continues
+                                "level_3": 4,  # Your specific requirement
+                            }
+                            if str(currentindex) != str(Devices[dev['id']].Units[5].sValue):
+                                UpdateDevice(dev['id'], 5, str(currentindex), level_mapping.get(currentindex), 0)
                         if  searchCode('ch2o_value', ResultValue):
                             currentch2o = StatusDeviceTuya('ch2o_value')
                             if str(currentch2o) != str(Devices[dev['id']].Units[6].nValue):
