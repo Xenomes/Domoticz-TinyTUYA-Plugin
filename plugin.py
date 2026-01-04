@@ -3499,9 +3499,9 @@ def onHandleThread(startup):
                         if searchCode('air_quality_index', ResultValue):
                             currentindex = StatusDeviceTuya('air_quality_index')
                             level_mapping = {
-                                "level_1": 1,  # Map level_1 to 4
-                                "level_2": 2,  # Assuming pattern continues
-                                "level_3": 4,  # Your specific requirement
+                                "level_1": 1,
+                                "level_2": 2,
+                                "level_3": 4,
                             }
                             if str(currentindex) != str(Devices[dev['id']].Units[5].sValue):
                                 UpdateDevice(dev['id'], 5, str(currentindex), level_mapping.get(currentindex), 0)
