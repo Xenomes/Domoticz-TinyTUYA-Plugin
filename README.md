@@ -66,12 +66,43 @@ Add the next lines to your customstart.sh file after the 'apt-get -qq update' co
 echo 'install tinytuya'
 pip3 install tinytuya -U
 ```
+Docker configuration (IMPORTANT)
+When running Domoticz Docker:
+--host mode is necessary for device scanning and caching all outputs.
+Use environment variables to set the web ports instead of -p 8088:8080 -p 443:443:
+```bash
+-e WWW_PORT=8080 \
+-e SSL_PORT=443 \
+```
+Default ports are 8080 (HTTP) and 8443 (HTTPS). Change them to your preferred ports instead."
+Example docker-compose.yml snippet:
+```bash
+services:
+  domoticz:
+    container_name: domoticz
+    image: domoticz/domoticz:latest
+    network_mode: "host"        # Needed for device scanning
+    environment:
+      - WWW_PORT=8080
+      - SSL_PORT=443
+    volumes:
+      - ./config:/opt/domoticz/userdata
+```
 Rebuilt the Domoticz Docker container.
 ```bash
 docker compose down
 docker compose up -d
 ```
 * Monitor the install this can take some time. ```docker logs -f --tail 0 domoticz```
+
+This way:
+
+- Scanning works (`--host` is enabled)
+- Web ports are still configurable via environment variables
+- Full guide ready for Markdrop formatting  
+
+If you want, I can **also add a TinyTUYA plugin verification step** inside Domoticz so you know the plugin is loaded correctly. Do you want me to do that?
+
 ## Configuration
 
 In the Domoticz hardware configuration, enter:
@@ -114,7 +145,7 @@ Devices will be created automatically after discovery.
 
 ## Test Devices
 
-Testing has been primarily done with **RGBWW lights**.
+Testing has been primarily done with **RGBWW light**.
 
 If functionality is missing for your device:
 

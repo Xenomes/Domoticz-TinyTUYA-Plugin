@@ -153,7 +153,7 @@ class BasePlugin:
             DumpConfigToLog()
 
         DomoticzEx.Log('TinyTUYA ' + Parameters['Version'] + ' plugin started')
-        DomoticzEx.Log('TinyTuyaVersion: ' + tinytuya.version )
+        DomoticzEx.Log('TinyTuya Version: ' + tinytuya.version )
 
         global testdata, Error
 
@@ -175,7 +175,7 @@ class BasePlugin:
                 if 'This device is not recognized.' in Devices[dev].Units[1].sValue:
                     Devices[dev].Units[1].Delete()
         except Exception as e:
-            DomoticzEx.Log(f'Error during device cleanup: {e}')
+            DomoticzEx.Error(f'Error during device cleanup: {e}')
 
         # Start the shutdown process
         start_time = time.time()
@@ -982,7 +982,7 @@ class BasePlugin:
         DomoticzEx.Log('onDisconnect called')
 
     def onHeartbeat(self):
-        DomoticzEx.Log('onHeartbeat called')
+        DomoticzEx.Debug('onHeartbeat called')
 
         local_ok = onHandleThread(False, True)
 
@@ -1038,7 +1038,7 @@ def onHandleThread(startup, local):
     try:
         # INIT (startup only) 
         if startup and not local:
-            DomoticzEx.Debug('Initializing Tuya plugin')
+            DomoticzEx.Log('Initializing Tuya plugin')
 
             last_update = 0
             last_ip_scan = 0
@@ -1056,7 +1056,6 @@ def onHandleThread(startup, local):
             CLOUD_STATUS_INTERVAL = 60
             
             online = True
-            DomoticzEx.Debug('Tuya Cloud initialization')
             Error = None
 
             global synctime, ip_scan_interval
@@ -1177,11 +1176,9 @@ def onHandleThread(startup, local):
                         d = tinytuya.Device(dev_id, localtuya[dev_id]['ip'], dev['key'], version=localtuya[dev_id]['version'])
                         d.socketRetryLimit = 1
                         d.socketRetryDelay = 1
-                        # d.set_dpsUsed(dps_map[dev_id]['by_id'])
                         d.detect_available_dps()
                         d.detect_available_dps() # Two times for detection bulb devices
                         status = d.status()
-                        # DomoticzEx.Debug(f"Status for device {dev_id}: {status}")
                         # ONLINE check
                         if (
                             not status
@@ -1231,7 +1228,7 @@ def onHandleThread(startup, local):
                 # DomoticzEx.Debug(f'Device {dev["name"]} is online = {online}')
                 # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} FunctionProperties={properties[dev["id"]]["functions"]}')
                 # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} StatusProperties={properties[dev["id"]]["status"]}')
-                DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} ResultValue={ResultValue}')
+                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} ResultValue={ResultValue}')
                 # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} DPSMap={dps_map[dev_id]}')
                 
             except:
@@ -3132,12 +3129,10 @@ def onHandleThread(startup, local):
 
                     if dev_type in ('light','fanlight'):
                         unit = Devices[dev_id].Units[1]
-
                         if searchCode('switch_led', StatusProperties):
                             currentstatus = bool(StatusDeviceTuya('switch_led'))
                         else:
                             currentstatus = bool(StatusDeviceTuya('led_switch'))
-
                         nval = 1 if currentstatus else 0
                         if searchCode('bright_value_v2', StatusProperties):
                             dimtuya = brightness_to_pct(StatusProperties, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
@@ -3148,12 +3143,9 @@ def onHandleThread(startup, local):
                         svalue = str(dimtuya) if currentstatus else '0'
                         if str(unit.sValue) != svalue or unit.nValue != nval:
                             UpdateDomoticz(dev_id, 1, svalue, nval, 0)
-                            DomoticzEx.Debug(f"Updated device {dev_id} | nValue={nval} sValue={svalue}")
-
                         if searchCode('Power', StatusProperties):
                             currentstatus = StatusDeviceTuya('Power')
                             UpdateDomoticz(dev_id, 2, bool(currentstatus), int(bool(currentstatus)), 0)
-
                         if searchCode('lightmode', StatusProperties):
                             currentmode = StatusDeviceTuya('lightmode')
                             for item in FunctionProperties:
@@ -3735,7 +3727,7 @@ def onHandleThread(startup, local):
                         # update_text_device('fault', 8)
 
                 except Exception as err:
-                    DomoticzEx.Error('Device read failed: ' + str(dev_id))
+                    DomoticzEx.Error('Device read failed: ' + str(dev_id) + ' line ' + format(sys.exc_info()[-1].tb_lineno))
                     DomoticzEx.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
 
     except Exception as e:
@@ -3895,11 +3887,8 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
     Devices[ID].TimedOut = TimedOut
     unit.Update(Log=True)
 
-    DomoticzEx.Debug(
-        f"Update device value: {ID} Unit:{Unit} "
-        f"sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}"
+    DomoticzEx.Log(f"Update device value: {ID} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}"
     )
-
 
 def StatusDeviceTuya(Function):
     if searchCode(Function, StatusProperties):
@@ -3976,7 +3965,7 @@ def SendCommandTuya(ID, CommandName, Status):
             if not result or 'Error' in result or 'Err' in result:
                 raise Exception(result)
 
-            DomoticzEx.Debug(f"[LOCAL] Command sent: dp_id {dp_id} = {actual_status} ({ID})")
+            DomoticzEx.Log(f"[LOCAL] Command sent: dp_id {dp_id} = {actual_status} ({ID})")
             return
 
         except Exception as e:
@@ -3995,10 +3984,7 @@ def SendCommandTuya(ID, CommandName, Status):
             uri
         )
 
-    DomoticzEx.Debug(
-        f"[CLOUD] Command sent to Tuya: {ID}, "
-        f"{ {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}"
-    )
+    DomoticzEx.Log(f"[CLOUD] Command sent to Tuya: {ID}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
 
 def pct_to_brightness(device_functions, actual_function_name, pct):
     if device_functions and actual_function_name:
