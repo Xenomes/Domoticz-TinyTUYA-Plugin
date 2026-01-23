@@ -71,6 +71,7 @@ When running Domoticz Docker:
 --host mode is necessary for device scanning and caching all outputs.
 Use environment variables to set the web ports instead of -p 8088:8080 -p 443:443:
 ```bash
+--network host \
 -e WWW_PORT=8080 \
 -e SSL_PORT=443 \
 ```

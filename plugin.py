@@ -155,11 +155,15 @@ class BasePlugin:
         DomoticzEx.Log('TinyTUYA ' + Parameters['Version'] + ' plugin started')
         DomoticzEx.Log('TinyTuya Version: ' + tinytuya.version )
 
-        global testdata, Error
+        global testdata, Error, fulllocal
 
         if os.path.isfile(Parameters['HomeFolder'] + '/debug_devices.json'):
             testdata = True
             DomoticzEx.Error('!!! Warning Plugin overruled by local json files !!!')
+        elif os.path.isfile(Parameters['HomeFolder'] + '/tuya-raw.json'):
+            fulllocal = True
+            testdata = False
+            DomoticzEx.Debug('Plugin is full local mode from tuya-raw.json')
         else:
             testdata = False
         # DomoticzEx.Heartbeat(2)
@@ -221,7 +225,7 @@ class BasePlugin:
                 if len(Color) != 0: 
                     Color = ast.literal_eval(Color)
 
-                if dev_type == 'switch':
+                if dev_type in ('switch', 'switch/sensor'):
                     if searchCode('switch', function):
                         if Command == 'Off':
                             SendCommandTuya(DeviceID, 'switch', False)
@@ -1044,17 +1048,15 @@ def onHandleThread(startup, local):
             last_ip_scan = 0
 
             devs = []
+            snap = []
             ResultValue = []
             properties = {}
             dps_map = {}
             result = {}
-
             localtuya = {}
-
             cloud_status_cache = {}
             cloud_status_time = {}
             CLOUD_STATUS_INTERVAL = 60
-            
             online = True
             Error = None
 
@@ -1063,52 +1065,123 @@ def onHandleThread(startup, local):
             synctime = int(Parameters.get('Mode3', 900))
             ip_scan_interval = int(Parameters.get('Mode4', 86400))
 
-            # Cloud init 
-            if 'tuya' not in globals():
-                tuya = tinytuya.Cloud(
-                    apiRegion=Parameters['Mode1'],
-                    apiKey=Parameters['Username'],
-                    apiSecret=Parameters['Password'],
-                    apiDeviceID=Parameters['Mode2']
-                )
+            if not fulllocal:
+                # Cloud init 
+                if 'tuya' not in globals():
+                    tuya = tinytuya.Cloud(
+                        apiRegion=Parameters['Mode1'],
+                        apiKey=Parameters['Username'],
+                        apiSecret=Parameters['Password'],
+                        apiDeviceID=Parameters['Mode2']
+                    )
 
-            tuya.use_old_device_list = True
-            tuya.new_sign_algorithm = True
+                tuya.use_old_device_list = True
+                tuya.new_sign_algorithm = True
 
-            Error = tuya.error
-            if Error:
-                raise Exception(Error['Payload'])
+                Error = tuya.error
+                if Error:
+                    raise Exception(Error['Payload'])
 
-            # Fetch devices 
-            for attempt in range(4):
-                try:
-                    devs = tuya.getdevices()
-                    if devs:
-                        break
-                except:
-                    DomoticzEx.Log('No device data returned, retrying...')
-                    time.sleep(1)
+                # Fetch devices 
+                for attempt in range(4):
+                    try:
+                        devs = tuya.getdevices()
+                        if devs:
+                            break
+                    except:
+                        DomoticzEx.Log('No device data returned, retrying...')
+                        time.sleep(1)
 
-            if not devs:
-                raise Exception('No device data returned from Tuya cloud')
+                if not devs:
+                    raise Exception('No device data returned from Tuya cloud')
+                
+                # Fetch schemas 
+                for dev in devs:
+                    dev_id = dev['id']
 
-            # Fetch schemas 
-            for dev in devs:
-                dev_id = dev['id']
+                    props = tuya.getproperties(dev_id).get('result', {})
+                    props.setdefault('functions', [])
+                    props.setdefault('status', [])
+                    properties[dev_id] = props
 
-                props = tuya.getproperties(dev_id).get('result', {})
-                props.setdefault('functions', [])
-                props.setdefault('status', [])
-                properties[dev_id] = props
+                    result[dev_id] = tuya.getstatus(dev_id).get('result')
 
-                result[dev_id] = tuya.getstatus(dev_id).get('result')
+                    dps_map[dev_id] = {'by_code': {}, 'by_id': {}}
+                    schema = tuya.getdps(dev_id)
+                    if schema.get('success'):
+                        for f in schema['result'].get('status', []):
+                            dps_map[dev_id]['by_code'][f['code']] = f['dp_id']
+                            dps_map[dev_id]['by_id'][f['dp_id']] = f['code']
+            else:
+                with open(Parameters['HomeFolder'] + '/tuya-raw.json') as dFile:
+                    raw = json.load(dFile)
 
-                dps_map[dev_id] = {'by_code': {}, 'by_id': {}}
-                schema = tuya.getdps(dev_id)
-                if schema.get('success'):
-                    for f in schema['result'].get('status', []):
-                        dps_map[dev_id]['by_code'][f['code']] = f['dp_id']
-                        dps_map[dev_id]['by_id'][f['dp_id']] = f['code']
+                if not raw or 'result' not in raw:
+                    DomoticzEx.Error('tuya-raw.json in the plugin folder is invalid!')
+                    exit()
+
+                devs = raw['result']
+
+                with open(Parameters['HomeFolder'] + '/snapshot.json') as eFile:
+                    snap = json.load(eFile)
+
+                # ---- snapshot lookup ----
+                snap_by_id = {
+                    d['id']: d for d in snap.get('devices', [])
+                }
+
+                for dev in devs:
+                    dev_id = dev.get('id')
+
+                    # rename local_key → key
+                    if 'local_key' in dev:
+                        dev['key'] = dev.pop('local_key')
+
+                    # ensure properties entry exists
+                    properties.setdefault(dev_id, {'functions': [], 'status': []})
+                    localtuya.setdefault(dev_id, {})
+
+                    # ---- update from snapshot ----
+                    snapdev = snap_by_id.get(dev_id)
+                    if snapdev:
+                        dev['ip'] = snapdev.get('ip')
+                        dev['mac'] = snapdev.get('mac')
+
+                        localtuya[dev_id]['ip'] = snapdev.get('ip')
+                        localtuya[dev_id]['key'] = dev.get('key')
+                        localtuya[dev_id]['version'] = snapdev.get('ver', '3.3')
+
+                    # ---- mapping → functions/status ----
+                    schema_list = []
+                    for item in dev.get('mapping', {}).values():
+                        schema_list.append({
+                            'code': item['code'],
+                            'desc': json.dumps(item.get('values', {}), ensure_ascii=False),
+                            'name': '',
+                            'type': item['type'],
+                            'values': json.dumps(item.get('values', {}), ensure_ascii=False)
+                        })
+
+                    properties[dev_id]['functions'] = schema_list
+                    properties[dev_id]['status'] = schema_list
+
+                    # ---- DPS map (offline replacement for tuya.getdps) ----
+                    dps_map[dev_id] = {'by_code': {}, 'by_id': {}}
+                    for dp_id, item in dev.get('mapping', {}).items():
+                        dp_id = int(dp_id)
+                        code = item['code']
+                        dps_map[dev_id]['by_code'][code] = dp_id
+                        dps_map[dev_id]['by_id'][dp_id] = code
+
+                    # ---- status values ----
+                    result[dev_id] = dev.get('status', [])
+
+                    # ---- remove unused fields ----
+                    dev.pop('mapping', None)
+                    dev.pop('status', None)
+
+                    # DomoticzEx.Log(f'Convert {json.dumps(devs, indent=2)}')
+                    # # DomoticzEx.Log(f'Localtuya {localtuya}')
 
             # Active testdata loop 
             if testdata:
@@ -1130,7 +1203,7 @@ def onHandleThread(startup, local):
                         if not properties[dev['id']]['status']:
                             DomoticzEx.Error(f"!! Warning Status data is missing for {dev['id']} !!")
             # Initial local scan 
-            if not testdata:
+            if not testdata and not fulllocal:
                 try:
                     DomoticzEx.Log('Initial Tuya IP scan')
                     localtuya = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
@@ -1139,7 +1212,7 @@ def onHandleThread(startup, local):
                     localtuya = {}
 
         # Periodic IP scan 
-        if not startup and not testdata and ip_scan_interval > 0 and time.time() - last_ip_scan > ip_scan_interval:
+        if (not startup and not testdata and ip_scan_interval > 0 and time.time() - last_ip_scan > ip_scan_interval) and not fulllocal :
             try:
                 DomoticzEx.Log('Periodic Tuya IP scan')
                 localtuya = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
@@ -1172,50 +1245,50 @@ def onHandleThread(startup, local):
                         t = rData['t']
                     online = True
                 elif local:
-                    if dev_id in localtuya: 
-                        d = tinytuya.Device(dev_id, localtuya[dev_id]['ip'], dev['key'], version=localtuya[dev_id]['version'])
-                        d.socketRetryLimit = 1
-                        d.socketRetryDelay = 1
-                        d.detect_available_dps()
-                        d.detect_available_dps() # Two times for detection bulb devices
-                        status = d.status()
-                        # ONLINE check
-                        if (
-                            not status
-                            or 'Error' in status
-                            or 'Err' in status
-                            or 'dps' not in status
-                        ):
-                            online = False
-                        else:
-                            online = True
-                        if 'dps' in status:
-                            for dp_id, value in status['dps'].items():
-                                code = dps_map[dev_id]['by_id'].get(int(dp_id))
+                    # if dev_id in localtuya: 
+                    d = tinytuya.Device(dev_id, localtuya[dev_id]['ip'], dev['key'], version=localtuya[dev_id]['version'])
+                    d.socketRetryLimit = 1
+                    d.socketRetryDelay = 1
+                    d.detect_available_dps()
+                    d.detect_available_dps() # Two times for detection bulb devices
+                    status = d.status()
+                    # ONLINE check
+                    if (
+                        not status
+                        or 'Error' in status
+                        or 'Err' in status
+                        or 'dps' not in status
+                    ):
+                        online = False
+                    else:
+                        online = True
+                    if 'dps' in status:
+                        for dp_id, value in status['dps'].items():
+                            code = dps_map[dev_id]['by_id'].get(int(dp_id))
 
-                                if not code:
-                                    if dp_id not in dps_map[dev_id]['by_id']:
-                                        DomoticzEx.Debug(f"[LOCAL] Ignoring unknown dp_id {dp_id}")
-                                        dps_map[dev_id]['by_id'][int(dp_id)] = 'None'
-                                        dps_map[dev_id]['by_code']['None'] = int(dp_id)
-                                        continue
+                            if not code:
+                                if dp_id not in dps_map[dev_id]['by_id']:
+                                    DomoticzEx.Debug(f"[LOCAL] Ignoring unknown dp_id {dp_id}")
+                                    dps_map[dev_id]['by_id'][int(dp_id)] = 'None'
+                                    dps_map[dev_id]['by_code']['None'] = int(dp_id)
+                                    continue
 
-                                # Search existing code
-                                item_found = False
-                                for item in ResultValue:
-                                    if item['code'] == code:
-                                        item['value'] = value
-                                        item_found = True
-                                        break
+                            # Search existing code
+                            item_found = False
+                            for item in ResultValue:
+                                if item['code'] == code:
+                                    item['value'] = value
+                                    item_found = True
+                                    break
 
-                                # Not found → create
-                                if not item_found:
-                                    ResultValue.append({
-                                        "code": code,
-                                        "value": value
-                                    })
-                        result[dev_id] = ResultValue
-                elif not local and not startup:
+                            # Not found → create
+                            if not item_found:
+                                ResultValue.append({
+                                    "code": code,
+                                    "value": value
+                                })
+                    result[dev_id] = ResultValue
+                elif (not local and not startup) or not fulllocal:
                     if now - cloud_status_time.get(dev_id, 0) >= synctime:
                         try:
                             cloud = tuya.getstatus(dev_id)
@@ -1225,15 +1298,16 @@ def onHandleThread(startup, local):
                         except:
                             online = False
 
-                # DomoticzEx.Debug(f'Device {dev["name"]} is online = {online}')
-                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} FunctionProperties={properties[dev["id"]]["functions"]}')
-                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} StatusProperties={properties[dev["id"]]["status"]}')
-                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} ResultValue={ResultValue}')
-                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} DPSMap={dps_map[dev_id]}')
+                DomoticzEx.Debug(f'Device {dev["name"]} is online = {online}')
+                DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} FunctionProperties={properties[dev["id"]]["functions"]}')
+                DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} StatusProperties={properties[dev["id"]]["status"]}')
+                DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} ResultValue={ResultValue}')
+                DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} DPSMap={dps_map[dev_id]}')
                 
             except:
                 # Device unreachable fallback
                 ResultValue = []       
+                DomoticzEx.Debug('Error line ' + format(sys.exc_info()[-1].tb_lineno))
 
             # Create devices
             if startup:
@@ -1283,7 +1357,7 @@ def onHandleThread(startup, local):
                         # elif not createDevice(dev_id, 2) and not searchCode('switch_led_2', FunctionProperties):
                         #     deleteDevice(dev_id,2)
 
-                if dev_type == 'switch':
+                if dev_type in ('switch', 'switch/sensor'):
                     if  createDevice(dev_id, 1) and (searchCode('switch_1', FunctionProperties) or searchCode('switch', FunctionProperties)) and not searchCode('switch_2', FunctionProperties):
                         DomoticzEx.Log('Create device Switch')
                         DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -3045,7 +3119,7 @@ def onHandleThread(startup, local):
                     except:
                         pass
 
-                    if dev_type == 'switch':
+                    if dev_type in ('switch', 'switch/sensor'):
                         if update_bool_device('switch_1', 1):
                             pass
                         elif update_bool_device('switch', 1):
@@ -3761,12 +3835,12 @@ def DeviceType(category, product_id=None):
         resultdev = 'cover'
     elif product_id in {'chfpey4klfcp1ipl'}:
         resultdev = 'dimmer'
-    elif product_id in {'x3o8epevyeo3z3oa', 'gk0d4i8g5akryd9d'}:
-        resultdev = 'sensor'
     elif product_id in {'p6sqiuesvhmhvv4f'}:
         resultdev = 'doorcontact'
     elif category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr', 'aqcz'}:
         resultdev = 'switch'
+    elif category in {'tdq'}:
+        resultdev = 'switch/sensor'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj', 'tyd'}:
         resultdev = 'light'
     elif category in {'tgq', 'tgkg'}:
@@ -3923,7 +3997,7 @@ def SendCommandTuya(ID, CommandName, Status):
 
     DomoticzEx.Debug(f"SendCommand: {ID} | {actual_function_name} = {actual_status}")
 
-    # ---------- LOCAL TINYTUYA ----------
+    #------ LOCAL TINYTUYA------
     if ID in localtuya and ID in dps_map:
         try:
             dp_id = dps_map[ID]['by_code'].get(actual_function_name)
@@ -3971,7 +4045,7 @@ def SendCommandTuya(ID, CommandName, Status):
         except Exception as e:
             DomoticzEx.Debug(f"[LOCAL FAILED] {ID}, fallback to cloud: {e}")
 
-    # ---------- FALLBACK: TUYA CLOUD ----------
+    #------ FALLBACK: TUYA CLOUD------
     if actual_function_name in ('PowerOff', 'PowerOn'):
         uri = 'devices/'
     else:

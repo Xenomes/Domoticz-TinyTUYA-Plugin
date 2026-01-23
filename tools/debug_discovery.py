@@ -1,103 +1,218 @@
 #!/usr/bin/env python3
 
-# The script is intended to get a list of all devices available via Tuya API endpoint.
-import tinytuya
 import json
 import os
 import sys
 import time
 
-# TUYA ACCOUNT - Set up a Tuya Account (see PDF Instructions):
-# https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
-
-# CHANGE THIS - BEGINING
-REGION = "eu" # cn, eu, us
-APIKEY = "xxxxxxxxxxxxxxxxxxxx"
-APISECRET = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-# Select a Device ID to Test
-DEVICEID = "xxxxxxxxxxxxxxxxxxxx"
-# CHANGE THIS - END
-
-# NO NEED TO CHANGE ANYTHING BELOW
-
-if APIKEY == "xxxxxxxxxxxxxxxxxxxx" or APISECRET == "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" or DEVICEID == "xxxxxxxxxxxxxxxxxxxx":
-        print("""Tuya Plugin Configuration Error:
-
-ERROR: Invalid or missing values for Tuya account configuration.
-
-Please ensure the following information is correctly provided:
-
-REGION: [Enter your Tuya region, e.g., us, eu, cn]
-APIKEY: [Enter your Tuya API key]
-APISECRET: [Enter your Tuya API secret]
-DEVICEID: [Enter your Tuya device ID]
-
-Instructions:
-1. REGION: Specify the Tuya region associated with your account (e.g., us, eu, cn).
-2. APIKEY: Enter the correct Tuya API key linked to your account.
-3. APISECRET: Provide the correct Tuya API secret corresponding to your API key.
-4. DEVICEID: Specify the correct Tuya device ID for your device.
-
-Example:
-REGION: us
-APIKEY: abcdef1234567890
-APISECRET: xyz7890123456789
-DEVICEID: tuya_device_001
-
-Ensure accurate information before attempting to configure the Tuya plugin again.
-""")
-        exit()
-
-# Connect to Tuya Cloud
 try:
-        c = tinytuya.Cloud(
-                apiRegion=REGION,
-                apiKey=APIKEY,
-                apiSecret=APISECRET,
-                apiDeviceID=DEVICEID
-                )
-        c.use_old_device_list = True
-        c.new_sign_algorithm = True
-        if c.error is not None:
-                raise Exception(c.error['Payload'])
-        token = c.token
-        # Check credentials
-        if token == None:
-                raise Exception('Credentials are incorrect!')
+    import tinytuya
+except Exception:
+    print("tinytuya not installed")
+    sys.exit(1)
 
-        if (os.path.exists("dump.json")):
-                f = open("dump.json", "r+")
-        else:
-                f = open("dump.json", "w")
+CRED_CANDIDATES = ["tuya_creds.json", "cred.json", "creds.json"]
 
-        # Display list of devices
-        devices = []
-        while len(devices) == 0:
-                devices = c.getdevices()
-                print('No device data returnd for Tuya. Trying again!')
-                time.sleep(10)
 
-        for i in range(len(devices)):
-                devices[i - 1]['key'] = 'Deleted'
+# -------------------------
+# Credential handling
+# -------------------------
 
-        print("List of devices: \n", json.dumps(devices, indent=2))
-        f.write("List of devices: \n" + json.dumps(devices, indent=2))
+def load_credentials():
+    for path in CRED_CANDIDATES:
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, "r") as fh:
+                data = json.load(fh)
+                creds = {
+                    "apiRegion": data.get("apiRegion") or data.get("REGION"),
+                    "apiKey": data.get("apiKey") or data.get("APIKEY"),
+                    "apiSecret": data.get("apiSecret") or data.get("APISECRET"),
+                    "apiDeviceID": data.get("apiDeviceID") or data.get("DEVICEID"),
+                }
+                if None not in creds.values():
+                    return creds, path
+        except Exception:
+            pass
+    return None, None
+
+
+def save_credentials(creds, path="tuya_creds.json"):
+    with open(path, "w") as fh:
+        json.dump(creds, fh, indent=2)
+    return path
+
+
+def prompt_for_credentials(existing=None):
+    if existing is None:
+        existing = {}
+
+    try:
+        creds = {
+            "apiRegion": input("Tuya region (cn, eu, us): "),
+            "apiKey": input("Tuya API key: "),
+        }
+
+        try:
+            import getpass
+            creds["apiSecret"] = getpass.getpass("Tuya API secret (hidden): ")
+        except Exception:
+            creds["apiSecret"] = input("Tuya API secret: ")
+
+        creds["apiDeviceID"] = input("Tuya Device ID: ")
+        return creds
+
+    except KeyboardInterrupt:
+        print("\nCancelled")
+        sys.exit(1)
+
+
+# -------------------------
+# Load credentials
+# -------------------------
+
+creds, cred_path = load_credentials()
+if creds:
+    print(f"Loaded credentials from {cred_path}")
+else:
+    print("No valid credentials found, prompting…")
+    creds = prompt_for_credentials()
+    save_credentials(creds)
+
+REGION = creds["apiRegion"]
+APIKEY = creds["apiKey"]
+APISECRET = creds["apiSecret"]
+DEVICEID = creds["apiDeviceID"]
+
+local_status = []
+
+# -------------------------
+# Connect to Tuya Cloud
+# -------------------------
+
+try:
+    cloud = tinytuya.Cloud(
+        apiRegion=REGION,
+        apiKey=APIKEY,
+        apiSecret=APISECRET,
+        apiDeviceID=DEVICEID,
+    )
+    cloud.use_old_device_list = True
+    cloud.new_sign_algorithm = True
+
+    if cloud.error:
+        raise Exception(cloud.error)
+
+    if not cloud.token:
+        raise Exception("Invalid credentials")
+
+    # -------------------------
+    # Get devices
+    # -------------------------
+
+    devices = []
+    while not devices:
+        devices = cloud.getdevices()
+        if not devices:
+            print("No devices returned, retrying in 10s…")
+            time.sleep(10)
+
+    local_devices = tinytuya.deviceScan(verbose=True, maxretry=None, byID=True)
+
+    # Sanitize keys
+    for d in devices:
+        if d["id"] in local_devices:
+            local_devices[d["id"]]["key"] = d.get("key")
+        d["key"] = "Deleted"
+
+    # -------------------------
+    # Write everything to dump.json
+    # -------------------------
+
+    with open("dump.json", "w") as f:
+
+        def write_block(title, data):
+            f.write(f"\n{title}\n")
+            f.write(json.dumps(data, indent=2))
+            f.write("\n")
+
+        print("List of devices:")
+        print(json.dumps(devices, indent=2))
+        write_block("List of devices:", devices)
 
         for d in devices:
-                # Display Properties of Device
-                result = c.getproperties(d["id"])
-                print("\nProperties of device: " + d["id"] + "\n", json.dumps(result, indent=2))
-                f.write("\nProperties of device: " + d["id"] + "\n" + json.dumps(result, indent=2))
+            device_id = d["id"]
 
-                # Display Status of Device
-                result = c.getstatus(d["id"])
-                print("\nStatus of device: " + d["id"] + "\n", json.dumps(result, indent=2))
-                f.write("\nStatus of device: " + d["id"] + "\n" + json.dumps(result, indent=2))
+            props = cloud.getproperties(device_id)
+            status_cloud = cloud.getstatus(device_id)
 
-        f.close()
+            print(f"\nProperties of device {device_id}")
+            print(json.dumps(props, indent=2))
+            write_block(f"Properties of device {device_id}:", props)
+
+            print(f"\nStatus of device {device_id}")
+            print(json.dumps(status_cloud, indent=2))
+            write_block(f"Status of device {device_id}:", status_cloud)
+
+            # DPS map
+            dps_map = {"by_code": {}, "by_id": {}}
+            schema = cloud.getdps(device_id)
+
+            if schema.get("success"):
+                for s in schema["result"].get("status", []):
+                    dps_map["by_code"][s["code"]] = s["dp_id"]
+                    dps_map["by_id"][s["dp_id"]] = s["code"]
+
+                print(f"\nDPS map of device {device_id}")
+                print(json.dumps(dps_map, indent=2))
+                write_block(f"DPS map of device {device_id}:", dps_map)
+
+            # Local device status
+                # Local device status (with v3.3 fallback)
+            if device_id in local_devices:
+                ld = local_devices[device_id]
+
+                local_status = None
+                last_error = None
+
+                for version in (ld["version"], "3.3"):
+                        try:
+                                dev = tinytuya.Device(
+                                        device_id,
+                                        ld["ip"],
+                                        ld["key"],
+                                        version=version
+                                )
+                                dev.socketRetryLimit = 1
+                                dev.socketRetryDelay = 1
+
+                                dev.detect_available_dps()
+                                dev.detect_available_dps()  # bulbs need two passes
+
+                                local_status = dev.status()
+                                local_status["_protocol_version"] = version
+                                break
+
+                        except Exception as e:
+                                last_error = e
+
+        if local_status:
+                print(f"\nLocal status of device {device_id}")
+                print(json.dumps(local_status, indent=2))
+                write_block(f"Local status of device {device_id}:", local_status)
+        else:
+                error_info = {
+                "error": str(last_error),
+                "attempted_versions": [ld["version"], "3.3"]
+                }
+                print(f"\nLocal status FAILED for device {device_id}")
+                print(json.dumps(error_info, indent=2))
+                write_block(f"Local status FAILED for device {device_id}:", error_info)
+
+    print("\n\ndump.json is created!")
 
 except Exception as err:
-        print('debug_discovery: ' + str(err) + ' line ' + format(sys.exc_info()[-1].tb_lineno))
-
-if (os.path.exists("dump.json")):
-        print('\n\ndump.json is created!')
+    print(
+        f"debug_discovery: {err} line {sys.exc_info()[-1].tb_lineno}"
+    )
