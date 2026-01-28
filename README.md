@@ -41,7 +41,7 @@ Cloud setup instructions:
 Go in your Domoticz directory using a command line and open the plugins directory.
 ```bash
 cd ~/domoticz/plugins
-sudo pip3 install tinytuya -U #--break-system-packages # if needed
+sudo pip3 install tinytuya cryptography>=3.1 pycryptodomex -U #--break-system-packages # if needed
 # for installing
 git clone https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git
 # for updating
@@ -64,7 +64,7 @@ git pull
 Add the next lines to your customstart.sh file after the 'apt-get -qq update' command.
 ```bash
 echo 'install tinytuya'
-pip3 install tinytuya -U
+pip3 install tinytuya cryptography>=3.1 pycryptodomex -U
 ```
 Docker configuration (IMPORTANT)
 When running Domoticz Docker:

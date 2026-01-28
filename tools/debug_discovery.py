@@ -41,6 +41,7 @@ def load_credentials():
 def save_credentials(creds, path="tuya_creds.json"):
     with open(path, "w") as fh:
         json.dump(creds, fh, indent=2)
+    os.chmod(path, 0o400)
     return path
 
 
@@ -112,6 +113,7 @@ try:
     # -------------------------
 
     devices = []
+    local_devices = []
     while not devices:
         devices = cloud.getdevices()
         if not devices:
@@ -169,46 +171,25 @@ try:
                 write_block(f"DPS map of device {device_id}:", dps_map)
 
             # Local device status
-                # Local device status (with v3.3 fallback)
             if device_id in local_devices:
-                ld = local_devices[device_id]
+                dev = tinytuya.Device(
+                        str(device_id),
+                        str(local_devices.get(device_id).get("ip", "127.0.0.1")),
+                        str(local_devices.get(device_id).get("key", "0000000000000000")),
+                        version=local_devices.get(device_id).get("version", 3.3),
+                )
+                dev.detect_available_dps()  
+                dev.detect_available_dps()  # bulbs need two passes
 
-                local_status = None
-                last_error = None
+                local_status = dev.status()
 
-                for version in (ld["version"], "3.3"):
-                        try:
-                                dev = tinytuya.Device(
-                                        device_id,
-                                        ld["ip"],
-                                        ld["key"],
-                                        version=version
-                                )
-                                dev.socketRetryLimit = 1
-                                dev.socketRetryDelay = 1
-
-                                dev.detect_available_dps()
-                                dev.detect_available_dps()  # bulbs need two passes
-
-                                local_status = dev.status()
-                                local_status["_protocol_version"] = version
-                                break
-
-                        except Exception as e:
-                                last_error = e
-
-        if local_status:
                 print(f"\nLocal status of device {device_id}")
                 print(json.dumps(local_status, indent=2))
                 write_block(f"Local status of device {device_id}:", local_status)
-        else:
-                error_info = {
-                "error": str(last_error),
-                "attempted_versions": [ld["version"], "3.3"]
-                }
-                print(f"\nLocal status FAILED for device {device_id}")
-                print(json.dumps(error_info, indent=2))
-                write_block(f"Local status FAILED for device {device_id}:", error_info)
+
+            else:
+                print(f"\nNo local status of device {device_id} possibly no Wifi device found.")
+                write_block(f"No local status of device {device_id},", "No data, possibly no Wifi device found.")
 
     print("\n\ndump.json is created!")
 

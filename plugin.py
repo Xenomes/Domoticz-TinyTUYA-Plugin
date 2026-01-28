@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin – Hybrid Local / Cloud Control version 3.0.0</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.0</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -86,8 +86,13 @@
                 <option label="1 minute" value="60" />
                 <option label="5 minutes" value="300" />
                 <option label="10 minutes" value="600" />
-                <option label="15 minutes" value="900"  default="true"/>
-                <option label="30 minutes" value="1800" />
+                <option label="15 minutes" value="900" />
+                <option label="30 minutes" value="1800" default="true"/>
+                <option label="1 hour" value="3600" />
+                <option label="2 hour" value="7200" />
+                <option label="3 hour" value="10800" />
+                <option label="6 hour" value="21600" />
+                <option label="12 hour" value="21600" />
             </options>
         </param>
         <param field="Mode4" label="Local IP rescan interval" width="200px" required="true" default="3600">
@@ -138,7 +143,8 @@ try:
     import tinytuya
 except ImportError:
     print('No tinytuya module installed')
-
+    SystemExit
+print(f'Tinytuya version: {tinytuya.version}')
 class BasePlugin:
     def __init__(self):
         self.enabled = True
@@ -159,13 +165,15 @@ class BasePlugin:
 
         if os.path.isfile(Parameters['HomeFolder'] + '/debug_devices.json'):
             testdata = True
+            fulllocal = False
             DomoticzEx.Error('!!! Warning Plugin overruled by local json files !!!')
         elif os.path.isfile(Parameters['HomeFolder'] + '/tuya-raw.json'):
-            fulllocal = True
             testdata = False
+            fulllocal = True
             DomoticzEx.Debug('Plugin is full local mode from tuya-raw.json')
         else:
             testdata = False
+            fulllocal = False
         # DomoticzEx.Heartbeat(2)
         onHandleThread(True, False)
 
@@ -988,15 +996,11 @@ class BasePlugin:
     def onHeartbeat(self):
         DomoticzEx.Debug('onHeartbeat called')
 
-        local_ok = onHandleThread(False, True)
+        onHandleThread(False, True)
 
-        if local_ok:
-            return 
-
-        if time.time() - last_update < synctime:
-            return
-
-        onHandleThread(False, False)
+        DomoticzEx.Debug(f'Heartbeat check for sync {time.time() - last_update} >= {synctime} and fulllocal={fulllocal}')
+        if time.time() - last_update >= synctime and not fulllocal:
+            onHandleThread(False, False)
 
 global _plugin
 _plugin = BasePlugin()
@@ -1037,7 +1041,7 @@ def onHandleThread(startup, local):
     global tuya, devs, properties, dps_map, result, product_id, Error
     global last_update, last_ip_scan, localtuya, testdata
     global cloud_status_cache, cloud_status_time
-    global FunctionProperties, StatusProperties, ResultValue, dev_type
+    global FunctionProperties, StatusProperties, ResultValue, dev_type, line
 
     try:
         # INIT (startup only) 
@@ -1056,9 +1060,9 @@ def onHandleThread(startup, local):
             localtuya = {}
             cloud_status_cache = {}
             cloud_status_time = {}
-            CLOUD_STATUS_INTERVAL = 60
             online = True
             Error = None
+            line = 0
 
             global synctime, ip_scan_interval
 
@@ -1067,20 +1071,27 @@ def onHandleThread(startup, local):
 
             if not fulllocal:
                 # Cloud init 
+                DomoticzEx.Log('Cloud mode: fetching device data from Tuya cloud')
                 if 'tuya' not in globals():
-                    tuya = tinytuya.Cloud(
-                        apiRegion=Parameters['Mode1'],
-                        apiKey=Parameters['Username'],
-                        apiSecret=Parameters['Password'],
-                        apiDeviceID=Parameters['Mode2']
-                    )
+                    try:
+                        tuya = tinytuya.Cloud(
+                            apiRegion=Parameters['Mode1'],
+                            apiKey=Parameters['Username'],
+                            apiSecret=Parameters['Password'],
+                            apiDeviceID=Parameters['Mode2']
+                        )
+                    except Exception as e:
+                        DomoticzEx.Error(f"Tuya initialization failed: {e}")
+                        return
+
+                # Stop script immediately if Tuya reports an error
+                if hasattr(tuya, 'error') and tuya.error:
+                    error_msg = tuya.error.get('Payload', tuya.error)
+                    DomoticzEx.Error(f"Tuya API error: {error_msg}")
+                    return
 
                 tuya.use_old_device_list = True
                 tuya.new_sign_algorithm = True
-
-                Error = tuya.error
-                if Error:
-                    raise Exception(Error['Payload'])
 
                 # Fetch devices 
                 for attempt in range(4):
@@ -1104,68 +1115,80 @@ def onHandleThread(startup, local):
                     props.setdefault('status', [])
                     properties[dev_id] = props
 
-                    result[dev_id] = tuya.getstatus(dev_id).get('result')
+                    result[dev_id] = tuya.getstatus(dev_id).get('result', {})
 
                     dps_map[dev_id] = {'by_code': {}, 'by_id': {}}
                     schema = tuya.getdps(dev_id)
-                    if schema.get('success'):
+                    if schema['success']:
                         for f in schema['result'].get('status', []):
                             dps_map[dev_id]['by_code'][f['code']] = f['dp_id']
                             dps_map[dev_id]['by_id'][f['dp_id']] = f['code']
-            else:
+            elif fulllocal:
+                DomoticzEx.Log('Full local mode: loading device data from files')
                 with open(Parameters['HomeFolder'] + '/tuya-raw.json') as dFile:
                     raw = json.load(dFile)
-
-                if not raw or 'result' not in raw:
-                    DomoticzEx.Error('tuya-raw.json in the plugin folder is invalid!')
-                    exit()
-
-                devs = raw['result']
+                    
+                devs = raw.get('result', [])
+                DomoticzEx.Debug(f'Loading {len(devs)} devices from tuya-raw.json')
 
                 with open(Parameters['HomeFolder'] + '/snapshot.json') as eFile:
-                    snap = json.load(eFile)
-
-                # ---- snapshot lookup ----
-                snap_by_id = {
-                    d['id']: d for d in snap.get('devices', [])
-                }
+                    raw = json.load(eFile)
+                snap = raw.get('devices', [])
 
                 for dev in devs:
-                    dev_id = dev.get('id')
+                    dev_id = dev['id']
 
-                    # rename local_key → key
-                    if 'local_key' in dev:
-                        dev['key'] = dev.pop('local_key')
+                    if not dev.get('mapping'):
+                        DomoticzEx.Error(f"!! Warning Mapping data is missing for {dev_id} !!")
+                        continue
 
                     # ensure properties entry exists
                     properties.setdefault(dev_id, {'functions': [], 'status': []})
                     localtuya.setdefault(dev_id, {})
 
-                    # ---- update from snapshot ----
-                    snapdev = snap_by_id.get(dev_id)
-                    if snapdev:
-                        dev['ip'] = snapdev.get('ip')
-                        dev['mac'] = snapdev.get('mac')
-
-                        localtuya[dev_id]['ip'] = snapdev.get('ip')
-                        localtuya[dev_id]['key'] = dev.get('key')
-                        localtuya[dev_id]['version'] = snapdev.get('ver', '3.3')
-
-                    # ---- mapping → functions/status ----
+                    # fix mismatched fieldsproperties
+                    dev['results'] = dev['status']
+                    dev.pop('status', None)
+                    dev['key'] = dev['local_key']
+                    dev.pop('local_key', None)
+                    for snap_dev in snap:
+                        if snap_dev.get('id') == dev_id:
+                            dev['ip'] = snap_dev.get('ip', dev.get('ip', '127.0.0.1'))
+                            dev['version'] = snap_dev.get('ver', '3.3')
+                            break
+                    # mapping => functions/status
                     schema_list = []
                     for item in dev.get('mapping', {}).values():
+                        raw_values = item.get('values', {})
+
+                        if isinstance(raw_values, str):
+                            # values is al JSON-string → eerst normaliseren
+                            try:
+                                raw_values = json.loads(raw_values)
+                            except json.JSONDecodeError:
+                                raw_values = {}
+
+                        values_json = json.dumps(
+                            raw_values,
+                            ensure_ascii=False,
+                            separators=(',', ':')
+                        )
+
                         schema_list.append({
                             'code': item['code'],
-                            'desc': json.dumps(item.get('values', {}), ensure_ascii=False),
+                            'desc': values_json,
                             'name': '',
                             'type': item['type'],
-                            'values': json.dumps(item.get('values', {}), ensure_ascii=False)
+                            'values': values_json
                         })
+                    properties[dev_id] = dev
 
-                    properties[dev_id]['functions'] = schema_list
-                    properties[dev_id]['status'] = schema_list
-
-                    # ---- DPS map (offline replacement for tuya.getdps) ----
+                    properties[dev_id]['functions'] = json.dumps(schema_list, ensure_ascii=False, separators=(',', ':'))
+                    dev['functions'] = schema_list
+                    properties[dev_id]['status'] = json.dumps(schema_list, ensure_ascii=False, separators=(',', ':'))
+                    dev['status'] = schema_list
+                    
+                    # DPS map (offline replacement for tuya.getdps)
                     dps_map[dev_id] = {'by_code': {}, 'by_id': {}}
                     for dp_id, item in dev.get('mapping', {}).items():
                         dp_id = int(dp_id)
@@ -1173,15 +1196,18 @@ def onHandleThread(startup, local):
                         dps_map[dev_id]['by_code'][code] = dp_id
                         dps_map[dev_id]['by_id'][dp_id] = code
 
-                    # ---- status values ----
-                    result[dev_id] = dev.get('status', [])
-
-                    # ---- remove unused fields ----
+                    # remove unused fields
                     dev.pop('mapping', None)
-                    dev.pop('status', None)
 
-                    # DomoticzEx.Log(f'Convert {json.dumps(devs, indent=2)}')
-                    # # DomoticzEx.Log(f'Localtuya {localtuya}')
+                    # status values
+                    result[dev_id] = json.dumps(dev['results'], ensure_ascii=False, separators=(',', ':'))
+
+                    localtuya[dev_id] = dev
+
+                    # DomoticzEx.Debug(f'Convert {json.dumps(devs, indent=2)}')
+                    # DomoticzEx.Debug(f'Localtuya {localtuya}')
+                    # DomoticzEx.Debug(f'Loaded device {dev} from snapshot')
+                    # DomoticzEx.Debug(f'Loaded device {dev_id} with properties {properties[dev_id]} and result {result[dev_id]}')
 
             # Active testdata loop 
             if testdata:
@@ -1192,20 +1218,23 @@ def onHandleThread(startup, local):
 
                 # Functies / status
                 properties = {}
+
                 with open(Parameters['HomeFolder'] + '/debug_functions.json') as fFile:
-                    for dev in devs:
-                        properties[dev['id']] = json.load(fFile)['result']
-                        properties[dev['id']].setdefault('functions', [])
-                        properties[dev['id']].setdefault('status', [])
-                        # warnings als data mist
-                        if not properties[dev['id']]['functions']:
-                            DomoticzEx.Error(f"!! Warning Functions data is missing for {dev['id']} !!")
-                        if not properties[dev['id']]['status']:
-                            DomoticzEx.Error(f"!! Warning Status data is missing for {dev['id']} !!")
+                    raw = json.load(fFile)
+
+                for dev in devs:
+                    dev_id = dev['id']
+                    properties[dev_id] = raw['result']
+
+                    if not properties[dev_id].get('functions'):
+                        DomoticzEx.Error(f"!! Warning Functions data is missing for {dev_id} !!")
+
+                    if not properties[dev_id].get('status'):
+                        DomoticzEx.Error(f"!! Warning Status data is missing for {dev_id} !!")
             # Initial local scan 
             if not testdata and not fulllocal:
                 try:
-                    DomoticzEx.Log('Initial Tuya IP scan')
+                    DomoticzEx.Log('Initial Tuya IP scan, Please wait...')
                     localtuya = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
                     last_ip_scan = time.time()
                 except:
@@ -1214,18 +1243,16 @@ def onHandleThread(startup, local):
         # Periodic IP scan 
         if (not startup and not testdata and ip_scan_interval > 0 and time.time() - last_ip_scan > ip_scan_interval) and not fulllocal :
             try:
-                DomoticzEx.Log('Periodic Tuya IP scan')
+                DomoticzEx.Log('Periodic Tuya IP scan, Please wait...')
                 localtuya = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
                 last_ip_scan = time.time()
             except:
                 pass
 
         # Main loop 
-        last_update = time.time()
+        
         for dev in devs:
             # Default values (offline-safe)
-            online = False
-            DomoticzEx.Debug(f'Processing device {dev.get("name", "Unknown Device")} ({dev.get("id", "Unknown ID")})')
             t = 0
             StatusProperties   = properties.get(dev['id'], {}).get('status', [])
             FunctionProperties = properties.get(dev['id'], {}).get('functions', [])
@@ -1235,83 +1262,116 @@ def onHandleThread(startup, local):
             dev_type           = DeviceType(category, product_id)
             dev_name           = dev.get('name', 'Unknown Device')
             dev_id             = dev.get('id', 'Unknown ID')
+            online             = False  
             now = time.time()
             # LOCAL FIRST 
             try:
                 if testdata:
+                    DomoticzEx.Debug(f'Testdata mode: loading status for device {dev["name"]} id {dev["id"]}')
                     with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
                         rData = json.load(rFile)
                         ResultValue = rData['result']
                         t = rData['t']
                     online = True
                 elif local:
-                    # if dev_id in localtuya: 
-                    d = tinytuya.Device(dev_id, localtuya[dev_id]['ip'], dev['key'], version=localtuya[dev_id]['version'])
-                    d.socketRetryLimit = 1
-                    d.socketRetryDelay = 1
-                    d.detect_available_dps()
-                    d.detect_available_dps() # Two times for detection bulb devices
-                    status = d.status()
-                    # ONLINE check
-                    if (
-                        not status
-                        or 'Error' in status
-                        or 'Err' in status
-                        or 'dps' not in status
-                    ):
-                        online = False
-                    else:
-                        online = True
-                    if 'dps' in status:
-                        for dp_id, value in status['dps'].items():
-                            code = dps_map[dev_id]['by_id'].get(int(dp_id))
-
-                            if not code:
-                                if dp_id not in dps_map[dev_id]['by_id']:
-                                    DomoticzEx.Debug(f"[LOCAL] Ignoring unknown dp_id {dp_id}")
-                                    dps_map[dev_id]['by_id'][int(dp_id)] = 'None'
-                                    dps_map[dev_id]['by_code']['None'] = int(dp_id)
-                                    continue
-
-                            # Search existing code
-                            item_found = False
-                            for item in ResultValue:
-                                if item['code'] == code:
-                                    item['value'] = value
-                                    item_found = True
-                                    break
-
-                            # Not found → create
-                            if not item_found:
-                                ResultValue.append({
-                                    "code": code,
-                                    "value": value
-                                })
-                    result[dev_id] = ResultValue
-                elif (not local and not startup) or not fulllocal:
-                    if now - cloud_status_time.get(dev_id, 0) >= synctime:
-                        try:
-                            cloud = tuya.getstatus(dev_id)
-                            ResultValue = cloud.get('result', [])
+                    DomoticzEx.Debug(f'Attempting local connection to device {dev["name"]} id {dev["id"]}')
+                    if dev_id in localtuya and localtuya[dev_id].get('ip', '') != '':
+                        DomoticzEx.Debug(f'Local connection to device {dev["name"]} id {dev["id"]} using IP {localtuya[dev_id].get("ip", "unknown")} and version {localtuya[dev_id].get("version", "unknown")}')
+                        d = tinytuya.Device(dev_id, localtuya[dev_id].get('ip'), dev['key'], version=localtuya.get(dev_id, {}).get('version', '3.3'))
+                        d.socketRetryLimit = 1
+                        d.socketRetryDelay = 1
+                        d.detect_available_dps()
+                        adps = d.detect_available_dps() # Two times for detection bulb devices
+                        if adps:
+                            status = d.status()
                             online = True
-                            cloud_status_time[dev_id] = now
-                        except:
+
+                            # ONLINE check
+                            if (
+                                not status
+                                or 'Error' in status
+                                or 'Err' in status
+                                or 'dps' not in status
+                            ):
+                                online = False
+                            else:
+                                online = True
+                            if 'dps' in status:
+                                for dp_id, value in status['dps'].items():
+                                    code = dps_map[dev_id]['by_id'].get(int(dp_id))
+
+                                    if not code:
+                                        if dp_id not in dps_map[dev_id]['by_id']:
+                                            # DomoticzEx.Debug(f"[LOCAL] Ignoring unknown dp_id {dp_id}")
+                                            dps_map[dev_id]['by_id'][int(dp_id)] = 'None'
+                                            dps_map[dev_id]['by_code']['None'] = int(dp_id)
+                                            continue
+
+                                    if isinstance(ResultValue, str):
+                                        try:
+                                            ResultValue = json.loads(ResultValue)
+                                        except json.JSONDecodeError:
+                                            # DomoticzEx.Error("[LOCAL] ResultValue invalid JSON, resetting")
+                                            ResultValue = []
+
+                                    if not isinstance(ResultValue, list):
+                                        # DomoticzEx.Error(f"[LOCAL] ResultValue unexpected type: {type(ResultValue)}")
+                                        ResultValue = []
+
+                                    # Search existing code
+                                    item_found = False
+
+                                    for item in ResultValue:
+                                        if not isinstance(item, dict):
+                                            continue
+
+                                        if item.get('code') == code:
+                                            item['value'] = value
+                                            item_found = True
+                                            break
+
+                                    if not item_found:
+                                        ResultValue.append({
+                                            "code": code,
+                                            "value": value
+                                        })
+
+                                    result[dev_id] = ResultValue
+                                ResultValue = list(result.get(dev_id, []))
+
+                        else:
+                            DomoticzEx.Debug(f"[LOCAL] No DPS detected for device {dev['name']} id {dev}, skipping local status fetch")
                             online = False
 
-                DomoticzEx.Debug(f'Device {dev["name"]} is online = {online}')
-                DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} FunctionProperties={properties[dev["id"]]["functions"]}')
-                DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} StatusProperties={properties[dev["id"]]["status"]}')
-                DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} ResultValue={ResultValue}')
-                DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} DPSMap={dps_map[dev_id]}')
+                elif ((not local and not startup) or (not fulllocal)):
+                    last_update = time.time()
+                    DomoticzEx.Debug(f'Cloud connection to device {dev["name"]} id {dev["id"]} synctime {now - cloud_status_time.get(dev_id, 0)}')
+                    try:
+                        cloud = tuya.getstatus(dev_id)
+                        ResultValue = cloud.get('result', [])
+                        online = True
+                        cloud_status_time[dev_id] = now
+                    except:
+                        online = False
+                else:
+                    DomoticzEx.Debug(f'Skipping status fetch for device {dev["name"]} id {dev["id"]} in full local mode')
+                    online = False
+
+                # DomoticzEx.Debug(f'Device {dev["name"]} is online = {online}')
+                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} FunctionProperties={properties[dev["id"]]["functions"]}')
+                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} StatusProperties={properties[dev["id"]]["status"]}')
+                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} ResultValue={result[dev["id"]]}')
+                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} DPSMap={dps_map[dev_id]}')
                 
-            except:
+            except Exception as err:
                 # Device unreachable fallback
                 ResultValue = []       
-                DomoticzEx.Debug('Error line ' + format(sys.exc_info()[-1].tb_lineno))
+                DomoticzEx.Error('Error line ' + format(sys.exc_info()[-1].tb_lineno))
+                DomoticzEx.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
 
             # Create devices
             if startup:
-                deviceinfo = localtuya.get(dev_id, {'ip': '0.0.0.0', 'version': 'unknown'})
+                deviceinfo = localtuya.get(dev_id, {'ip': '127.0.0.1', 'version': 'unknown'})
                 product_id = getConfigItem(dev_id, 'product_id') or ''
                 if dev_type in ('light', 'fanlight', 'pirlight') and createDevice(dev_id, 1):
                     if (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
@@ -1450,10 +1510,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (HEATtemp)', DeviceID=dev_id, Unit=11, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev_id, 12) and searchCode('wth_stemp', StatusProperties):
                         for item in StatusProperties:
@@ -1461,10 +1521,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (DHWtemp)', DeviceID=dev_id, Unit=12, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev_id, 13) and searchCode('aircond_temp_diff', StatusProperties):
                         for item in StatusProperties:
@@ -1472,10 +1532,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (HE/COtemp-diff)', DeviceID=dev_id, Unit=13, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev_id, 14) and searchCode('wth_temp_diff', StatusProperties):
                         for item in StatusProperties:
@@ -1483,10 +1543,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (DHWtemp-diff)', DeviceID=dev_id, Unit=14, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev_id, 15) and searchCode('acc_stemp', StatusProperties):
                         for item in StatusProperties:
@@ -1494,10 +1554,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (ACCtemp)', DeviceID=dev_id, Unit=15, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev_id, 16) and searchCode('mode', FunctionProperties):
                         for item in FunctionProperties:
@@ -1505,9 +1565,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1520,9 +1580,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1539,10 +1599,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev_id, Unit=19, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if not(createDevice(dev_id, 20)):
                     # if createDevice(dev_id, 20) and searchCode('water_set', FunctionProperties):
@@ -1551,10 +1611,10 @@ def onHandleThread(startup, local):
                         #     if item['code'] == temp:
                         #         the_values = json.loads(item['values'])
                         #         options = {}
-                        #         options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                        #         options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                        #         options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                        #         options['ValueUnit'] = the_values.get('unit')
+                        #         options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                        #         options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                        #         options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                        #         options['ValueUnit'] = the_values['unit']
                         # DomoticzEx.Unit(Name=dev['name'] + ' (Water Thermostat)', DeviceID=dev_id, Unit=20, Type=242, Subtype=1, Options=options, Used=1).Create()
                         Devices[dev_id].Unit['20'].delete()
                     if createDevice(dev_id, 21) and searchCode('temp_top', StatusProperties):
@@ -1594,10 +1654,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev_id, Unit=3, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev_id, 4) and (searchCode('mode', StatusProperties) or searchCode('Mode', StatusProperties)) and product_id != 'al8g1qdamyu5cfcc':
                         if dev_type == 'thermostat':
@@ -1617,9 +1677,9 @@ def onHandleThread(startup, local):
                                 
                                 # Bepaal de off/standby modus
                                 if item['type'] == 'Bitmap':
-                                    mode_list.extend(the_values.get('label'))
+                                    mode_list.extend(the_values['label'])
                                 else:
-                                    mode_list.extend(the_values.get('range'))
+                                    mode_list.extend(the_values['range'])
                                 
                                 # Prioriteitenlijst voor uit/standby modi (van hoog naar laag prioriteit)
                                 standby_options = ['standby', 'off', 'none', 'close', 'stop', 'idle', 'sleep', 'auto_off']
@@ -1668,9 +1728,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1713,8 +1773,8 @@ def onHandleThread(startup, local):
                         options = {}
                         options['Custom'] = '1;ppm'
                         DomoticzEx.Unit(Name=dev['name'] + ' (CO2)', DeviceID=dev_id, Unit=4, Type=243, Subtype=31, Options=options, Used=1).Create()
-                    if createDevice(dev['id'], 5) and searchCode('air_quality_index', StatusProperties):
-                        DomoticzEx.Unit(Name=dev['name'] + ' (Index)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=22, Used=1).Create()
+                    if createDevice(dev_id, 5) and searchCode('air_quality_index', StatusProperties):
+                        DomoticzEx.Unit(Name=dev['name'] + ' (Index)', DeviceID=dev_id, Unit=5, Type=243, Subtype=22, Used=1).Create()
                     if createDevice(dev_id, 6) and searchCode('ch2o_value', StatusProperties):
                         options = {}
                         options['Custom'] = '1;mg/m3'
@@ -1755,10 +1815,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Min pH)', DeviceID=dev_id, Unit=15, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                     if createDevice(dev_id, 16) and searchCode('ph_warn_max', FunctionProperties):
                         for item in FunctionProperties:
@@ -1766,10 +1826,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Max pH)', DeviceID=dev_id, Unit=16, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                     if createDevice(dev_id, 17) and searchCode('pro_warn_min', FunctionProperties):
                         for item in FunctionProperties:
@@ -1777,10 +1837,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Min kPa)', DeviceID=dev_id, Unit=17, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                     if createDevice(dev_id, 18) and searchCode('pro_warn_max', FunctionProperties):
                         for item in FunctionProperties:
@@ -1788,10 +1848,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Max kPa)', DeviceID=dev_id, Unit=18, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                     if createDevice(dev_id, 19) and searchCode('orp_warn_min', FunctionProperties):
                         for item in FunctionProperties:
@@ -1799,10 +1859,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Min ORP)', DeviceID=dev_id, Unit=19, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                     if createDevice(dev_id, 20) and searchCode('orp_warn_max', FunctionProperties):
                         for item in FunctionProperties:
@@ -1810,10 +1870,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Max ORP)', DeviceID=dev_id, Unit=20, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                     if createDevice(dev_id, 21) and (searchCode('sub1_temp', StatusProperties) or searchCode('ToutCh1', StatusProperties)):
                         DomoticzEx.Unit(Name=dev['name'] + '_ext1 (Temperature)', DeviceID=dev_id, Unit=21, Type=80, Subtype=5, Used=0).Create()
@@ -1827,10 +1887,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Min Temp)', DeviceID=dev_id, Unit=24, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                     if createDevice(dev_id, 25) and searchCode('temp_warn_max', FunctionProperties):
                         for item in FunctionProperties:
@@ -1838,10 +1898,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Max Temp)', DeviceID=dev_id, Unit=25, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                     if createDevice(dev_id, 31) and (searchCode('sub2_temp', StatusProperties) or searchCode('ToutCh2', StatusProperties)):
                         DomoticzEx.Unit(Name=dev['name'] + '_ext2 (Temperature)', DeviceID=dev_id, Unit=31, Type=80, Subtype=5, Used=0).Create()
@@ -1863,10 +1923,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Cook temperature)', DeviceID=dev_id, Unit=45, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev_id, 46) and searchCode('cook_temperature_2', FunctionProperties):
                         for item in FunctionProperties:
@@ -1874,10 +1934,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Cook temperature 2)', DeviceID=dev_id, Unit=46, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev_id, 47) and searchCode('atmosphere', StatusProperties):
                         options = {}
@@ -1893,9 +1953,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1908,9 +1968,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1973,9 +2033,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -1987,7 +2047,7 @@ def onHandleThread(startup, local):
                             if item['code'] == 'fan_speed':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values['min'],the_values['max'] + 1):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -2001,10 +2061,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev_id, Unit=4, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev_id, 5) and searchCode('temp_current', StatusProperties):
                         DomoticzEx.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev_id, Unit=5, Type=80, Subtype=5, Used=1).Create()
@@ -2038,7 +2098,7 @@ def onHandleThread(startup, local):
                             if item['code'] == 'fan_speed':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values['min'],the_values['max'] + 1):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -2052,9 +2112,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2072,9 +2132,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2086,7 +2146,7 @@ def onHandleThread(startup, local):
                             if item['code'] == 'AlarmPeriod':
                                 the_values = json.loads(item['values'])
                                 mode = []
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values['min'],the_values['max'] + 1):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'false'
@@ -2104,9 +2164,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2119,9 +2179,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2256,9 +2316,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2271,9 +2331,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2303,7 +2363,7 @@ def onHandleThread(startup, local):
                             if item['code'] == 'manual_feed':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values['min'],the_values['max'] + 1):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -2317,9 +2377,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2331,7 +2391,7 @@ def onHandleThread(startup, local):
                             if item['code'] == 'feed_report':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values['min'],the_values['max'] + 1):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -2361,9 +2421,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2395,9 +2455,9 @@ def onHandleThread(startup, local):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
+                                        mode.extend(the_values['label'])
                                     else:
-                                        mode.extend(the_values.get('range'))
+                                        mode.extend(the_values['range'])
                                     options = {}
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
@@ -2410,9 +2470,9 @@ def onHandleThread(startup, local):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
+                                        mode.extend(the_values['label'])
                                     else:
-                                        mode.extend(the_values.get('range'))
+                                        mode.extend(the_values['range'])
                                     options = {}
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
@@ -2425,9 +2485,9 @@ def onHandleThread(startup, local):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
+                                        mode.extend(the_values['label'])
                                     else:
-                                        mode.extend(the_values.get('range'))
+                                        mode.extend(the_values['range'])
                                     options = {}
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
@@ -2458,9 +2518,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2481,13 +2541,13 @@ def onHandleThread(startup, local):
                             for item in FunctionProperties:
                                 if item['code'] == 'dehumidify_set_value':
                                     the_values = json.loads(item['values'])
-                                    options = {'ValueStep':the_values.get('step'), 'ValueMin':the_values.get('min'), 'ValueMax':the_values.get('max'), 'ValueUnit':'%'}
+                                    options = {'ValueStep':the_values['step'], 'ValueMin':the_values['min'], 'ValueMax':the_values['max'], 'ValueUnit':'%'}
                             DomoticzEx.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev_id, Unit=2, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                         elif searchCode('dehumidify_set_enum', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'dehumidify_set_enum':
                                     the_values = json.loads(item['values'])
-                                    options = {'ValueStep':the_values.get('step'), 'ValueMin':the_values.get('min'), 'ValueMax':the_values.get('max'), 'ValueUnit':'%'}
+                                    options = {'ValueStep':the_values['step'], 'ValueMin':the_values['min'], 'ValueMax':the_values['max'], 'ValueUnit':'%'}
                             DomoticzEx.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev_id, Unit=2, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev_id, 3) and searchCode('fan_speed_enum', StatusProperties):
                         for item in StatusProperties:
@@ -2495,9 +2555,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2510,9 +2570,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2553,7 +2613,7 @@ def onHandleThread(startup, local):
                             if item['code'] == 'mode':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values['min'],the_values['max'] + 1):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -2566,7 +2626,7 @@ def onHandleThread(startup, local):
                             if item['code'] == 'wind':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values['min'],the_values['max'] + 1):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -2595,9 +2655,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2610,9 +2670,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2625,9 +2685,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2673,9 +2733,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2688,9 +2748,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2712,9 +2772,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2730,10 +2790,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Cook Temperature)', DeviceID=dev_id, Unit=4, Type=242, Subtype=1, Options=options, Used=1).Create()
                     if createDevice(dev_id, 5) and searchCode('fault', StatusProperties):
                             DomoticzEx.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev_id, Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
@@ -2746,9 +2806,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2769,9 +2829,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2788,7 +2848,7 @@ def onHandleThread(startup, local):
                             if item['code'] == 'sensitivity':
                                 the_values = json.loads(item['values'])
                                 mode = ['0']
-                                for num in range(the_values.get('min'),the_values.get('max') + 1):
+                                for num in range(the_values['min'],the_values['max'] + 1):
                                     mode.extend([str(num)])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
@@ -2802,10 +2862,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Near detection)', DeviceID=dev_id, Unit=3, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev_id, 4) and (searchCode('far_detection', StatusProperties)):
                         for item in StatusProperties:
@@ -2813,10 +2873,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Far detection)', DeviceID=dev_id, Unit=4, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev_id, 5) and searchCode('checking_result', StatusProperties):
                             DomoticzEx.Unit(Name=dev['name'] + ' (Result)', DeviceID=dev_id, Unit=5, Type=243, Subtype=19, Used=1).Create()
@@ -2826,10 +2886,10 @@ def onHandleThread(startup, local):
                             if item['code'] == temp:
                                 the_values = json.loads(item['values'])
                                 options = {}
-                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
-                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
-                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
-                                options['ValueUnit'] = the_values.get('unit')
+                                options['ValueStep'] = get_scale(StatusProperties, temp, the_values['step'])
+                                options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
+                                options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
+                                options['ValueUnit'] = the_values['unit']
                         DomoticzEx.Unit(Name=dev['name'] + ' (Target)', DeviceID=dev_id, Unit=6, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                     if createDevice(dev_id, 10) and searchCode('presence_state', StatusProperties):
                         for item in StatusProperties:
@@ -2837,9 +2897,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = []
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'false'
                                 options['LevelActions'] = ''
@@ -2870,7 +2930,6 @@ def onHandleThread(startup, local):
                     # if createDevice(dev_id, 8) and searchCode('fault', StatusProperties):
                     #         DomoticzEx.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev_id, Unit=8, Type=243, Subtype=19, Image=13, Used=1).Create()
 
-
                 if dev_type in ('light'):
                     if createDevice(dev_id, 1) and searchCode('Light', FunctionProperties) and searchCode('work_mode', FunctionProperties) and (searchCode('colour_data', FunctionProperties) or searchCode('colour_data_v2', FunctionProperties)):
                         DomoticzEx.Log('Create device Light RGBW')
@@ -2883,9 +2942,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2898,9 +2957,9 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['off']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                 options = {}
                                 options['LevelOffHidden'] = 'true'
                                 options['LevelActions'] = ''
@@ -2924,17 +2983,24 @@ def onHandleThread(startup, local):
                     {
                         'key': dev['key'],
                         'category': dev_type,
-                        'mac': dev['mac'],
-                        'ip': deviceinfo['ip'],
+                        'mac': dev.get('mac', '00:00:00:00:00:00'),
+                        'ip': deviceinfo.get('ip', '127.0.0.1'),
                         'product_id': dev['product_id'],
-                        'version': deviceinfo['version']
+                        'version': deviceinfo.get('version', '3.3')
                     }
                 )
 
-            if online and Devices[dev_id].TimedOut == 1:
-                UpdateDomoticz(dev_id, 1, None, 0, 0)
-            elif not online and Devices[dev_id].TimedOut == 0:
-                UpdateDomoticz(dev_id, 1, False, 0, 1)
+            battery = is_battery_device(StatusProperties)
+
+            if not battery:
+                if online and Devices[dev_id].TimedOut == 1:
+                    UpdateDomoticz(dev_id, 1, None, 0, 0)
+                elif not online and Devices[dev_id].TimedOut == 0:
+                    UpdateDomoticz(dev_id, 1, False, 0, 1)
+            else:
+                # Battery devices never timeout
+                if Devices[dev_id].TimedOut == 1:
+                    UpdateDomoticz(dev_id, 1, None, 0, 0)
             if online:
                 try:
                     def update_bool_device(code, unit, value=None):
@@ -3014,9 +3080,9 @@ def onHandleThread(startup, local):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
+                                        mode.extend(the_values['label'])
                                     else:
-                                        mode.extend(the_values.get('range'))
+                                        mode.extend(the_values['range'])
                                     setConfigItem(dev_id + '-' + str(unit), {'mode': mode})
                                     break  # Exit the loop once we find the code
                         # Calculate the new value
@@ -3070,10 +3136,10 @@ def onHandleThread(startup, local):
                                 the_values = json.loads(item['values'])
                                 mode = ['No fault']
                                 if item['type'] == 'Bitmap':
-                                    mode.extend(the_values.get('label'))
+                                    mode.extend(the_values['label'])
                                     currentmode = mode[value].replace('_', ' ').capitalize()
                                 else:
-                                    mode.extend(the_values.get('range'))
+                                    mode.extend(the_values['range'])
                                     currentmode = mode[value].replace('_', ' ').capitalize()
                         # Only update if the new value differs from the current value
                         if str(currentmode) != str(Devices[dev_id].Units[unit].nValue):
@@ -3227,9 +3293,9 @@ def onHandleThread(startup, local):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
+                                        mode.extend(the_values['label'])
                                     else:
-                                        mode.extend(the_values.get('range'))
+                                        mode.extend(the_values['range'])
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev_id].Units[3].sValue):
                                 UpdateDomoticz(dev_id, 3, int(mode.index(str(currentmode)) * 10), 1, 0)
 
@@ -3240,12 +3306,11 @@ def onHandleThread(startup, local):
                                     the_values = json.loads(item['values'])
                                     mode = ['off']
                                     if item['type'] == 'Bitmap':
-                                        mode.extend(the_values.get('label'))
+                                        mode.extend(the_values['label'])
                                     else:
-                                        mode.extend(the_values.get('range'))
+                                        mode.extend(the_values['range'])
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev_id].Units[4].sValue):
                                 UpdateDomoticz(dev_id, 4, int(mode.index(str(currentmode)) * 10), 1, 0)
-
 
                     if dev_type == 'cover':
                         if searchCode('position', StatusProperties) or searchCode('percent_control', StatusProperties):
@@ -4014,26 +4079,6 @@ def SendCommandTuya(ID, CommandName, Status):
             d.socketRetryLimit = 1
             d.socketRetryDelay = 1
 
-            # --- SPECIAL HANDLING FOR COLORS ---
-            if actual_function_name in ('colour_data', 'colour_data_v2') and isinstance(actual_status, dict):
-                # Force colour_data_v2 if available
-                if searchCode('colour_data_v2', sendfunction):
-                    # Convert RGB dict to Tuya V2 hex string
-                    r = int(actual_status.get('r',0))
-                    g = int(actual_status.get('g',0))
-                    b = int(actual_status.get('b',0))
-                    level = int(actual_status.get('level',100))
-                    actual_status = tuya_colour_v2_from_rgb(r,g,b,level)
-                    actual_function_name = 'colour_data_v2'
-                else:
-                    # Legacy colour_data expects HSV dict
-                    r = int(actual_status.get('r',0))
-                    g = int(actual_status.get('g',0))
-                    b = int(actual_status.get('b',0))
-                    h, s, v = rgb_to_hsv_v2(r,g,b)
-                    actual_status = {'h':h, 's':s, 'v':v}
-                    actual_function_name = 'colour_data'
-
             result = d.set_status(actual_status, int(dp_id))
 
             if not result or 'Error' in result or 'Err' in result:
@@ -4197,43 +4242,6 @@ def hsv_to_rgb_v2(h, s, v):
     b = round(b * 255)
     return r, g, b
 
-def tuya_colour_v2_to_domoticz(colhex):
-    """
-    Convert Tuya colour_data_v2 hex string back to RGB + brightness
-    Format: RRGGBBHHHHSSSSVVVV
-    Returns: r, g, b, level
-    """
-    try:
-        r = int(colhex[0:2], 16)
-        g = int(colhex[2:4], 16)
-        b = int(colhex[4:6], 16)
-        h = int(colhex[6:10], 16)  # optional
-        s = int(colhex[10:14], 16) # optional
-        v = int(colhex[14:18], 16) # brightness 0–1000
-        level = int(v / 10)        # scale to 0–100
-        return r, g, b, level
-    except Exception:
-        return 0,0,0,100
-
-def UpdateDeviceColorTuya(dev_id, col_data_v2, brightness=None):
-    """
-    Updates Domoticz unit with RGB color and brightness
-    """
-    if isinstance(col_data_v2, str):
-        r, g, b, level = tuya_colour_v2_to_domoticz(col_data_v2)
-    elif isinstance(col_data_v2, dict):
-        r = int(col_data_v2.get('r',0))
-        g = int(col_data_v2.get('g',0))
-        b = int(col_data_v2.get('b',0))
-        level = int(brightness if brightness is not None else 100)
-    else:
-        r, g, b, level = 0,0,0,100
-
-    Color = {'m': 3, 'r': r, 'g': g, 'b': b, 't': 0, 'cw':0, 'ww':0}
-
-    # Update Domoticz
-    UpdateDomoticz(dev_id, 1, json.dumps(Color), level, 0)
-
 def inv_pct(v):
     return 100 - v
 
@@ -4267,19 +4275,40 @@ def searchCode(Item, Function):
     return True
 
 def searchValue(Item, Function):
-    flag = 0
     ActualItem = searchCodeActualFunction(Item, Function)
-    if ActualItem:
-        for Elem in Function:
-            if str(ActualItem) == str(Elem['code']):
-                flag = Elem['value']
-    return flag
+    if not ActualItem:
+        return 0
+
+    # JSON-string → object
+    if isinstance(Function, str):
+        try:
+            Function = json.loads(Function)
+        except json.JSONDecodeError:
+            return 0
+
+    for Elem in Function:
+        if isinstance(Elem, dict) and str(ActualItem) == str(Elem.get('code')):
+            return Elem.get('value', 0)
+
+    return 0
 
 def searchCodeActualFunction(Item, Function):
-    for OneItem in Function:
-        if str(Item) == str(OneItem['code']):
-            return str(OneItem['code'])
-    # DomoticzEx.Debug('searchCodeActualFunction unable to find ' + str(Item) + ' in ' + str(Function))
+    if not Function:
+        return None
+
+    # JSON-string → object
+    if isinstance(Function, str):
+        try:
+            Function = json.loads(Function)
+        except json.JSONDecodeError:
+            return None
+
+    # Verwacht: lijst van dicts
+    if isinstance(Function, list):
+        for OneItem in Function:
+            if isinstance(OneItem, dict) and str(Item) == str(OneItem.get('code')):
+                return OneItem.get('code')
+
     return None
 
 def createDevice(ID, Unit):
@@ -4335,6 +4364,34 @@ def updateDevice():
                         DomoticzEx.Log('Failed to remove device idx {}: {}'.format(idx, e), DomoticzEx.LOG_ERROR)
                 break
     return
+
+def is_battery_device(StatusProperties):
+    """Check if device has battery-related properties with type safety."""
+    if isinstance(StatusProperties, str):
+        # Search directly in the string
+        battery_codes = [
+            'battery_state',
+            'battery', 
+            'va_battery',
+            'battery_percentage',
+            'residual_electricity'
+        ]
+        return any(code in StatusProperties.lower() for code in battery_codes)
+    
+    elif isinstance(StatusProperties, dict):
+        # Handle dictionary
+        return any(
+            searchCode(code, StatusProperties)
+            for code in (
+                'battery_state',
+                'battery',
+                'va_battery',
+                'battery_percentage',
+                'residual_electricity'
+            )
+        )
+    
+    return False
 
 # Configuration Helpers
 def getConfigItem(Key=None, Values=None):
