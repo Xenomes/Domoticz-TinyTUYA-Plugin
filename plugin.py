@@ -1066,8 +1066,8 @@ def onHandleThread(startup, local):
 
             global synctime, ip_scan_interval
 
-            synctime = int(Parameters.get('Mode3', 900))
-            ip_scan_interval = int(Parameters.get('Mode4', 86400))
+            synctime = int(Parameters.get('Mode3') or 900)
+            ip_scan_interval = int(Parameters.get('Mode4') or 86400)
 
             if not fulllocal:
                 # Cloud init 
