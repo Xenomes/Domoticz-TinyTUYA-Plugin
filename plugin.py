@@ -1042,10 +1042,6 @@ def onHandleThread(startup, local):
     global FunctionProperties, StatusProperties, ResultValue, dev_type, line
     global synctime, ip_scan_interval
 
-    if not Devices:
-        DomoticzEx.Log('Device data not initialized, skipping onHandleThread')
-        return
-
     try:
         # INIT (startup only) 
         if startup and not local:
@@ -1387,6 +1383,9 @@ def onHandleThread(startup, local):
 
             # Create devices
             if startup:
+                # if not Devices and ba:
+                #     DomoticzEx.Log('Device data not initialized, skipping onHandleThread')
+                #     return
                 try:
                     deviceinfo = localtuya.get(dev_id, {'ip': '127.0.0.1', 'version': 'unknown'})
                     product_id = getConfigItem(dev_id, 'product_id') or ''
@@ -2997,6 +2996,7 @@ def onHandleThread(startup, local):
 
                 except Exception:
                     DomoticzEx.Error("Domoticz blocks new devices. Enable 'Accept new Hardware Devices'.")
+                    return
 
                 setConfigItem(
                     dev_id,
@@ -3009,885 +3009,885 @@ def onHandleThread(startup, local):
                         'version': deviceinfo.get('version', '3.3')
                     }
                 )
+            if Devices:
+                battery = is_battery_device(StatusProperties)
 
-            battery = is_battery_device(StatusProperties)
+                if not battery:
+                    if online and Devices[dev_id].TimedOut == 1:
+                        UpdateDomoticz(dev_id, 1, None, 0, 0)
+                    elif not online and Devices[dev_id].TimedOut == 0:
+                        UpdateDomoticz(dev_id, 1, False, 0, 1)
+                else:
+                    # Battery devices never timeout
+                    if Devices[dev_id].TimedOut == 1:
+                        UpdateDomoticz(dev_id, 1, None, 0, 0)
+                if online:
+                    try:
+                        def update_bool_device(code, unit, value=None):
+                            # Check if the given code is present and device is valid
+                            if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
+                                return False
+                            # Get the current status of the device
+                            if value is None:
+                                currentstatus = StatusDeviceTuya(code)
+                            else:
+                                currentstatus = False if value == StatusDeviceTuya(code) else True
+                            UpdateDomoticz(dev_id, unit, bool(currentstatus), int(bool(currentstatus)), 0)
+                            return True
 
-            if not battery:
-                if online and Devices[dev_id].TimedOut == 1:
-                    UpdateDomoticz(dev_id, 1, None, 0, 0)
-                elif not online and Devices[dev_id].TimedOut == 0:
-                    UpdateDomoticz(dev_id, 1, False, 0, 1)
-            else:
-                # Battery devices never timeout
-                if Devices[dev_id].TimedOut == 1:
-                    UpdateDomoticz(dev_id, 1, None, 0, 0)
-            if online:
-                try:
-                    def update_bool_device(code, unit, value=None):
-                        # Check if the given code is present and device is valid
-                        if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
-                            return False
-                        # Get the current status of the device
-                        if value is None:
-                            currentstatus = StatusDeviceTuya(code)
-                        else:
-                            currentstatus = False if value == StatusDeviceTuya(code) else True
-                        UpdateDomoticz(dev_id, unit, bool(currentstatus), int(bool(currentstatus)), 0)
-                        return True
+                        def update_value_device(code, unit, codeunit=None):
+                            # Check if the given code is present and device is valid
+                            if not searchCode(code, StatusProperties) or not get_unit(code, StatusProperties) not in [codeunit, None] or not checkDevice(dev_id, unit):
+                                return False
+                            # Get the current value of the device
+                            currentvalue = StatusDeviceTuya(code)
+                            if str(currentvalue) != str(Devices[dev_id].Units[unit].sValue):
+                                UpdateDomoticz(dev_id, unit, currentvalue, 0, 0)
+                            return True
 
-                    def update_value_device(code, unit, codeunit=None):
-                        # Check if the given code is present and device is valid
-                        if not searchCode(code, StatusProperties) or not get_unit(code, StatusProperties) not in [codeunit, None] or not checkDevice(dev_id, unit):
-                            return False
-                        # Get the current value of the device
-                        currentvalue = StatusDeviceTuya(code)
-                        if str(currentvalue) != str(Devices[dev_id].Units[unit].sValue):
-                            UpdateDomoticz(dev_id, unit, currentvalue, 0, 0)
-                        return True
+                        def update_nvalue_device(code, unit, codeunit=None):
+                            # Check if the given code is present and device is valid
+                            if not searchCode(code, StatusProperties) or not get_unit(code, StatusProperties) not in [codeunit, None] or not checkDevice(dev_id, unit):
+                                return False
+                            # Get the current value of the device
+                            value = StatusDeviceTuya(code)
+                            if isinstance(value, (int, float)):
+                                currentvalue = int(value)
+                            else:
+                                currentvalue = value
+                            if str(currentvalue) != str(Devices[dev_id].Units[unit].nValue):
+                                UpdateDomoticz(dev_id, unit, 0, currentvalue, 0)
+                            return True
 
-                    def update_nvalue_device(code, unit, codeunit=None):
-                        # Check if the given code is present and device is valid
-                        if not searchCode(code, StatusProperties) or not get_unit(code, StatusProperties) not in [codeunit, None] or not checkDevice(dev_id, unit):
-                            return False
-                        # Get the current value of the device
-                        value = StatusDeviceTuya(code)
-                        if isinstance(value, (int, float)):
-                            currentvalue = int(value)
-                        else:
-                            currentvalue = value
-                        if str(currentvalue) != str(Devices[dev_id].Units[unit].nValue):
-                            UpdateDomoticz(dev_id, unit, 0, currentvalue, 0)
-                        return True
+                        def update_dualvalue_device(code1, code2, unit):
+                            # Check if the given code is present and device is valid
+                            if not searchCode(code1, StatusProperties) or not searchCode(code2, StatusProperties) or not checkDevice(dev_id, unit):
+                                return False
+                            # Get the current value of the device
+                            currentvalue1 = StatusDeviceTuya(code1)
+                            currentvalue2 = StatusDeviceTuya(code2)
+                            currentdomo = Devices[dev_id].Units[unit].sValue
+                            if str(currentvalue1) != str(currentdomo.split(';')[0]) or str(currentvalue2) != str(currentdomo.split(';')[1]):
+                                UpdateDomoticz(dev_id, unit, str(currentvalue1 ) + ';' + str(currentvalue2) + ';0', 0, 0)
+                            return True
 
-                    def update_dualvalue_device(code1, code2, unit):
-                        # Check if the given code is present and device is valid
-                        if not searchCode(code1, StatusProperties) or not searchCode(code2, StatusProperties) or not checkDevice(dev_id, unit):
-                            return False
-                        # Get the current value of the device
-                        currentvalue1 = StatusDeviceTuya(code1)
-                        currentvalue2 = StatusDeviceTuya(code2)
-                        currentdomo = Devices[dev_id].Units[unit].sValue
-                        if str(currentvalue1) != str(currentdomo.split(';')[0]) or str(currentvalue2) != str(currentdomo.split(';')[1]):
-                            UpdateDomoticz(dev_id, unit, str(currentvalue1 ) + ';' + str(currentvalue2) + ';0', 0, 0)
-                        return True
+                        def update_power_device(code, unit):
+                            # Check if the given code is present and device is valid
+                            if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
+                                return False
+                            # Get the power value of the device
+                            currentpower = StatusDeviceTuya(code)
+                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[unit].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                            lastvalue = Devices[dev_id].Units[unit].sValue if len(Devices[dev_id].Units[unit].sValue) > 0 else '0;0'
+                            # Calculating the Power Difference in an time interval
+                            UpdateDomoticz(dev_id, unit, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
+                            return True
 
-                    def update_power_device(code, unit):
-                        # Check if the given code is present and device is valid
-                        if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
-                            return False
-                        # Get the power value of the device
-                        currentpower = StatusDeviceTuya(code)
-                        lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[unit].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                        lastvalue = Devices[dev_id].Units[unit].sValue if len(Devices[dev_id].Units[unit].sValue) > 0 else '0;0'
-                        # Calculating the Power Difference in an time interval
-                        UpdateDomoticz(dev_id, unit, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
-                        return True
+                        def update_select_device(code, unit):
+                            # Check if the given code is present and device is valid
+                            if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
+                                return False
+                            # Get the current mode of the device
+                            currentmode = StatusDeviceTuya(code)
+                            # Get the mode configuration once
+                            mode = getConfigItem(dev_id + '-' + str(unit), 'mode')
+                            if mode is None or mode == {}:
+                                # Loop through StatusProperties to set the mode
+                                for item in StatusProperties:
+                                    if item['code'] == code:
+                                        DomoticzEx.Debug('code: ' + str(item['code']))
+                                        # Parse values based on item type
+                                        the_values = json.loads(item['values'])
+                                        mode = ['off']
+                                        if item['type'] == 'Bitmap':
+                                            mode.extend(the_values['label'])
+                                        else:
+                                            mode.extend(the_values['range'])
+                                        setConfigItem(dev_id + '-' + str(unit), {'mode': mode})
+                                        break  # Exit the loop once we find the code
+                            # Calculate the new value
+                            try:
+                                new_value = mode.index(str(currentmode)) * 10
+                            except:
+                                mode.append(currentmode)
+                                Devices[dev_id].Units[unit].Options={'LevelNames': '|'.join(mode)}
+                                setConfigItem(str(dev_id) + '-' + str(unit), {'mode': mode})
+                                Devices[dev_id].Units[unit].Update(UpdateOptions=True)
+                                new_value = mode.index(str(currentmode)) * 10
+                            # Only update if the new value differs from the current value
+                            if str(new_value) != str(Devices[dev_id].Units[unit].sValue):
+                                UpdateDomoticz(dev_id, unit, int(new_value), 1, 0)
+                            return True
 
-                    def update_select_device(code, unit):
-                        # Check if the given code is present and device is valid
-                        if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
-                            return False
-                        # Get the current mode of the device
-                        currentmode = StatusDeviceTuya(code)
-                        # Get the mode configuration once
-                        mode = getConfigItem(dev_id + '-' + str(unit), 'mode')
-                        if mode is None or mode == {}:
+                        def update_selectnum_device(code, unit):
+                            # Check if the given code is present and device is valid
+                            if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
+                                return False
+                            # Get the current mode of the device
+                            current = StatusDeviceTuya(code)
+                            if str(current) != str(Devices[dev_id].Units[unit].sValue):
+                                UpdateDomoticz(dev_id, unit, current, 1, 0)
+                            return True
+                        
+                        def update_level_device(code, unit, level_mapping):
+                            # Validate code, unit, and device
+                            if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
+                                return False
+                            # Get current level code from Tuya
+                            currentlevel = StatusDeviceTuya(code)
+                            # Map Tuya level to Domoticz level
+                            level = level_mapping.get(currentlevel)
+                            if level is None:
+                                return False
+                            # Update only if changed
+                            if str(currentlevel) != str(Devices[dev_id].Units[unit].sValue):
+                                UpdateDomoticz(dev_id, unit, str(currentlevel), level, 0)
+                            return True
+
+                        def update_text_device(code, unit):
+                            # Check if the given code is present and device is valid
+                            if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
+                                return False
+                            # Get the current mode of the device
+                            value = StatusDeviceTuya(code)
                             # Loop through StatusProperties to set the mode
                             for item in StatusProperties:
                                 if item['code'] == code:
-                                    DomoticzEx.Debug('code: ' + str(item['code']))
-                                    # Parse values based on item type
                                     the_values = json.loads(item['values'])
-                                    mode = ['off']
+                                    mode = ['No fault']
                                     if item['type'] == 'Bitmap':
                                         mode.extend(the_values['label'])
+                                        currentmode = mode[value].replace('_', ' ').capitalize()
                                     else:
                                         mode.extend(the_values['range'])
-                                    setConfigItem(dev_id + '-' + str(unit), {'mode': mode})
-                                    break  # Exit the loop once we find the code
-                        # Calculate the new value
+                                        currentmode = mode[value].replace('_', ' ').capitalize()
+                            # Only update if the new value differs from the current value
+                            if str(currentmode) != str(Devices[dev_id].Units[unit].nValue):
+                                UpdateDomoticz(dev_id, unit, str(currentmode), 1, 0)
+                            return True
+
+                        def battery_device():
+                            # Battery_device
+                            if searchCode('battery_state', StatusProperties) or searchCode('battery', StatusProperties) or searchCode('va_battery', StatusProperties) or searchCode('battery_percentage', StatusProperties):
+                                if searchCode('battery_state', StatusProperties):
+                                    if StatusDeviceTuya('battery_state') == 'high':
+                                        currentbattery = 100
+                                    if StatusDeviceTuya('battery_state') == 'middle':
+                                        currentbattery = 50
+                                    if StatusDeviceTuya('battery_state') == 'low':
+                                        currentbattery = 5
+                                if searchCode('BatteryStatus', StatusProperties):
+                                    if int(StatusDeviceTuya('BatteryStatus')) == 1:
+                                        currentbattery = 100
+                                    elif int(StatusDeviceTuya('BatteryStatus')) == 2:
+                                        currentbattery = 50
+                                    elif int(StatusDeviceTuya('BatteryStatus')) == 3:
+                                        currentbattery = 5
+                                    else:
+                                        currentbattery = 100
+                                if searchCode('battery', StatusProperties):
+                                    currentbattery = StatusDeviceTuya('battery') * 10
+                                if searchCode('va_battery', StatusProperties):
+                                    currentbattery = StatusDeviceTuya('va_battery')
+                                if searchCode('battery_percentage', StatusProperties):
+                                    currentbattery = StatusDeviceTuya('battery_percentage')
+                                if searchCode('residual_electricity', StatusProperties):
+                                    currentbattery = StatusDeviceTuya('residual_electricity')
+                                for unit in Devices[dev_id].Units:
+                                    if str(currentbattery) != str(Devices[dev_id].Units[unit].BatteryLevel):
+                                        Devices[dev_id].Units[unit].BatteryLevel = currentbattery
+                                        Devices[dev_id].Units[unit].Update()
+                            return
+                        # status DomoticzEx
                         try:
-                            new_value = mode.index(str(currentmode)) * 10
+                            sValue = Devices[dev_id].Units[1].sValue
+                            nValue = Devices[dev_id].Units[1].nValue
                         except:
-                            mode.append(currentmode)
-                            Devices[dev_id].Units[unit].Options={'LevelNames': '|'.join(mode)}
-                            setConfigItem(str(dev_id) + '-' + str(unit), {'mode': mode})
-                            Devices[dev_id].Units[unit].Update(UpdateOptions=True)
-                            new_value = mode.index(str(currentmode)) * 10
-                        # Only update if the new value differs from the current value
-                        if str(new_value) != str(Devices[dev_id].Units[unit].sValue):
-                            UpdateDomoticz(dev_id, unit, int(new_value), 1, 0)
-                        return True
-
-                    def update_selectnum_device(code, unit):
-                        # Check if the given code is present and device is valid
-                        if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
-                            return False
-                        # Get the current mode of the device
-                        current = StatusDeviceTuya(code)
-                        if str(current) != str(Devices[dev_id].Units[unit].sValue):
-                            UpdateDomoticz(dev_id, unit, current, 1, 0)
-                        return True
-                    
-                    def update_level_device(code, unit, level_mapping):
-                        # Validate code, unit, and device
-                        if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
-                            return False
-                        # Get current level code from Tuya
-                        currentlevel = StatusDeviceTuya(code)
-                        # Map Tuya level to Domoticz level
-                        level = level_mapping.get(currentlevel)
-                        if level is None:
-                            return False
-                        # Update only if changed
-                        if str(currentlevel) != str(Devices[dev_id].Units[unit].sValue):
-                            UpdateDomoticz(dev_id, unit, str(currentlevel), level, 0)
-                        return True
-
-                    def update_text_device(code, unit):
-                        # Check if the given code is present and device is valid
-                        if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
-                            return False
-                        # Get the current mode of the device
-                        value = StatusDeviceTuya(code)
-                        # Loop through StatusProperties to set the mode
-                        for item in StatusProperties:
-                            if item['code'] == code:
-                                the_values = json.loads(item['values'])
-                                mode = ['No fault']
-                                if item['type'] == 'Bitmap':
-                                    mode.extend(the_values['label'])
-                                    currentmode = mode[value].replace('_', ' ').capitalize()
-                                else:
-                                    mode.extend(the_values['range'])
-                                    currentmode = mode[value].replace('_', ' ').capitalize()
-                        # Only update if the new value differs from the current value
-                        if str(currentmode) != str(Devices[dev_id].Units[unit].nValue):
-                            UpdateDomoticz(dev_id, unit, str(currentmode), 1, 0)
-                        return True
-
-                    def battery_device():
-                        # Battery_device
-                        if searchCode('battery_state', StatusProperties) or searchCode('battery', StatusProperties) or searchCode('va_battery', StatusProperties) or searchCode('battery_percentage', StatusProperties):
-                            if searchCode('battery_state', StatusProperties):
-                                if StatusDeviceTuya('battery_state') == 'high':
-                                    currentbattery = 100
-                                if StatusDeviceTuya('battery_state') == 'middle':
-                                    currentbattery = 50
-                                if StatusDeviceTuya('battery_state') == 'low':
-                                    currentbattery = 5
-                            if searchCode('BatteryStatus', StatusProperties):
-                                if int(StatusDeviceTuya('BatteryStatus')) == 1:
-                                    currentbattery = 100
-                                elif int(StatusDeviceTuya('BatteryStatus')) == 2:
-                                    currentbattery = 50
-                                elif int(StatusDeviceTuya('BatteryStatus')) == 3:
-                                    currentbattery = 5
-                                else:
-                                    currentbattery = 100
-                            if searchCode('battery', StatusProperties):
-                                currentbattery = StatusDeviceTuya('battery') * 10
-                            if searchCode('va_battery', StatusProperties):
-                                currentbattery = StatusDeviceTuya('va_battery')
-                            if searchCode('battery_percentage', StatusProperties):
-                                currentbattery = StatusDeviceTuya('battery_percentage')
-                            if searchCode('residual_electricity', StatusProperties):
-                                currentbattery = StatusDeviceTuya('residual_electricity')
-                            for unit in Devices[dev_id].Units:
-                                if str(currentbattery) != str(Devices[dev_id].Units[unit].BatteryLevel):
-                                    Devices[dev_id].Units[unit].BatteryLevel = currentbattery
-                                    Devices[dev_id].Units[unit].Update()
-                        return
-                    # status DomoticzEx
-                    try:
-                        sValue = Devices[dev_id].Units[1].sValue
-                        nValue = Devices[dev_id].Units[1].nValue
-                    except:
-                        pass
-
-                    if dev_type in ('switch', 'switch/sensor'):
-                        if update_bool_device('switch_1', 1):
-                            pass
-                        elif update_bool_device('switch', 1):
                             pass
 
-                        for switch_number in range(2, 9):
-                            update_bool_device(f"switch_{switch_number}", switch_number)
-                        if update_value_device('cur_current', 15, 'mA'):
-                            pass
-                        elif update_value_device('cur_current', 11):
-                            pass
-                        update_value_device('cur_power', 12)
-                        update_value_device('cur_voltage', 13)
-                        update_power_device('cur_power', 14)
-                        if searchCode('phase_a', StatusProperties):
-                            base64_string = StatusDeviceTuya('phase_a')
-                            # Decode base64 string
-                            decoded_data = base64.b64decode(base64_string)
-                            # Extract voltage, current, and power data
-                            currentvoltage = int.from_bytes(decoded_data[:2], byteorder='big') * 0.1
-                            currentcurrent = int.from_bytes(decoded_data[2:5], byteorder='big') * 0.001
-                            currentpower = int.from_bytes(decoded_data[5:8], byteorder='big')
-                            UpdateDomoticz(dev_id, 11, str(currentcurrent), 0, 0)
-                            UpdateDomoticz(dev_id, 12, str(currentpower), 0, 0)
-                            UpdateDomoticz(dev_id, 13, str(currentvoltage), 0, 0)
-                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalue = Devices[dev_id].Units[14].sValue if len(Devices[dev_id].Units[14].sValue) > 0 else '0;0'
-                            currentEle = StatusDeviceTuya('add_ele')
-                        update_value_device('leakage_current', 15)
-                        update_value_device('temp_current', 16)
-                        update_power_device('out_power', 17)
-                        update_power_device('out_power', 18)
-                        if searchCode('power_a', StatusProperties):
-                            powerA = StatusDeviceTuya('power_a')
-                            dirA = StatusDeviceTuya('direction_a')
-                            if dirA == 'REVERSE':
-                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[19].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                                lastvalue = Devices[dev_id].Units[19].sValue if len(Devices[dev_id].Units[19].sValue) > 0 else '0;0'
-                                lastvalueR = Devices[dev_id].Units[20].sValue if len(Devices[dev_id].Units[20].sValue) > 0 else '0;0'
-                                UpdateDomoticz(dev_id, 19, str(powerA) + ';' + str(float(lastvalue.split(';')[1]) + ((powerA) * (lastupdate / 3600))) , 0, 0, 1)
-                                UpdateDomoticz(dev_id, 20, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
-                            if dirA == 'FORWARD':
-                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[20].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                                lastvalue = Devices[dev_id].Units[20].sValue if len(Devices[dev_id].Units[20].sValue) > 0 else '0;0'
-                                lastvalueR = Devices[dev_id].Units[19].sValue if len(Devices[dev_id].Units[19].sValue) > 0 else '0;0'
-                                UpdateDomoticz(dev_id, 20, str(powerA) + ';' + str(float(lastvalue.split(';')[1]) + ((powerA) * (lastupdate / 3600))) , 0, 0, 1)
-                                UpdateDomoticz(dev_id, 19, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
-                        if searchCode('power_b', StatusProperties):
-                            powerB = StatusDeviceTuya('power_b')
-                            dirB = StatusDeviceTuya('direction_b')
-                            if dirB == 'REVERSE':
-                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[21].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                                lastvalue = Devices[dev_id].Units[21].sValue if len(Devices[dev_id].Units[21].sValue) > 0 else '0;0'
-                                lastvalueR = Devices[dev_id].Units[22].sValue if len(Devices[dev_id].Units[22].sValue) > 0 else '0;0'
-                                UpdateDomoticz(dev_id, 21, str(powerB) + ';' + str(float(lastvalue.split(';')[1]) + ((powerB) * (lastupdate / 3600))) , 0, 0, 1)
-                                UpdateDomoticz(dev_id, 22, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
-                            if dirB == 'FORWARD':
-                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[22].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                                lastvalue = Devices[dev_id].Units[22].sValue if len(Devices[dev_id].Units[22].sValue) > 0 else '0;0'
-                                lastvalueR = Devices[dev_id].Units[21].sValue if len(Devices[dev_id].Units[21].sValue) > 0 else '0;0'
-                                UpdateDomoticz(dev_id, 22, str(powerB) + ';' + str(float(lastvalue.split(';')[1]) + ((powerB) * (lastupdate / 3600))) , 0, 0, 1)
-                                UpdateDomoticz(dev_id, 21, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
-                        battery_device()
-
-                    if dev_type == 'dimmer':
-                        if searchCode('switch_led_1', StatusProperties):
-                            currentstatus = StatusDeviceTuya('switch_led_1')
-                            currentdim = brightness_to_pct(StatusProperties, 'bright_value_1', int(StatusDeviceTuya('bright_value_1')))
-                            if bool(currentstatus) == False or currentdim == 0:
-                                UpdateDomoticz(dev_id, 1, False, 0, 0)
-                            elif bool(currentstatus) == True and  currentdim > 0 and str(currentdim) != str(Devices[dev_id].Units[1].sValue):
-                                UpdateDomoticz(dev_id, 1, currentdim, 1, 0)
-
-                        if searchCode('switch_led_2', StatusProperties):
-                            currentstatus = StatusDeviceTuya('switch_led_2')
-                            currentdim = brightness_to_pct(StatusProperties, 'bright_value_2', int(StatusDeviceTuya('bright_value_2')))
-                            if bool(currentstatus) == False or currentdim == 0:
-                                UpdateDomoticz(dev_id, 2, False, 0, 0)
-                            elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev_id].Units[2].sValue):
-                                UpdateDomoticz(dev_id, 2, currentdim, 1, 0)
-
-                    if dev_type in ('light','fanlight'):
-                        unit = Devices[dev_id].Units[1]
-                        if searchCode('switch_led', StatusProperties):
-                            currentstatus = bool(StatusDeviceTuya('switch_led'))
-                        else:
-                            currentstatus = bool(StatusDeviceTuya('led_switch'))
-                        nval = 1 if currentstatus else 0
-                        if searchCode('bright_value_v2', StatusProperties):
-                            dimtuya = brightness_to_pct(StatusProperties, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
-                        elif searchCode('bright_value', StatusProperties):
-                            dimtuya = brightness_to_pct(StatusProperties, 'bright_value', int(StatusDeviceTuya('bright_value')))
-                        else:
-                            dimtuya = 100
-                        svalue = str(dimtuya) if currentstatus else '0'
-                        if str(unit.sValue) != svalue or unit.nValue != nval:
-                            UpdateDomoticz(dev_id, 1, svalue, nval, 0)
-                        if searchCode('Power', StatusProperties):
-                            currentstatus = StatusDeviceTuya('Power')
-                            UpdateDomoticz(dev_id, 2, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('lightmode', StatusProperties):
-                            currentmode = StatusDeviceTuya('lightmode')
-                            for item in FunctionProperties:
-                                if item['code'] == 'lightmode':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values['label'])
-                                    else:
-                                        mode.extend(the_values['range'])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev_id].Units[3].sValue):
-                                UpdateDomoticz(dev_id, 3, int(mode.index(str(currentmode)) * 10), 1, 0)
-
-                        if searchCode('dp_mist_grade', StatusProperties):
-                            currentmode = StatusDeviceTuya('dp_mist_grade')
-                            for item in FunctionProperties:
-                                if item['code'] == 'dp_mist_grade':
-                                    the_values = json.loads(item['values'])
-                                    mode = ['off']
-                                    if item['type'] == 'Bitmap':
-                                        mode.extend(the_values['label'])
-                                    else:
-                                        mode.extend(the_values['range'])
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev_id].Units[4].sValue):
-                                UpdateDomoticz(dev_id, 4, int(mode.index(str(currentmode)) * 10), 1, 0)
-
-                    if dev_type == 'cover':
-                        if searchCode('position', StatusProperties) or searchCode('percent_control', StatusProperties):
-                            if searchCode('position', StatusProperties):
-                                currentposition = StatusDeviceTuya('position')
-                            elif searchCode('percent_control', StatusProperties):
-                                currentposition = StatusDeviceTuya('percent_control')
-                            if str(currentposition) == '0':
-                                UpdateDomoticz(dev_id, 1, currentposition, 0, 0)
-                            if str(currentposition) == '100':
-                                UpdateDomoticz(dev_id, 1, currentposition, 1, 0)
-                            if str(currentposition) != str(Devices[dev_id].Units[1].sValue):
-                                UpdateDomoticz(dev_id, 1, currentposition, 2, 0)
-                        elif searchCode('mach_operate', StatusProperties):
-                            currentstatus = StatusDeviceTuya('control')
-                            if currentstatus == 'close':
-                                UpdateDomoticz(dev_id, 1, 'ZZ', 0, 0)
-                            elif currentstatus == 'open':
-                                UpdateDomoticz(dev_id, 1, 'FZ', 1, 0)
-                            elif currentstatus == 'stop':
-                                UpdateDomoticz(dev_id, 1, 'STOP', 1, 0)
-                        elif searchCode('control', StatusProperties):
-                            currentstatus = StatusDeviceTuya('control')
-                            if currentstatus == 'close':
-                                UpdateDomoticz(dev_id, 1, 'Open', 0, 0)
-                            elif currentstatus == 'open':
-                                UpdateDomoticz(dev_id, 1, 'Close', 1, 0)
-                            elif currentstatus == 'stop':
-                                UpdateDomoticz(dev_id, 1, 'Stop', 1, 0)
-                        if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', StatusProperties):
-                            if searchCode('position_2', StatusProperties):
-                                currentposition = StatusDeviceTuya('position_2')
-                            elif searchCode('percent_control_2', StatusProperties):
-                                currentposition = StatusDeviceTuya('percent_control_2')
-                            if str(currentposition) == '0':
-                                UpdateDomoticz(dev_id, 2, currentposition, 0, 0)
-                            if str(currentposition) == '100':
-                                UpdateDomoticz(dev_id, 2, currentposition, 1, 0)
-                            if str(currentposition) != str(Devices[dev_id].Units[2].sValue):
-                                UpdateDomoticz(dev_id, 2, currentposition, 2, 0)
-                        elif searchCode('mach_operate_2', StatusProperties):
-                            currentstatus = StatusDeviceTuya('control_2')
-                            if currentstatus == 'close':
-                                UpdateDomoticz(dev_id, 2, 'ZZ', 0, 0)
-                            elif currentstatus == 'open':
-                                UpdateDomoticz(dev_id, 2, 'FZ', 1, 0)
-                            elif currentstatus == 'stop':
-                                UpdateDomoticz(dev_id, 2, 'STOP', 1, 0)
-                        elif searchCode('control_2', StatusProperties):
-                            currentstatus = StatusDeviceTuya('control_2')
-                            if currentstatus == 'close':
-                                UpdateDomoticz(dev_id, 2, 'Open', 0, 0)
-                            elif currentstatus == 'open':
-                                UpdateDomoticz(dev_id, 2, 'Close', 1, 0)
-                            elif currentstatus == 'stop':
-                                UpdateDomoticz(dev_id, 2, 'Stop', 1, 0)
-
-                    if dev_type == 'smartheatpump':
-                        update_value_device('intemp', 2)
-                        update_value_device('outtemp', 3)
-                        update_value_device('whjtemp', 4)
-                        update_value_device('cmptemp', 5)
-                        update_value_device('wttemp', 6)
-                        update_value_device('hqtemp', 7)
-                        update_value_device('cmp_act_frep', 8)
-                        update_value_device('cmp_cur', 9)
-                        update_value_device('dc_fan_speed', 10)
-                        update_value_device('ach_stemp', 11)
-                        update_value_device('wth_stemp', 12)
-                        update_value_device('aircond_temp_diff', 13)
-                        update_value_device('wth_temp_diff', 14)
-                        update_value_device('acc_stemp', 15)
-                        update_select_device('mode', 16)
-                        update_select_device('work_mode', 17)
-                        # update_value_device('temp_current', 18)
-                        update_value_device('temp_set', 19)
-                        # update_value_device('water_set', 20)
-                        update_value_device('temp_top', 21)
-                        update_value_device('temp_bottom',22)
-                        update_bool_device('compressor_state',23)
-                        update_value_device('water_flow',24)
-
-                    if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
-                        if update_bool_device('switch', 1):
-                            pass
-                        elif update_bool_device('switch_1', 1):
-                            pass
-                        elif update_bool_device('switch_1', 1):
-                            pass
-                        elif update_bool_device('Power', 1):
-                            pass
-                        if update_bool_device('infared_switch', 1):
-                            pass
-                        if update_value_device('temp_current', 2):
-                            pass
-                        elif update_value_device('upper_temp', 2):
-                            pass
-                        elif update_value_device('c_temperature', 2):
-                            pass
-                        elif update_value_device('TempCurrent', 2):
-                            pass
-                        if update_value_device('temp_set', 3):
-                            pass
-                        elif update_value_device('set_temp', 3):
-                            pass
-                        elif update_value_device('temperature_c', 3):
-                            pass
-                        elif update_value_device('TempSet', 3):
-                            pass
-                        elif update_value_device('target_temp', 3):
-                            pass
-                        if update_select_device('running_mode', 4):
-                            pass
-                        elif update_select_device('work_mode', 4):
-                            pass
-                        elif update_select_device('Mode', 4):
-                            pass
-                        elif update_select_device('mode', 4):
-                            pass
-                        update_bool_device('window_check', 5)
-                        update_bool_device('child_lock', 6)
-                        update_bool_device('eco', 7)
-                        update_value_device('temp_floor', 8)
-                        if update_select_device('windspeed', 9):
-                            pass
-                        elif update_select_device('fan_level', 9):
-                            pass
-                        elif update_select_device('fan_speed_enum', 9):
-                            pass
-                        update_nvalue_device('humidity_current', 10)
-                        if update_value_device('currentcurrent', 15, 'mA'):
-                            pass
-                        elif update_value_device('currentcurrent', 11):
-                            pass
-                        if update_value_device('cur_power',12):
-                            pass
-                        elif update_value_device('average_power', 12):
-                            pass
-                        update_value_device('cur_voltage', 13)
-                        if update_power_device('cur_power', 14):
-                            pass
-                        elif update_power_device('average_power', 14):
-                            pass
-                        update_dualvalue_device('temp_current', 'humidity_current', 16)
-                        update_bool_device('anti_bother', 17)
-                        update_text_device('fault',18)
-                        battery_device()
-
-                    if dev_type in ('sensor', 'smartir'):
-                        if update_value_device('va_temperature', 1):
-                            pass
-                        elif update_value_device('temp_current', 1):
-                            pass
-                        elif update_value_device('local_temp', 1):
-                            pass
-                        elif update_value_device('Tin', 1):
-                            pass
-                        if update_nvalue_device('va_humidity', 2):
-                            pass
-                        elif update_nvalue_device('humidity_value', 2):
-                            pass
-                        elif update_nvalue_device('local_hum', 2):
-                            pass
-                        elif update_nvalue_device('humidity', 2):
-                            pass
-                        elif update_nvalue_device('Hin', 2):
-                            pass
-                        if update_dualvalue_device('va_temperature','va_humidity', 3):
-                            pass
-                        elif update_dualvalue_device('va_temperature','humidity_value', 3):
-                            pass
-                        elif update_dualvalue_device('temp_current','humidity', 3):
-                            pass
-                        elif update_dualvalue_device('temp_current','humidity_value', 3):
-                            pass
-                        elif update_dualvalue_device('local_temp','local_hum', 3):
-                            pass
-                        elif update_dualvalue_device('Tin','Hin', 3):
-                            pass
-                        update_value_device('co2_value', 4)
-                        # update_value_device('air_quality_index', 5)
-                        update_level_device('air_quality_index', 5, {"level_1": 1, "level_2": 2, "level_3": 4})
-                        update_value_device('ch2o_value', 6)
-                        update_value_device('voc_value', 7)
-                        update_value_device('pm25_value', 8)
-                        update_value_device('pm10', 9)
-                        update_value_device('bright_value', 10)
-                        update_bool_device('switch', 11)
-                        update_value_device('ph_current', 12)
-                        update_value_device('pro_current', 13)
-                        update_value_device('orp_current', 14)
-                        update_value_device('ph_warn_min', 15)
-                        update_value_device('ph_warn_max', 16)
-                        update_value_device('pro_warn_min', 17)
-                        update_value_device('pro_warn_max', 18)
-                        update_value_device('orp_warn_min', 19)
-                        update_value_device('orp_warn_max', 20)
-                        if update_value_device('sub1_temp', 21):
-                            pass
-                        elif update_value_device('ToutCh1', 21):
-                            pass
-                        if update_nvalue_device('sub1_hum', 22):
-                            pass
-                        elif update_value_device('HoutCh1', 22):
-                            pass
-                        if update_dualvalue_device('sub1_temp', 'sub1_hum', 23):
-                            pass
-                        elif update_dualvalue_device('ToutCh1', 'HoutCh1', 23):
-                            pass
-                        update_value_device('temp_warn_min', 24)
-                        update_value_device('temp_warn_max', 25)
-                        if update_value_device('sub2_temp', 31):
-                            pass
-                        elif update_value_device('ToutCh2', 31):
-                            pass
-                        if update_nvalue_device('sub2_hum', 32):
-                            pass
-                        elif update_value_device('HoutCh2', 32):
-                            pass
-                        if update_dualvalue_device('sub2_temp', 'sub2_hum', 33):
-                            pass
-                        elif update_dualvalue_device('ToutCh2', 'HoutCh2', 33):
-                            pass
-                        if update_value_device('sub3_temp', 41):
-                            pass
-                        elif update_value_device('ToutCh3', 41):
-                            pass
-                        if update_nvalue_device('sub3_hum', 42):
-                            pass
-                        elif update_value_device('HoutCh3', 42):
-                            pass
-                        if update_dualvalue_device('sub3_temp', 'sub3_hum', 43):
-                            pass
-                        elif update_dualvalue_device('ToutCh3', 'HoutCh3', 43):
-                            pass
-                        update_value_device('temp_current_2', 44)
-                        update_value_device('cook_temperature', 45)
-                        update_value_device('cook_temperature_2', 46)
-                        update_value_device('atmosphere', 47)
-                        update_value_device('temp_current_2', 44)
-                        update_bool_device('pir', 48, 'none')
-                        update_bool_device('pir_state', 48, 'none')
-                        update_bool_device('temper_alarm', 49)
-                        update_select_device('co_status', 50)
-                        update_select_device('checking_result', 51)
-                        for channel in range(1, 8):
-                            unit_base = 50 + (channel * 3)  # Unit 51 => 71
-                            if update_value_device(f"ch{channel}_temp", unit_base - 2):
+                        if dev_type in ('switch', 'switch/sensor'):
+                            if update_bool_device('switch_1', 1):
                                 pass
-                            if update_nvalue_device(f"ch{channel}_humi", unit_base - 1):
+                            elif update_bool_device('switch', 1):
                                 pass
-                            if update_dualvalue_device(f"ch{channel}_temp", f"ch{channel}_humi", unit_base):
+
+                            for switch_number in range(2, 9):
+                                update_bool_device(f"switch_{switch_number}", switch_number)
+                            if update_value_device('cur_current', 15, 'mA'):
                                 pass
-                        battery_device()
-
-                    if dev_type == 'doorbell':
-                        update_bool_device('doorbell_active', 1, '')
-                        update_bool_device('floodlight_switch', 2)
-                        if update_bool_device('motion_switch', 3):
-                            pass
-                        elif update_bool_device('movement_detect_pic', 3, '$'):
-                            pass
-                        update_bool_device('basic_indicator', 4)
-
-                    if dev_type == 'fan':
-                        update_bool_device('switch', 1)
-                        update_select_device('mode', 2)
-                        update_selectnum_device('fan_speed', 3)
-                        update_value_device('temp_set', 4)
-                        update_value_device('temp_current', 5)
-                        update_text_device('fault', 6)
-                        update_bool_device('light', 7)
-                        update_bool_device('RH_switch', 8)
-                        update_value_device('RH_threshold', 9)
-                        update_value_device('RH_value', 10)
-                        update_bool_device('anion', 11)
-                        update_bool_device('free_cooling', 12)
-                        update_bool_device('powerful', 13)
-
-                    if dev_type == 'fanlight':
-                        update_bool_device('fan_switch', 2)
-                        update_selectnum_device('fan_speed', 3)
-                        update_select_device('fan_direction', 4)
-
-                    if dev_type == 'siren':
-                        update_bool_device('AlarmSwitch', 1)
-                        if update_select_device('Alarmtype', 2):
-                            pass
-                        elif update_select_device('alarm_state', 2):
-                            pass
-                        if update_selectnum_device('AlarmPeriod', 3):
-                            pass
-                        elif update_selectnum_device('alarm_volume', 3):
-                            pass
-                        battery_device()
-
-                    if dev_type == 'powermeter':
-                        update_power_device('CurrentA', 1)
-                        update_power_device('CurrentB', 1)
-                        update_power_device('CurrentC', 1)
-                        update_value_device('Frequency', 2)
-                        update_value_device('Temperature', 3)
-                        update_value_device('Current', 4)
-                        update_power_device('ActivePower', 5)
-                        update_value_device('VoltageA', 11)
-                        update_power_device('ActivePowerA', 12)
-                        update_value_device('VoltageB', 21)
-                        update_power_device('ActivePowerB', 22)
-                        update_value_device('VoltageC', 31)
-                        update_power_device('ActivePowerC', 32)
-                        if searchCode('phase_a', StatusProperties):
-                            base64_string = StatusDeviceTuya('phase_a')
-                            # Decode base64 string
-                            decoded_data = base64.b64decode(base64_string)
-                            # Extract voltage, current, and power data
-                            currentvoltage = int.from_bytes(decoded_data[:2], byteorder='big') * 0.1
-                            currentcurrent = int.from_bytes(decoded_data[2:5], byteorder='big') * 0.001
-                            currentpower = int.from_bytes(decoded_data[5:8], byteorder='big')
-                            leakagecurrent = StatusDeviceTuya('leakage_current')
-                            if product_id == 'ze8faryrxr0glqnn':
-                                if str(int.from_bytes(decoded_data[2:5], byteorder='big'))[-1:] == '1':
-                                    currentcurrent = 0 - currentcurrent
-                                    currentpower = 0 - currentpower
-                            UpdateDomoticz(dev_id, 1, str(currentcurrent), 0, 0)
-                            UpdateDomoticz(dev_id, 2, str(currentpower), 0, 0)
-                            UpdateDomoticz(dev_id, 3, str(currentvoltage), 0, 0)
-                            lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[4].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
-                            lastvalue = Devices[dev_id].Units[4].sValue if len(Devices[dev_id].Units[4].sValue) > 0 else '0;0'
-                            UpdateDomoticz(dev_id, 4, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
-                        update_bool_device('switch', 5)
-                        update_text_device('fault', 6)
-                        # 2 phase Meter with reverse
-                        update_value_device('voltage_a', 1)
-                        update_value_device('freq', 2)
-                        update_power_device('total_power', 3)
-                        update_value_device('power_a', 11)
-                        update_value_device('current_a', 12)
-                        update_value_device('direction_a', 13)
-                        update_value_device('energy_forword_a', 14)
-                        update_value_device('energy_reverse_a', 15)
-                        update_value_device('power_b', 21)
-                        update_value_device('current_b', 22)
-                        update_value_device('direction_b', 23)
-                        update_value_device('energy_forword_b', 24)
-                        update_value_device('energy_reserse_b', 25)
-
-                    if dev_type == 'powermeter' and (searchCode('switch', StatusProperties) or searchCode('switch_1', StatusProperties)) and not searchCode('phase_a', StatusProperties):
-                        if update_bool_device('switch', 1):
-                            pass
-                        elif update_bool_device('switch_1', 1):
-                            pass
-                        update_value_device('cur_current', 2)
-                        update_power_device('cur_power', 3)
-                        update_value_device('cur_voltage', 4)
-                        update_text_device('fault', 5)
-
-                    if dev_type == 'gateway':
-                        if update_value_device('master_state', 1):
-                            pass
-                        else:
-                            UpdateDomoticz(dev_id, 1, 'Gateway only', 0, 0)
-
-                    if dev_type == 'doorcontact':
-                        update_bool_device('doorcontact_state', 1)
-                        battery_device()
-
-                    if dev_type == 'pirlight':
-                        update_bool_device('switch_pir', 2)
-                        update_select_device('device_mode', 3)
-                        update_select_device('pir_sensitivity', 4)
-
-                    if dev_type == 'smokedetector':
-                        if update_bool_device('smoke_sensor_status', 2, 'normal'):
-                            pass
-                        elif update_bool_device('PIR', 2, 0):
-                            pass
-                        # if searchCode('smoke_sensor_status', StatusProperties):
-                        #     currentstatus = StatusDeviceTuya('smoke_sensor_status')
-                        #     if currentstatus == 'normal':
-                        #         UpdateDomoticz(dev_id, 1, False, 0, 0)
-                        #     elif currentstatus == 'alarm':
-                        #         UpdateDomoticz(dev_id, 1, True, 1, 0)
-                        #     UpdateDomoticz(dev_id, 2, currentstatus, 0, 0)
-                        # if searchCode('PIR', StatusProperties):
-                        #     currentstatus = StatusDeviceTuya('PIR')
-                        #     if int(currentstatus) == 0:
-                        #         UpdateDomoticz(dev_id, 1, False, 0, 0)
-                        #     elif int(currentstatus) > 0:
-                        #         UpdateDomoticz(dev_id, 1, True, 1, 0)
-                        #     UpdateDomoticz(dev_id, 2, currentstatus, 0, 0)
-                        battery_device()
-
-                    if dev_type == 'garagedooropener':
-                        update_bool_device('switch_1', 1)
-                        update_bool_device('doorcontact_state', 2)
-                        update_bool_device('door_control_1', 3)
-
-                    if dev_type == 'feeder':
-                        update_selectnum_device('manual_feed', 1)
-                        update_select_device('feed_state', 2)
-                        update_selectnum_device('feed_report', 3)
-                        update_bool_device('light', 5)
-
-                    if dev_type == 'waterleak':
-                        update_bool_device('watersensor_state', 1, 'normal')
-                        battery_device()
-
-                    if dev_type == 'irrigation':
-                        if update_bool_device('switch', 1):
-                            pass
-                        elif update_bool_device('switch_1', 1):
-                            pass
-                        update_select_device('work_state', 2)
-                        update_bool_device('areaone', 3)
-                        update_bool_device('areatwo', 4)
-                        update_bool_device('areathree', 5)
-                        update_bool_device('areafour', 6)
-                        update_bool_device('areafive', 7)
-                        update_bool_device('areasix', 8)
-                        battery_device()
-
-                    if dev_type == 'wswitch':
-                        for x in range(1, 4):
-                            if update_select_device('switch' + str(x) + '_value', x):
+                            elif update_value_device('cur_current', 11):
                                 pass
-                            elif update_select_device('switch_type_' + str(x), x):
+                            update_value_device('cur_power', 12)
+                            update_value_device('cur_voltage', 13)
+                            update_power_device('cur_power', 14)
+                            if searchCode('phase_a', StatusProperties):
+                                base64_string = StatusDeviceTuya('phase_a')
+                                # Decode base64 string
+                                decoded_data = base64.b64decode(base64_string)
+                                # Extract voltage, current, and power data
+                                currentvoltage = int.from_bytes(decoded_data[:2], byteorder='big') * 0.1
+                                currentcurrent = int.from_bytes(decoded_data[2:5], byteorder='big') * 0.001
+                                currentpower = int.from_bytes(decoded_data[5:8], byteorder='big')
+                                UpdateDomoticz(dev_id, 11, str(currentcurrent), 0, 0)
+                                UpdateDomoticz(dev_id, 12, str(currentpower), 0, 0)
+                                UpdateDomoticz(dev_id, 13, str(currentvoltage), 0, 0)
+                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[14].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                lastvalue = Devices[dev_id].Units[14].sValue if len(Devices[dev_id].Units[14].sValue) > 0 else '0;0'
+                                currentEle = StatusDeviceTuya('add_ele')
+                            update_value_device('leakage_current', 15)
+                            update_value_device('temp_current', 16)
+                            update_power_device('out_power', 17)
+                            update_power_device('out_power', 18)
+                            if searchCode('power_a', StatusProperties):
+                                powerA = StatusDeviceTuya('power_a')
+                                dirA = StatusDeviceTuya('direction_a')
+                                if dirA == 'REVERSE':
+                                    lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[19].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                    lastvalue = Devices[dev_id].Units[19].sValue if len(Devices[dev_id].Units[19].sValue) > 0 else '0;0'
+                                    lastvalueR = Devices[dev_id].Units[20].sValue if len(Devices[dev_id].Units[20].sValue) > 0 else '0;0'
+                                    UpdateDomoticz(dev_id, 19, str(powerA) + ';' + str(float(lastvalue.split(';')[1]) + ((powerA) * (lastupdate / 3600))) , 0, 0, 1)
+                                    UpdateDomoticz(dev_id, 20, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
+                                if dirA == 'FORWARD':
+                                    lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[20].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                    lastvalue = Devices[dev_id].Units[20].sValue if len(Devices[dev_id].Units[20].sValue) > 0 else '0;0'
+                                    lastvalueR = Devices[dev_id].Units[19].sValue if len(Devices[dev_id].Units[19].sValue) > 0 else '0;0'
+                                    UpdateDomoticz(dev_id, 20, str(powerA) + ';' + str(float(lastvalue.split(';')[1]) + ((powerA) * (lastupdate / 3600))) , 0, 0, 1)
+                                    UpdateDomoticz(dev_id, 19, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
+                            if searchCode('power_b', StatusProperties):
+                                powerB = StatusDeviceTuya('power_b')
+                                dirB = StatusDeviceTuya('direction_b')
+                                if dirB == 'REVERSE':
+                                    lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[21].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                    lastvalue = Devices[dev_id].Units[21].sValue if len(Devices[dev_id].Units[21].sValue) > 0 else '0;0'
+                                    lastvalueR = Devices[dev_id].Units[22].sValue if len(Devices[dev_id].Units[22].sValue) > 0 else '0;0'
+                                    UpdateDomoticz(dev_id, 21, str(powerB) + ';' + str(float(lastvalue.split(';')[1]) + ((powerB) * (lastupdate / 3600))) , 0, 0, 1)
+                                    UpdateDomoticz(dev_id, 22, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
+                                if dirB == 'FORWARD':
+                                    lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[22].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                    lastvalue = Devices[dev_id].Units[22].sValue if len(Devices[dev_id].Units[22].sValue) > 0 else '0;0'
+                                    lastvalueR = Devices[dev_id].Units[21].sValue if len(Devices[dev_id].Units[21].sValue) > 0 else '0;0'
+                                    UpdateDomoticz(dev_id, 22, str(powerB) + ';' + str(float(lastvalue.split(';')[1]) + ((powerB) * (lastupdate / 3600))) , 0, 0, 1)
+                                    UpdateDomoticz(dev_id, 21, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
+                            battery_device()
+
+                        if dev_type == 'dimmer':
+                            if searchCode('switch_led_1', StatusProperties):
+                                currentstatus = StatusDeviceTuya('switch_led_1')
+                                currentdim = brightness_to_pct(StatusProperties, 'bright_value_1', int(StatusDeviceTuya('bright_value_1')))
+                                if bool(currentstatus) == False or currentdim == 0:
+                                    UpdateDomoticz(dev_id, 1, False, 0, 0)
+                                elif bool(currentstatus) == True and  currentdim > 0 and str(currentdim) != str(Devices[dev_id].Units[1].sValue):
+                                    UpdateDomoticz(dev_id, 1, currentdim, 1, 0)
+
+                            if searchCode('switch_led_2', StatusProperties):
+                                currentstatus = StatusDeviceTuya('switch_led_2')
+                                currentdim = brightness_to_pct(StatusProperties, 'bright_value_2', int(StatusDeviceTuya('bright_value_2')))
+                                if bool(currentstatus) == False or currentdim == 0:
+                                    UpdateDomoticz(dev_id, 2, False, 0, 0)
+                                elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev_id].Units[2].sValue):
+                                    UpdateDomoticz(dev_id, 2, currentdim, 1, 0)
+
+                        if dev_type in ('light','fanlight'):
+                            unit = Devices[dev_id].Units[1]
+                            if searchCode('switch_led', StatusProperties):
+                                currentstatus = bool(StatusDeviceTuya('switch_led'))
+                            else:
+                                currentstatus = bool(StatusDeviceTuya('led_switch'))
+                            nval = 1 if currentstatus else 0
+                            if searchCode('bright_value_v2', StatusProperties):
+                                dimtuya = brightness_to_pct(StatusProperties, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
+                            elif searchCode('bright_value', StatusProperties):
+                                dimtuya = brightness_to_pct(StatusProperties, 'bright_value', int(StatusDeviceTuya('bright_value')))
+                            else:
+                                dimtuya = 100
+                            svalue = str(dimtuya) if currentstatus else '0'
+                            if str(unit.sValue) != svalue or unit.nValue != nval:
+                                UpdateDomoticz(dev_id, 1, svalue, nval, 0)
+                            if searchCode('Power', StatusProperties):
+                                currentstatus = StatusDeviceTuya('Power')
+                                UpdateDomoticz(dev_id, 2, bool(currentstatus), int(bool(currentstatus)), 0)
+                            if searchCode('lightmode', StatusProperties):
+                                currentmode = StatusDeviceTuya('lightmode')
+                                for item in FunctionProperties:
+                                    if item['code'] == 'lightmode':
+                                        the_values = json.loads(item['values'])
+                                        mode = ['off']
+                                        if item['type'] == 'Bitmap':
+                                            mode.extend(the_values['label'])
+                                        else:
+                                            mode.extend(the_values['range'])
+                                if str(mode.index(str(currentmode)) * 10) != str(Devices[dev_id].Units[3].sValue):
+                                    UpdateDomoticz(dev_id, 3, int(mode.index(str(currentmode)) * 10), 1, 0)
+
+                            if searchCode('dp_mist_grade', StatusProperties):
+                                currentmode = StatusDeviceTuya('dp_mist_grade')
+                                for item in FunctionProperties:
+                                    if item['code'] == 'dp_mist_grade':
+                                        the_values = json.loads(item['values'])
+                                        mode = ['off']
+                                        if item['type'] == 'Bitmap':
+                                            mode.extend(the_values['label'])
+                                        else:
+                                            mode.extend(the_values['range'])
+                                if str(mode.index(str(currentmode)) * 10) != str(Devices[dev_id].Units[4].sValue):
+                                    UpdateDomoticz(dev_id, 4, int(mode.index(str(currentmode)) * 10), 1, 0)
+
+                        if dev_type == 'cover':
+                            if searchCode('position', StatusProperties) or searchCode('percent_control', StatusProperties):
+                                if searchCode('position', StatusProperties):
+                                    currentposition = StatusDeviceTuya('position')
+                                elif searchCode('percent_control', StatusProperties):
+                                    currentposition = StatusDeviceTuya('percent_control')
+                                if str(currentposition) == '0':
+                                    UpdateDomoticz(dev_id, 1, currentposition, 0, 0)
+                                if str(currentposition) == '100':
+                                    UpdateDomoticz(dev_id, 1, currentposition, 1, 0)
+                                if str(currentposition) != str(Devices[dev_id].Units[1].sValue):
+                                    UpdateDomoticz(dev_id, 1, currentposition, 2, 0)
+                            elif searchCode('mach_operate', StatusProperties):
+                                currentstatus = StatusDeviceTuya('control')
+                                if currentstatus == 'close':
+                                    UpdateDomoticz(dev_id, 1, 'ZZ', 0, 0)
+                                elif currentstatus == 'open':
+                                    UpdateDomoticz(dev_id, 1, 'FZ', 1, 0)
+                                elif currentstatus == 'stop':
+                                    UpdateDomoticz(dev_id, 1, 'STOP', 1, 0)
+                            elif searchCode('control', StatusProperties):
+                                currentstatus = StatusDeviceTuya('control')
+                                if currentstatus == 'close':
+                                    UpdateDomoticz(dev_id, 1, 'Open', 0, 0)
+                                elif currentstatus == 'open':
+                                    UpdateDomoticz(dev_id, 1, 'Close', 1, 0)
+                                elif currentstatus == 'stop':
+                                    UpdateDomoticz(dev_id, 1, 'Stop', 1, 0)
+                            if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', StatusProperties):
+                                if searchCode('position_2', StatusProperties):
+                                    currentposition = StatusDeviceTuya('position_2')
+                                elif searchCode('percent_control_2', StatusProperties):
+                                    currentposition = StatusDeviceTuya('percent_control_2')
+                                if str(currentposition) == '0':
+                                    UpdateDomoticz(dev_id, 2, currentposition, 0, 0)
+                                if str(currentposition) == '100':
+                                    UpdateDomoticz(dev_id, 2, currentposition, 1, 0)
+                                if str(currentposition) != str(Devices[dev_id].Units[2].sValue):
+                                    UpdateDomoticz(dev_id, 2, currentposition, 2, 0)
+                            elif searchCode('mach_operate_2', StatusProperties):
+                                currentstatus = StatusDeviceTuya('control_2')
+                                if currentstatus == 'close':
+                                    UpdateDomoticz(dev_id, 2, 'ZZ', 0, 0)
+                                elif currentstatus == 'open':
+                                    UpdateDomoticz(dev_id, 2, 'FZ', 1, 0)
+                                elif currentstatus == 'stop':
+                                    UpdateDomoticz(dev_id, 2, 'STOP', 1, 0)
+                            elif searchCode('control_2', StatusProperties):
+                                currentstatus = StatusDeviceTuya('control_2')
+                                if currentstatus == 'close':
+                                    UpdateDomoticz(dev_id, 2, 'Open', 0, 0)
+                                elif currentstatus == 'open':
+                                    UpdateDomoticz(dev_id, 2, 'Close', 1, 0)
+                                elif currentstatus == 'stop':
+                                    UpdateDomoticz(dev_id, 2, 'Stop', 1, 0)
+
+                        if dev_type == 'smartheatpump':
+                            update_value_device('intemp', 2)
+                            update_value_device('outtemp', 3)
+                            update_value_device('whjtemp', 4)
+                            update_value_device('cmptemp', 5)
+                            update_value_device('wttemp', 6)
+                            update_value_device('hqtemp', 7)
+                            update_value_device('cmp_act_frep', 8)
+                            update_value_device('cmp_cur', 9)
+                            update_value_device('dc_fan_speed', 10)
+                            update_value_device('ach_stemp', 11)
+                            update_value_device('wth_stemp', 12)
+                            update_value_device('aircond_temp_diff', 13)
+                            update_value_device('wth_temp_diff', 14)
+                            update_value_device('acc_stemp', 15)
+                            update_select_device('mode', 16)
+                            update_select_device('work_mode', 17)
+                            # update_value_device('temp_current', 18)
+                            update_value_device('temp_set', 19)
+                            # update_value_device('water_set', 20)
+                            update_value_device('temp_top', 21)
+                            update_value_device('temp_bottom',22)
+                            update_bool_device('compressor_state',23)
+                            update_value_device('water_flow',24)
+
+                        if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
+                            if update_bool_device('switch', 1):
                                 pass
-                            elif update_select_device('switch_mode' + str(x), x):
+                            elif update_bool_device('switch_1', 1):
                                 pass
-                        battery_device()
+                            elif update_bool_device('switch_1', 1):
+                                pass
+                            elif update_bool_device('Power', 1):
+                                pass
+                            if update_bool_device('infared_switch', 1):
+                                pass
+                            if update_value_device('temp_current', 2):
+                                pass
+                            elif update_value_device('upper_temp', 2):
+                                pass
+                            elif update_value_device('c_temperature', 2):
+                                pass
+                            elif update_value_device('TempCurrent', 2):
+                                pass
+                            if update_value_device('temp_set', 3):
+                                pass
+                            elif update_value_device('set_temp', 3):
+                                pass
+                            elif update_value_device('temperature_c', 3):
+                                pass
+                            elif update_value_device('TempSet', 3):
+                                pass
+                            elif update_value_device('target_temp', 3):
+                                pass
+                            if update_select_device('running_mode', 4):
+                                pass
+                            elif update_select_device('work_mode', 4):
+                                pass
+                            elif update_select_device('Mode', 4):
+                                pass
+                            elif update_select_device('mode', 4):
+                                pass
+                            update_bool_device('window_check', 5)
+                            update_bool_device('child_lock', 6)
+                            update_bool_device('eco', 7)
+                            update_value_device('temp_floor', 8)
+                            if update_select_device('windspeed', 9):
+                                pass
+                            elif update_select_device('fan_level', 9):
+                                pass
+                            elif update_select_device('fan_speed_enum', 9):
+                                pass
+                            update_nvalue_device('humidity_current', 10)
+                            if update_value_device('currentcurrent', 15, 'mA'):
+                                pass
+                            elif update_value_device('currentcurrent', 11):
+                                pass
+                            if update_value_device('cur_power',12):
+                                pass
+                            elif update_value_device('average_power', 12):
+                                pass
+                            update_value_device('cur_voltage', 13)
+                            if update_power_device('cur_power', 14):
+                                pass
+                            elif update_power_device('average_power', 14):
+                                pass
+                            update_dualvalue_device('temp_current', 'humidity_current', 16)
+                            update_bool_device('anti_bother', 17)
+                            update_text_device('fault',18)
+                            battery_device()
 
-                    if dev_type == 'starlight':
-                        update_bool_device('switch_led', 1)
-                        colortuya = StatusDeviceTuya('colour_data')
-                        if currentstatus == True:
-                            tuyacolor = ast.literal_eval(StatusDeviceTuya('colour_data'))
-                            Color = Devices[dev_id].Units[1].Color
-                            if Color == '':
-                                Color = {'b':255,'cw':0,'g':255,'m':3,'r':255,'t':0,'ww':0}
-                            h, s, v = tuyacolor['h'], tuyacolor['s'], tuyacolor['v']
-                            r, g, b = hsv_to_rgb_v2(h, s, v)
-                            colorupdate = {'b':b,'cw':0,'g':g,'m':3,'r':r,'t':0,'ww':0}
-                            # {'b':0,'cw':0,'g':3,'m':3,'r':255,'t':0,'ww':0}
-                            if (Color['r'] != r or Color['g'] != g or Color['b'] != b ):
-                                UpdateDomoticz(dev_id, 1, json.dumps(colorupdate), 1, 0)
-                                UpdateDomoticz(dev_id, 1, brightness_to_pct(StatusProperties, 'bright_value', int(v * 0.255)), 1, 0)
-                        update_bool_device('colour_switch', 2)
-                        if searchCode('laser_switch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('laser_switch')
-                            currentdim = brightness_to_pct(StatusProperties, 'laser_bright', int(StatusDeviceTuya('laser_bright')))
-                            if bool(currentstatus) == False or currentdim == 0:
-                                UpdateDomoticz(dev_id, 3, False, 0, 0)
-                            elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev_id].Units[3].sValue):
-                                UpdateDomoticz(dev_id, 3, True, 1, 0)
-                                UpdateDomoticz(dev_id, 3, currentdim, 1, 0)
-                        if searchCode('fan_switch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('fan_switch')
-                            currentdim = brightness_to_pct(StatusProperties, 'fan_speed', int(StatusDeviceTuya('fan_speed')))
-                            if bool(currentstatus) == False or currentdim == 0:
-                                UpdateDomoticz(dev_id, 4, False, 0, 0)
-                            elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev_id].Units[4].sValue):
-                                UpdateDomoticz(dev_id, 4, True, 1, 0)
-                                UpdateDomoticz(dev_id, 4, currentdim, 1, 0)
+                        if dev_type in ('sensor', 'smartir'):
+                            if update_value_device('va_temperature', 1):
+                                pass
+                            elif update_value_device('temp_current', 1):
+                                pass
+                            elif update_value_device('local_temp', 1):
+                                pass
+                            elif update_value_device('Tin', 1):
+                                pass
+                            if update_nvalue_device('va_humidity', 2):
+                                pass
+                            elif update_nvalue_device('humidity_value', 2):
+                                pass
+                            elif update_nvalue_device('local_hum', 2):
+                                pass
+                            elif update_nvalue_device('humidity', 2):
+                                pass
+                            elif update_nvalue_device('Hin', 2):
+                                pass
+                            if update_dualvalue_device('va_temperature','va_humidity', 3):
+                                pass
+                            elif update_dualvalue_device('va_temperature','humidity_value', 3):
+                                pass
+                            elif update_dualvalue_device('temp_current','humidity', 3):
+                                pass
+                            elif update_dualvalue_device('temp_current','humidity_value', 3):
+                                pass
+                            elif update_dualvalue_device('local_temp','local_hum', 3):
+                                pass
+                            elif update_dualvalue_device('Tin','Hin', 3):
+                                pass
+                            update_value_device('co2_value', 4)
+                            # update_value_device('air_quality_index', 5)
+                            update_level_device('air_quality_index', 5, {"level_1": 1, "level_2": 2, "level_3": 4})
+                            update_value_device('ch2o_value', 6)
+                            update_value_device('voc_value', 7)
+                            update_value_device('pm25_value', 8)
+                            update_value_device('pm10', 9)
+                            update_value_device('bright_value', 10)
+                            update_bool_device('switch', 11)
+                            update_value_device('ph_current', 12)
+                            update_value_device('pro_current', 13)
+                            update_value_device('orp_current', 14)
+                            update_value_device('ph_warn_min', 15)
+                            update_value_device('ph_warn_max', 16)
+                            update_value_device('pro_warn_min', 17)
+                            update_value_device('pro_warn_max', 18)
+                            update_value_device('orp_warn_min', 19)
+                            update_value_device('orp_warn_max', 20)
+                            if update_value_device('sub1_temp', 21):
+                                pass
+                            elif update_value_device('ToutCh1', 21):
+                                pass
+                            if update_nvalue_device('sub1_hum', 22):
+                                pass
+                            elif update_value_device('HoutCh1', 22):
+                                pass
+                            if update_dualvalue_device('sub1_temp', 'sub1_hum', 23):
+                                pass
+                            elif update_dualvalue_device('ToutCh1', 'HoutCh1', 23):
+                                pass
+                            update_value_device('temp_warn_min', 24)
+                            update_value_device('temp_warn_max', 25)
+                            if update_value_device('sub2_temp', 31):
+                                pass
+                            elif update_value_device('ToutCh2', 31):
+                                pass
+                            if update_nvalue_device('sub2_hum', 32):
+                                pass
+                            elif update_value_device('HoutCh2', 32):
+                                pass
+                            if update_dualvalue_device('sub2_temp', 'sub2_hum', 33):
+                                pass
+                            elif update_dualvalue_device('ToutCh2', 'HoutCh2', 33):
+                                pass
+                            if update_value_device('sub3_temp', 41):
+                                pass
+                            elif update_value_device('ToutCh3', 41):
+                                pass
+                            if update_nvalue_device('sub3_hum', 42):
+                                pass
+                            elif update_value_device('HoutCh3', 42):
+                                pass
+                            if update_dualvalue_device('sub3_temp', 'sub3_hum', 43):
+                                pass
+                            elif update_dualvalue_device('ToutCh3', 'HoutCh3', 43):
+                                pass
+                            update_value_device('temp_current_2', 44)
+                            update_value_device('cook_temperature', 45)
+                            update_value_device('cook_temperature_2', 46)
+                            update_value_device('atmosphere', 47)
+                            update_value_device('temp_current_2', 44)
+                            update_bool_device('pir', 48, 'none')
+                            update_bool_device('pir_state', 48, 'none')
+                            update_bool_device('temper_alarm', 49)
+                            update_select_device('co_status', 50)
+                            update_select_device('checking_result', 51)
+                            for channel in range(1, 8):
+                                unit_base = 50 + (channel * 3)  # Unit 51 => 71
+                                if update_value_device(f"ch{channel}_temp", unit_base - 2):
+                                    pass
+                                if update_nvalue_device(f"ch{channel}_humi", unit_base - 1):
+                                    pass
+                                if update_dualvalue_device(f"ch{channel}_temp", f"ch{channel}_humi", unit_base):
+                                    pass
+                            battery_device()
 
-                    if dev_type == 'smartlock':
-                        if update_bool_device('lock_motor_state', 1):
-                            pass
-                        elif update_bool_device('rtc_lock', 1):
-                            pass
-                        update_select_device('alarm_lock', 2)
-                        update_bool_device('unlock_ble', 3)
-                        update_bool_device('unlock_card', 4)
-                        battery_device()
+                        if dev_type == 'doorbell':
+                            update_bool_device('doorbell_active', 1, '')
+                            update_bool_device('floodlight_switch', 2)
+                            if update_bool_device('motion_switch', 3):
+                                pass
+                            elif update_bool_device('movement_detect_pic', 3, '$'):
+                                pass
+                            update_bool_device('basic_indicator', 4)
 
-                    if dev_type == 'dehumidifier':
-                        update_bool_device('switch', 1)
-                        if update_selectnum_device('dehumidify_set_value', 2):
-                            pass
-                        elif update_selectnum_device('dehumidify_set_enum', 2):
-                            pass
-                        update_select_device('fan_speed_enum', 3)
-                        update_select_device('mode', 4)
-                        update_value_device('fault', 5)
-                        update_value_device('temp_indoor', 6)
-                        update_nvalue_device('humidity_indoor', 7)
-                        update_dualvalue_device('temp_indoor', 'humidity_indoor', 8)
-                        update_bool_device('child_lock', 9)
-                        update_bool_device('anion', 10)
-                        update_bool_device('filter_reset', 11)
-                        update_value_device('filter_life', 12)
-                        update_bool_device('runtime_total_reset', 13)
-                        update_value_device('type_of_equipment', 14)
+                        if dev_type == 'fan':
+                            update_bool_device('switch', 1)
+                            update_select_device('mode', 2)
+                            update_selectnum_device('fan_speed', 3)
+                            update_value_device('temp_set', 4)
+                            update_value_device('temp_current', 5)
+                            update_text_device('fault', 6)
+                            update_bool_device('light', 7)
+                            update_bool_device('RH_switch', 8)
+                            update_value_device('RH_threshold', 9)
+                            update_value_device('RH_value', 10)
+                            update_bool_device('anion', 11)
+                            update_bool_device('free_cooling', 12)
+                            update_bool_device('powerful', 13)
 
-                    if dev_type == 'vacuum':
-                        update_bool_device('power_go', 1)
-                        update_bool_device('switch_charge', 2)
-                        update_select_device('mode', 3)
-                        update_select_device('suction', 4)
-                        update_select_device('cistern', 5)
-                        update_text_device('status', 6)
-                        update_value_device('electricity_left', 7)
-                        update_value_device('edge_brush', 8)
-                        update_value_device('roll_brush', 9)
-                        update_value_device('filter', 10)
-                        update_value_device('electricity_left', 7)
-                        update_text_device('fault', 11)
-                        battery_device
+                        if dev_type == 'fanlight':
+                            update_bool_device('fan_switch', 2)
+                            update_selectnum_device('fan_speed', 3)
+                            update_select_device('fan_direction', 4)
 
-                    if dev_type == 'multifunctionalarm':
-                        update_value_device('master_mode', 1)
+                        if dev_type == 'siren':
+                            update_bool_device('AlarmSwitch', 1)
+                            if update_select_device('Alarmtype', 2):
+                                pass
+                            elif update_select_device('alarm_state', 2):
+                                pass
+                            if update_selectnum_device('AlarmPeriod', 3):
+                                pass
+                            elif update_selectnum_device('alarm_volume', 3):
+                                pass
+                            battery_device()
 
-                    if dev_type == 'purifier':
-                        update_bool_device('switch', 1)
-                        update_value_device('pm25', 2)
-                        update_select_device('mode', 3)
-                        update_select_device('speed', 4)
-                        update_value_device('filter', 5)
-                        update_value_device('air_quality', 6)
+                        if dev_type == 'powermeter':
+                            update_power_device('CurrentA', 1)
+                            update_power_device('CurrentB', 1)
+                            update_power_device('CurrentC', 1)
+                            update_value_device('Frequency', 2)
+                            update_value_device('Temperature', 3)
+                            update_value_device('Current', 4)
+                            update_power_device('ActivePower', 5)
+                            update_value_device('VoltageA', 11)
+                            update_power_device('ActivePowerA', 12)
+                            update_value_device('VoltageB', 21)
+                            update_power_device('ActivePowerB', 22)
+                            update_value_device('VoltageC', 31)
+                            update_power_device('ActivePowerC', 32)
+                            if searchCode('phase_a', StatusProperties):
+                                base64_string = StatusDeviceTuya('phase_a')
+                                # Decode base64 string
+                                decoded_data = base64.b64decode(base64_string)
+                                # Extract voltage, current, and power data
+                                currentvoltage = int.from_bytes(decoded_data[:2], byteorder='big') * 0.1
+                                currentcurrent = int.from_bytes(decoded_data[2:5], byteorder='big') * 0.001
+                                currentpower = int.from_bytes(decoded_data[5:8], byteorder='big')
+                                leakagecurrent = StatusDeviceTuya('leakage_current')
+                                if product_id == 'ze8faryrxr0glqnn':
+                                    if str(int.from_bytes(decoded_data[2:5], byteorder='big'))[-1:] == '1':
+                                        currentcurrent = 0 - currentcurrent
+                                        currentpower = 0 - currentpower
+                                UpdateDomoticz(dev_id, 1, str(currentcurrent), 0, 0)
+                                UpdateDomoticz(dev_id, 2, str(currentpower), 0, 0)
+                                UpdateDomoticz(dev_id, 3, str(currentvoltage), 0, 0)
+                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[4].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                lastvalue = Devices[dev_id].Units[4].sValue if len(Devices[dev_id].Units[4].sValue) > 0 else '0;0'
+                                UpdateDomoticz(dev_id, 4, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
+                            update_bool_device('switch', 5)
+                            update_text_device('fault', 6)
+                            # 2 phase Meter with reverse
+                            update_value_device('voltage_a', 1)
+                            update_value_device('freq', 2)
+                            update_power_device('total_power', 3)
+                            update_value_device('power_a', 11)
+                            update_value_device('current_a', 12)
+                            update_value_device('direction_a', 13)
+                            update_value_device('energy_forword_a', 14)
+                            update_value_device('energy_reverse_a', 15)
+                            update_value_device('power_b', 21)
+                            update_value_device('current_b', 22)
+                            update_value_device('direction_b', 23)
+                            update_value_device('energy_forword_b', 24)
+                            update_value_device('energy_reserse_b', 25)
 
-                    if dev_type == 'smartkettle':
-                        update_bool_device('start', 1)
-                        update_text_device('status', 2)
-                        update_value_device('temperature', 3)
-                        update_value_device('cook_temperature', 4)
-                        update_text_device('fault', 5)
+                        if dev_type == 'powermeter' and (searchCode('switch', StatusProperties) or searchCode('switch_1', StatusProperties)) and not searchCode('phase_a', StatusProperties):
+                            if update_bool_device('switch', 1):
+                                pass
+                            elif update_bool_device('switch_1', 1):
+                                pass
+                            update_value_device('cur_current', 2)
+                            update_power_device('cur_power', 3)
+                            update_value_device('cur_voltage', 4)
+                            update_text_device('fault', 5)
 
-                    if dev_type == 'mower':
-                        update_bool_device('MachineControlCmd', 1)
-                        update_bool_device('MachineRainMode', 2)
-                        update_select_device('MachineStatus', 3)
-                        update_select_device('MachineWarning', 4)
-                        update_select_device('MachineError', 5)
-                        update_select_device('MachineWorkMode', 5)
-                        battery_device()
+                        if dev_type == 'gateway':
+                            if update_value_device('master_state', 1):
+                                pass
+                            else:
+                                UpdateDomoticz(dev_id, 1, 'Gateway only', 0, 0)
 
-                    if dev_type == 'human_presence':
-                        update_bool_device('presence_state', 1, 'none')
-                        update_selectnum_device('sensitivity', 2)
-                        update_value_device('near_detection', 3)
-                        update_value_device('far_detection', 4)
-                        update_text_device('checking_result', 5)
-                        update_value_device('target_dis_closest', 6)
-                        update_select_device('presence_state', 10)
+                        if dev_type == 'doorcontact':
+                            update_bool_device('doorcontact_state', 1)
+                            battery_device()
 
-                    if dev_type == 'evcharger':
-                        update_bool_device('switch', 1)
-                        update_text_device('work_state', 2)
-                        update_value_device('temp_current', 3)
-                        update_value_device('power_total', 4)
-                        update_value_device('charge_cur_set', 5)
-                        update_value_device('forward_energy_total', 6)
-                        update_text_device('online_state', 7)
-                        # update_text_device('fault', 8)
+                        if dev_type == 'pirlight':
+                            update_bool_device('switch_pir', 2)
+                            update_select_device('device_mode', 3)
+                            update_select_device('pir_sensitivity', 4)
 
-                except Exception as err:
-                    DomoticzEx.Error('Device read failed: ' + str(dev_id) + ' line ' + format(sys.exc_info()[-1].tb_lineno))
-                    DomoticzEx.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
+                        if dev_type == 'smokedetector':
+                            if update_bool_device('smoke_sensor_status', 2, 'normal'):
+                                pass
+                            elif update_bool_device('PIR', 2, 0):
+                                pass
+                            # if searchCode('smoke_sensor_status', StatusProperties):
+                            #     currentstatus = StatusDeviceTuya('smoke_sensor_status')
+                            #     if currentstatus == 'normal':
+                            #         UpdateDomoticz(dev_id, 1, False, 0, 0)
+                            #     elif currentstatus == 'alarm':
+                            #         UpdateDomoticz(dev_id, 1, True, 1, 0)
+                            #     UpdateDomoticz(dev_id, 2, currentstatus, 0, 0)
+                            # if searchCode('PIR', StatusProperties):
+                            #     currentstatus = StatusDeviceTuya('PIR')
+                            #     if int(currentstatus) == 0:
+                            #         UpdateDomoticz(dev_id, 1, False, 0, 0)
+                            #     elif int(currentstatus) > 0:
+                            #         UpdateDomoticz(dev_id, 1, True, 1, 0)
+                            #     UpdateDomoticz(dev_id, 2, currentstatus, 0, 0)
+                            battery_device()
+
+                        if dev_type == 'garagedooropener':
+                            update_bool_device('switch_1', 1)
+                            update_bool_device('doorcontact_state', 2)
+                            update_bool_device('door_control_1', 3)
+
+                        if dev_type == 'feeder':
+                            update_selectnum_device('manual_feed', 1)
+                            update_select_device('feed_state', 2)
+                            update_selectnum_device('feed_report', 3)
+                            update_bool_device('light', 5)
+
+                        if dev_type == 'waterleak':
+                            update_bool_device('watersensor_state', 1, 'normal')
+                            battery_device()
+
+                        if dev_type == 'irrigation':
+                            if update_bool_device('switch', 1):
+                                pass
+                            elif update_bool_device('switch_1', 1):
+                                pass
+                            update_select_device('work_state', 2)
+                            update_bool_device('areaone', 3)
+                            update_bool_device('areatwo', 4)
+                            update_bool_device('areathree', 5)
+                            update_bool_device('areafour', 6)
+                            update_bool_device('areafive', 7)
+                            update_bool_device('areasix', 8)
+                            battery_device()
+
+                        if dev_type == 'wswitch':
+                            for x in range(1, 4):
+                                if update_select_device('switch' + str(x) + '_value', x):
+                                    pass
+                                elif update_select_device('switch_type_' + str(x), x):
+                                    pass
+                                elif update_select_device('switch_mode' + str(x), x):
+                                    pass
+                            battery_device()
+
+                        if dev_type == 'starlight':
+                            update_bool_device('switch_led', 1)
+                            colortuya = StatusDeviceTuya('colour_data')
+                            if currentstatus == True:
+                                tuyacolor = ast.literal_eval(StatusDeviceTuya('colour_data'))
+                                Color = Devices[dev_id].Units[1].Color
+                                if Color == '':
+                                    Color = {'b':255,'cw':0,'g':255,'m':3,'r':255,'t':0,'ww':0}
+                                h, s, v = tuyacolor['h'], tuyacolor['s'], tuyacolor['v']
+                                r, g, b = hsv_to_rgb_v2(h, s, v)
+                                colorupdate = {'b':b,'cw':0,'g':g,'m':3,'r':r,'t':0,'ww':0}
+                                # {'b':0,'cw':0,'g':3,'m':3,'r':255,'t':0,'ww':0}
+                                if (Color['r'] != r or Color['g'] != g or Color['b'] != b ):
+                                    UpdateDomoticz(dev_id, 1, json.dumps(colorupdate), 1, 0)
+                                    UpdateDomoticz(dev_id, 1, brightness_to_pct(StatusProperties, 'bright_value', int(v * 0.255)), 1, 0)
+                            update_bool_device('colour_switch', 2)
+                            if searchCode('laser_switch', StatusProperties):
+                                currentstatus = StatusDeviceTuya('laser_switch')
+                                currentdim = brightness_to_pct(StatusProperties, 'laser_bright', int(StatusDeviceTuya('laser_bright')))
+                                if bool(currentstatus) == False or currentdim == 0:
+                                    UpdateDomoticz(dev_id, 3, False, 0, 0)
+                                elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev_id].Units[3].sValue):
+                                    UpdateDomoticz(dev_id, 3, True, 1, 0)
+                                    UpdateDomoticz(dev_id, 3, currentdim, 1, 0)
+                            if searchCode('fan_switch', StatusProperties):
+                                currentstatus = StatusDeviceTuya('fan_switch')
+                                currentdim = brightness_to_pct(StatusProperties, 'fan_speed', int(StatusDeviceTuya('fan_speed')))
+                                if bool(currentstatus) == False or currentdim == 0:
+                                    UpdateDomoticz(dev_id, 4, False, 0, 0)
+                                elif bool(currentstatus) == True and currentdim > 0 and str(currentdim) != str(Devices[dev_id].Units[4].sValue):
+                                    UpdateDomoticz(dev_id, 4, True, 1, 0)
+                                    UpdateDomoticz(dev_id, 4, currentdim, 1, 0)
+
+                        if dev_type == 'smartlock':
+                            if update_bool_device('lock_motor_state', 1):
+                                pass
+                            elif update_bool_device('rtc_lock', 1):
+                                pass
+                            update_select_device('alarm_lock', 2)
+                            update_bool_device('unlock_ble', 3)
+                            update_bool_device('unlock_card', 4)
+                            battery_device()
+
+                        if dev_type == 'dehumidifier':
+                            update_bool_device('switch', 1)
+                            if update_selectnum_device('dehumidify_set_value', 2):
+                                pass
+                            elif update_selectnum_device('dehumidify_set_enum', 2):
+                                pass
+                            update_select_device('fan_speed_enum', 3)
+                            update_select_device('mode', 4)
+                            update_value_device('fault', 5)
+                            update_value_device('temp_indoor', 6)
+                            update_nvalue_device('humidity_indoor', 7)
+                            update_dualvalue_device('temp_indoor', 'humidity_indoor', 8)
+                            update_bool_device('child_lock', 9)
+                            update_bool_device('anion', 10)
+                            update_bool_device('filter_reset', 11)
+                            update_value_device('filter_life', 12)
+                            update_bool_device('runtime_total_reset', 13)
+                            update_value_device('type_of_equipment', 14)
+
+                        if dev_type == 'vacuum':
+                            update_bool_device('power_go', 1)
+                            update_bool_device('switch_charge', 2)
+                            update_select_device('mode', 3)
+                            update_select_device('suction', 4)
+                            update_select_device('cistern', 5)
+                            update_text_device('status', 6)
+                            update_value_device('electricity_left', 7)
+                            update_value_device('edge_brush', 8)
+                            update_value_device('roll_brush', 9)
+                            update_value_device('filter', 10)
+                            update_value_device('electricity_left', 7)
+                            update_text_device('fault', 11)
+                            battery_device
+
+                        if dev_type == 'multifunctionalarm':
+                            update_value_device('master_mode', 1)
+
+                        if dev_type == 'purifier':
+                            update_bool_device('switch', 1)
+                            update_value_device('pm25', 2)
+                            update_select_device('mode', 3)
+                            update_select_device('speed', 4)
+                            update_value_device('filter', 5)
+                            update_value_device('air_quality', 6)
+
+                        if dev_type == 'smartkettle':
+                            update_bool_device('start', 1)
+                            update_text_device('status', 2)
+                            update_value_device('temperature', 3)
+                            update_value_device('cook_temperature', 4)
+                            update_text_device('fault', 5)
+
+                        if dev_type == 'mower':
+                            update_bool_device('MachineControlCmd', 1)
+                            update_bool_device('MachineRainMode', 2)
+                            update_select_device('MachineStatus', 3)
+                            update_select_device('MachineWarning', 4)
+                            update_select_device('MachineError', 5)
+                            update_select_device('MachineWorkMode', 5)
+                            battery_device()
+
+                        if dev_type == 'human_presence':
+                            update_bool_device('presence_state', 1, 'none')
+                            update_selectnum_device('sensitivity', 2)
+                            update_value_device('near_detection', 3)
+                            update_value_device('far_detection', 4)
+                            update_text_device('checking_result', 5)
+                            update_value_device('target_dis_closest', 6)
+                            update_select_device('presence_state', 10)
+
+                        if dev_type == 'evcharger':
+                            update_bool_device('switch', 1)
+                            update_text_device('work_state', 2)
+                            update_value_device('temp_current', 3)
+                            update_value_device('power_total', 4)
+                            update_value_device('charge_cur_set', 5)
+                            update_value_device('forward_energy_total', 6)
+                            update_text_device('online_state', 7)
+                            # update_text_device('fault', 8)
+
+                    except Exception as err:
+                        DomoticzEx.Error('Device read failed: ' + str(dev_id) + ' line ' + format(sys.exc_info()[-1].tb_lineno))
+                        DomoticzEx.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
 
     except Exception as e:
         DomoticzEx.Error(str(e))
