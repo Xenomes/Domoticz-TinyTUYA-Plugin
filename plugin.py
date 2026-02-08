@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.0</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.1</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -129,9 +129,7 @@ import re
 import base64
 import traceback
 
-# Runtime timing 
-synctime = 900
-ip_scan_interval = 3600
+# Runtime timing
 last_update = 0
 last_ip_scan = 0
 
@@ -1066,8 +1064,14 @@ def onHandleThread(startup, local):
 
             global synctime, ip_scan_interval
 
-            synctime = int(Parameters.get('Mode3') or 900)
-            ip_scan_interval = int(Parameters.get('Mode4') or 86400)
+            try:
+                synctime = int(Parameters.get('Mode3') or 900)
+            except (ValueError, TypeError):
+                synctime = 900
+            try:
+                ip_scan_interval = int(Parameters.get('Mode4') or 86400)
+            except (ValueError, TypeError):
+                ip_scan_interval = 86400
 
             if not fulllocal:
                 # Cloud init 
@@ -1108,7 +1112,7 @@ def onHandleThread(startup, local):
                 
                 # Fetch schemas 
                 for dev in devs:
-                    dev_id = dev['id']
+                    dev_id = dev.get('id')
 
                     props = tuya.getproperties(dev_id).get('result', {})
                     props.setdefault('functions', [])
@@ -1183,9 +1187,9 @@ def onHandleThread(startup, local):
                         })
                     properties[dev_id] = dev
 
-                    properties[dev_id]['functions'] = json.dumps(schema_list, ensure_ascii=False, separators=(',', ':'))
+                    properties[dev_id]['functions'] = schema_list
+                    properties[dev_id]['status'] = schema_list
                     dev['functions'] = schema_list
-                    properties[dev_id]['status'] = json.dumps(schema_list, ensure_ascii=False, separators=(',', ':'))
                     dev['status'] = schema_list
                     
                     # DPS map (offline replacement for tuya.getdps)
@@ -1200,7 +1204,7 @@ def onHandleThread(startup, local):
                     dev.pop('mapping', None)
 
                     # status values
-                    result[dev_id] = json.dumps(dev['results'], ensure_ascii=False, separators=(',', ':'))
+                    result[dev_id] = dev['results']
 
                     localtuya[dev_id] = dev
 
@@ -1225,6 +1229,7 @@ def onHandleThread(startup, local):
                 for dev in devs:
                     dev_id = dev['id']
                     properties[dev_id] = raw['result']
+                    
 
                     if not properties[dev_id].get('functions'):
                         DomoticzEx.Error(f"!! Warning Functions data is missing for {dev_id} !!")
@@ -1264,6 +1269,14 @@ def onHandleThread(startup, local):
             dev_id             = dev.get('id', 'Unknown ID')
             online             = False  
             now = time.time()
+
+            if isinstance(StatusProperties, str):
+                StatusProperties = json.loads(StatusProperties)
+            if isinstance(FunctionProperties, str):
+                FunctionProperties = json.loads(FunctionProperties)
+            if isinstance(ResultValue, str):
+                ResultValue = json.loads(ResultValue)
+
             # LOCAL FIRST 
             try:
                 if testdata:
