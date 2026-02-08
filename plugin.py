@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.2</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.3</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -156,10 +156,20 @@ class BasePlugin:
             # rpdb.set_trace()
             DumpConfigToLog()
 
+        DomoticzEx.Log('Domoticz version: ' + Parameters['DomoticzVersion'])
         DomoticzEx.Log('TinyTUYA ' + Parameters['Version'] + ' plugin started')
         DomoticzEx.Log('TinyTuya Version: ' + tinytuya.version )
 
-        global testdata, Error, fulllocal
+        global testdata, Error, fulllocal, block_run
+
+        block_run = False
+        try:
+            DomoticzEx.Unit(Name='Test', DeviceID='1', Unit=254, Type=243, Subtype=19, Used=1).Create()
+            Devices['1'].Units[254].Delete()
+
+        except Exception:
+            DomoticzEx.Error("Domoticz blocks new devices. Enable 'Accept new Hardware Devices'.")
+            block_run = True
 
         if os.path.isfile(Parameters['HomeFolder'] + '/debug_devices.json'):
             testdata = True
@@ -993,12 +1003,11 @@ class BasePlugin:
 
     def onHeartbeat(self):
         DomoticzEx.Debug('onHeartbeat called')
-
-        onHandleThread(False, True)
-
-        DomoticzEx.Debug(f"Heartbeat check for sync {time.time() - last_update} >= {synctime} and fulllocal={fulllocal}")
-        if time.time() - last_update >= synctime and not fulllocal:
-            onHandleThread(False, False)
+        if Devices:
+            onHandleThread(False, True)
+            DomoticzEx.Debug(f"Heartbeat check for sync {time.time() - last_update} >= {synctime} and fulllocal={fulllocal}")
+            if time.time() - last_update >= synctime and not fulllocal:
+                onHandleThread(False, False)
 
 global _plugin
 _plugin = BasePlugin()
@@ -1040,6 +1049,11 @@ def onHandleThread(startup, local):
     global last_update, last_ip_scan, localtuya, testdata
     global cloud_status_cache, cloud_status_time
     global FunctionProperties, StatusProperties, ResultValue, dev_type, line
+    global synctime, ip_scan_interval
+
+    if not Devices:
+        DomoticzEx.Log('Device data not initialized, skipping onHandleThread')
+        return
 
     try:
         # INIT (startup only) 
@@ -1061,8 +1075,6 @@ def onHandleThread(startup, local):
             online = True
             Error = None
             line = 0
-
-            global synctime, ip_scan_interval
 
             try:
                 synctime = int(Parameters.get('Mode3') or 900)
@@ -1383,7 +1395,7 @@ def onHandleThread(startup, local):
                 DomoticzEx.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
 
             # Create devices
-            if startup:
+            if startup and not block_run:
                 deviceinfo = localtuya.get(dev_id, {'ip': '127.0.0.1', 'version': 'unknown'})
                 product_id = getConfigItem(dev_id, 'product_id') or ''
                 if dev_type in ('light', 'fanlight', 'pirlight') and createDevice(dev_id, 1):
