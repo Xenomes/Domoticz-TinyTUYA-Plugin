@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.1</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.2</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -142,7 +142,7 @@ try:
 except ImportError:
     print('No tinytuya module installed')
     SystemExit
-print(f'Tinytuya version: {tinytuya.version}')
+print(f"Tinytuya version: {tinytuya.version}")
 class BasePlugin:
     def __init__(self):
         self.enabled = True
@@ -185,7 +185,7 @@ class BasePlugin:
                 if 'This device is not recognized.' in Devices[dev].Units[1].sValue:
                     Devices[dev].Units[1].Delete()
         except Exception as e:
-            DomoticzEx.Error(f'Error during device cleanup: {e}')
+            DomoticzEx.Error(f"Error during device cleanup: {e}")
 
         # Start the shutdown process
         start_time = time.time()
@@ -996,7 +996,7 @@ class BasePlugin:
 
         onHandleThread(False, True)
 
-        DomoticzEx.Debug(f'Heartbeat check for sync {time.time() - last_update} >= {synctime} and fulllocal={fulllocal}')
+        DomoticzEx.Debug(f"Heartbeat check for sync {time.time() - last_update} >= {synctime} and fulllocal={fulllocal}")
         if time.time() - last_update >= synctime and not fulllocal:
             onHandleThread(False, False)
 
@@ -1133,7 +1133,7 @@ def onHandleThread(startup, local):
                     raw = json.load(dFile)
                     
                 devs = raw.get('result', [])
-                DomoticzEx.Debug(f'Loading {len(devs)} devices from tuya-raw.json')
+                DomoticzEx.Debug(f"Loading {len(devs)} devices from tuya-raw.json")
 
                 with open(Parameters['HomeFolder'] + '/snapshot.json') as eFile:
                     raw = json.load(eFile)
@@ -1208,10 +1208,10 @@ def onHandleThread(startup, local):
 
                     localtuya[dev_id] = dev
 
-                    # DomoticzEx.Debug(f'Convert {json.dumps(devs, indent=2)}')
-                    # DomoticzEx.Debug(f'Localtuya {localtuya}')
-                    # DomoticzEx.Debug(f'Loaded device {dev} from snapshot')
-                    # DomoticzEx.Debug(f'Loaded device {dev_id} with properties {properties[dev_id]} and result {result[dev_id]}')
+                    # DomoticzEx.Debug(f"Convert {json.dumps(devs, indent=2)}")
+                    # DomoticzEx.Debug(f"Localtuya {localtuya}")
+                    # DomoticzEx.Debug(f"Loaded device {dev} from snapshot")
+                    # DomoticzEx.Debug(f"Loaded device {dev_id} with properties {properties[dev_id]} and result {result[dev_id]}")
 
             # Active testdata loop 
             if testdata:
@@ -1280,16 +1280,16 @@ def onHandleThread(startup, local):
             # LOCAL FIRST 
             try:
                 if testdata:
-                    DomoticzEx.Debug(f'Testdata mode: loading status for device {dev["name"]} id {dev["id"]}')
+                    DomoticzEx.Debug(f"Testdata mode: loading status for device {dev['name']} id {dev['id']}")
                     with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
                         rData = json.load(rFile)
                         ResultValue = rData['result']
                         t = rData['t']
                     online = True
                 elif local:
-                    DomoticzEx.Debug(f'Attempting local connection to device {dev["name"]} id {dev["id"]}')
+                    DomoticzEx.Debug(f"Attempting local connection to device {dev['name']} id {dev['id']}")
                     if dev_id in localtuya and localtuya[dev_id].get('ip', '') != '':
-                        DomoticzEx.Debug(f'Local connection to device {dev["name"]} id {dev["id"]} using IP {localtuya[dev_id].get("ip", "unknown")} and version {localtuya[dev_id].get("version", "unknown")}')
+                        DomoticzEx.Debug(f"Local connection to device {dev['name']} id {dev['id']} using IP {localtuya[dev_id].get('ip', 'unknown')} and version {localtuya[dev_id].get('version', 'unknown')}")
                         d = tinytuya.Device(dev_id, localtuya[dev_id].get('ip'), dev['key'], version=localtuya.get(dev_id, {}).get('version', '3.3'))
                         d.socketRetryLimit = 1
                         d.socketRetryDelay = 1
@@ -1353,12 +1353,12 @@ def onHandleThread(startup, local):
                                 ResultValue = list(result.get(dev_id, []))
 
                         else:
-                            DomoticzEx.Debug(f"[LOCAL] No DPS detected for device {dev['name']} id {dev}, skipping local status fetch")
+                            DomoticzEx.Debug(f"[LOCAL] No DPS detected for device {dev['name']} id {dev['name']}, skipping local status fetch")
                             online = False
 
                 elif ((not local and not startup) or (not fulllocal)):
                     last_update = time.time()
-                    DomoticzEx.Debug(f'Cloud connection to device {dev["name"]} id {dev["id"]} synctime {now - cloud_status_time.get(dev_id, 0)}')
+                    DomoticzEx.Debug(f"Cloud connection to device {dev['name']} id {dev['id']} synctime {now - cloud_status_time.get(dev_id, 0)}")
                     try:
                         cloud = tuya.getstatus(dev_id)
                         ResultValue = cloud.get('result', [])
@@ -1367,14 +1367,14 @@ def onHandleThread(startup, local):
                     except:
                         online = False
                 else:
-                    DomoticzEx.Debug(f'Skipping status fetch for device {dev["name"]} id {dev["id"]} in full local mode')
+                    DomoticzEx.Debug(f"Skipping status fetch for device {dev['name']} id {dev['id']} in full local mode")
                     online = False
 
-                # DomoticzEx.Debug(f'Device {dev["name"]} is online = {online}')
-                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} FunctionProperties={properties[dev["id"]]["functions"]}')
-                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} StatusProperties={properties[dev["id"]]["status"]}')
-                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} ResultValue={result[dev["id"]]}')
-                # DomoticzEx.Debug(f'Device {dev["name"]} id {dev["id"]} DPSMap={dps_map[dev_id]}')
+                # DomoticzEx.Debug(f"Device {dev["name"]} is online = {online}')
+                # DomoticzEx.Debug(f"Device {dev["name"]} id {dev["id"]} FunctionProperties={properties[dev["id"]]["functions"]}')
+                # DomoticzEx.Debug(f"Device {dev["name"]} id {dev["id"]} StatusProperties={properties[dev["id"]]["status"]}')
+                # DomoticzEx.Debug(f"Device {dev["name"]} id {dev["id"]} ResultValue={result[dev["id"]]}')
+                # DomoticzEx.Debug(f"Device {dev["name"]} id {dev["id"]} DPSMap={dps_map[dev_id]}')
                 
             except Exception as err:
                 # Device unreachable fallback
@@ -1992,13 +1992,13 @@ def onHandleThread(startup, local):
                         DomoticzEx.Unit(Name=dev['name'] + ' (Checking result)', DeviceID=dev_id, Unit=51, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     # Create devices for channels 1-7
                     for channel in range(1, 8):
-                        temp = searchCode(f'ch{channel}_temp', ResultValue)
-                        hum = searchCode(f'ch{channel}_humi', ResultValue)
+                        temp = searchCode(f"ch{channel}_temp", ResultValue)
+                        hum = searchCode(f"ch{channel}_humi", ResultValue)
                         unit_base = 50 + (channel * 3)  # Unit 51, 54, 57, 60, 63, 66, 69
                         
                         # Get current values to check if they're valid
-                        current_temp = StatusDeviceTuya(f'ch{channel}_temp') if temp else None
-                        current_hum = StatusDeviceTuya(f'ch{channel}_humi') if hum else None
+                        current_temp = StatusDeviceTuya(f"ch{channel}_temp") if temp else None
+                        current_hum = StatusDeviceTuya(f"ch{channel}_humi") if hum else None
                         
                         # Check if temperature is valid (not -40)
                         temp_valid = temp and current_temp is not None and current_temp != -40
@@ -2006,16 +2006,16 @@ def onHandleThread(startup, local):
                         hum_valid = hum and current_hum is not None and current_hum != 0
                         
                         if createDevice(dev_id, unit_base - 2) and temp_valid:
-                            DomoticzEx.Log(f'Create Temperature Sensor device for channel {channel}')
-                            DomoticzEx.Unit(Name=dev['name'] + f' (CH{channel} Temperature)', DeviceID=dev_id, Unit=unit_base - 2, Type=80, Subtype=5, Used=0 if hum_valid else 1).Create()
+                            DomoticzEx.Log(f"Create Temperature Sensor device for channel {channel}")
+                            DomoticzEx.Unit(Name=dev['name'] + f" (CH{channel} Temperature)", DeviceID=dev_id, Unit=unit_base - 2, Type=80, Subtype=5, Used=0 if hum_valid else 1).Create()
                         
                         if createDevice(dev_id, unit_base - 1) and hum_valid:
-                            DomoticzEx.Log(f'Create Humidity Sensor device for channel {channel}')
-                            DomoticzEx.Unit(Name=dev['name'] + f' (CH{channel} Humidity)', DeviceID=dev_id, Unit=unit_base - 1, Type=81, Subtype=1, Used=0).Create()
+                            DomoticzEx.Log(f"Create Humidity Sensor device for channel {channel}")
+                            DomoticzEx.Unit(Name=dev['name'] + f" (CH{channel} Humidity)", DeviceID=dev_id, Unit=unit_base - 1, Type=81, Subtype=1, Used=0).Create()
                         
                         if createDevice(dev_id, unit_base) and temp_valid and hum_valid:
-                            DomoticzEx.Log(f'Create Combined Sensor device for channel {channel}')
-                            DomoticzEx.Unit(Name=dev['name'] + f' (CH{channel} Temperature + Humidity)', DeviceID=dev_id, Unit=unit_base, Type=82, Subtype=5, Used=1).Create()
+                            DomoticzEx.Log(f"Create Combined Sensor device for channel {channel}")
+                            DomoticzEx.Unit(Name=dev['name'] + f" (CH{channel} Temperature + Humidity)", DeviceID=dev_id, Unit=unit_base, Type=82, Subtype=5, Used=1).Create()
                     # if createDevice(dev_id, 47) and searchCode('alarm_switch', FunctionProperties):
                     #     DomoticzEx.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev_id, Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
@@ -3205,7 +3205,7 @@ def onHandleThread(startup, local):
                             pass
 
                         for switch_number in range(2, 9):
-                            update_bool_device(f'switch_{switch_number}', switch_number)
+                            update_bool_device(f"switch_{switch_number}", switch_number)
                         if update_value_device('cur_current', 15, 'mA'):
                             pass
                         elif update_value_device('cur_current', 11):
@@ -3571,11 +3571,11 @@ def onHandleThread(startup, local):
                         update_select_device('checking_result', 51)
                         for channel in range(1, 8):
                             unit_base = 50 + (channel * 3)  # Unit 51 => 71
-                            if update_value_device(f'ch{channel}_temp', unit_base - 2):
+                            if update_value_device(f"ch{channel}_temp", unit_base - 2):
                                 pass
-                            if update_nvalue_device(f'ch{channel}_humi', unit_base - 1):
+                            if update_nvalue_device(f"ch{channel}_humi", unit_base - 1):
                                 pass
-                            if update_dualvalue_device(f'ch{channel}_temp', f'ch{channel}_humi', unit_base):
+                            if update_dualvalue_device(f"ch{channel}_temp", f"ch{channel}_humi", unit_base):
                                 pass
                         battery_device()
 
@@ -4002,6 +4002,7 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
         return
 
     unit = Devices[ID].Units[Unit]
+    Name = Devices[ID].Units[Unit].Name
 
     # Detect color JSON explicitly
     is_color = False
@@ -4039,7 +4040,7 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
     Devices[ID].TimedOut = TimedOut
     unit.Update(Log=True)
 
-    DomoticzEx.Log(f"Update device value: {ID} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}"
+    DomoticzEx.Log(f"Update device: {Name} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}"
     )
 
 def StatusDeviceTuya(Function):
