@@ -509,7 +509,7 @@ class BasePlugin:
                         SendCommandTuya(DeviceID, 'anti_bother', True)
                         UpdateDomoticz(DeviceID, Unit, True, 1, 0)
 
-                if dev_type == 'sensor':
+                if dev_type in ('sensor', 'switch'):
                     if Command == 'Set Level' and Unit == 15:
                         SendCommandTuya(DeviceID, 'ph_warn_min', Level)
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
@@ -553,6 +553,12 @@ class BasePlugin:
                         UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 2:
                         SendCommandTuya(DeviceID, 'floodlight_switch', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 5:
+                        SendCommandTuya(DeviceID, 'decibel_switch', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 5:
+                        SendCommandTuya(DeviceID, 'decibel_switch', True)
                         UpdateDomoticz(DeviceID, Unit, True, 1, 0)
 
                 if dev_type == 'fan':
@@ -1775,7 +1781,7 @@ def onHandleThread(startup, local):
                         if createDevice(dev_id, 18) and searchCode('fault', StatusProperties):
                             DomoticzEx.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev_id, Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
 
-                    if dev_type in ('sensor', 'smartir'):
+                    if dev_type in ('sensor', 'smartir', 'switch'):
                         temp = searchCode('va_temperature', StatusProperties) or searchCode('temp_current', StatusProperties) or searchCode('local_temp', StatusProperties) or searchCode('Tin', StatusProperties)
                         hum = searchCode('va_humidity', StatusProperties) or searchCode('humidity_value', StatusProperties) or searchCode('local_hum', StatusProperties) or searchCode('humidity', StatusProperties) or searchCode('Hin', StatusProperties)
                         if createDevice(dev_id, 1) and temp:
@@ -1993,34 +1999,31 @@ def onHandleThread(startup, local):
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                             DomoticzEx.Unit(Name=dev['name'] + ' (Checking result)', DeviceID=dev_id, Unit=51, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
-                        # Create devices for channels 1-7
-                        for channel in range(1, 8):
+                        for channel in range(1, 8): # Unit 51, 54, 57, 60, 63, 66, 69
                             temp = searchCode(f"ch{channel}_temp", ResultValue)
                             hum = searchCode(f"ch{channel}_humi", ResultValue)
-                            unit_base = 50 + (channel * 3)  # Unit 51, 54, 57, 60, 63, 66, 69
-                            
-                            # Get current values to check if they're valid
+                            unit_base = 50 + (channel * 3) 
                             current_temp = StatusDeviceTuya(f"ch{channel}_temp") if temp else None
                             current_hum = StatusDeviceTuya(f"ch{channel}_humi") if hum else None
-                            
-                            # Check if temperature is valid (not -40)
                             temp_valid = temp and current_temp is not None and current_temp != -40
-                            # Check if humidity is valid (not 0)
                             hum_valid = hum and current_hum is not None and current_hum != 0
-                            
                             if createDevice(dev_id, unit_base - 2) and temp_valid:
                                 DomoticzEx.Log(f"Create Temperature Sensor device for channel {channel}")
                                 DomoticzEx.Unit(Name=dev['name'] + f" (CH{channel} Temperature)", DeviceID=dev_id, Unit=unit_base - 2, Type=80, Subtype=5, Used=0 if hum_valid else 1).Create()
-                            
                             if createDevice(dev_id, unit_base - 1) and hum_valid:
                                 DomoticzEx.Log(f"Create Humidity Sensor device for channel {channel}")
                                 DomoticzEx.Unit(Name=dev['name'] + f" (CH{channel} Humidity)", DeviceID=dev_id, Unit=unit_base - 1, Type=81, Subtype=1, Used=0).Create()
-                            
                             if createDevice(dev_id, unit_base) and temp_valid and hum_valid:
                                 DomoticzEx.Log(f"Create Combined Sensor device for channel {channel}")
                                 DomoticzEx.Unit(Name=dev['name'] + f" (CH{channel} Temperature + Humidity)", DeviceID=dev_id, Unit=unit_base, Type=82, Subtype=5, Used=1).Create()
                         # if createDevice(dev_id, 47) and searchCode('alarm_switch', FunctionProperties):
                         #     DomoticzEx.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev_id, Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 72) and (searchCode('liquid_state', StatusProperties)):
+                        Domoticz.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=72, Type=243, Subtype=22, Switchtype=0, Image=11, Used=1).Create()
+                    if createDevice(dev['id'], 73) and (searchCode('liquid_level_percent', StatusProperties)):
+                        Domoticz.Unit(Name=dev['name'] + ' (Percent)', DeviceID=dev['id'], Unit=73, Type=243, Subtype=6, Switchtype=0, Image=11, Used=1).Create()
+                    if createDevice(dev['id'], 74) and (searchCode('liquid_depth', StatusProperties)):
+                        Domoticz.Unit(Name=dev['name'] + ' (Depth)', DeviceID=dev['id'], Unit=74, Type=243, Subtype=27, Switchtype=0, Image=11, Used=1).Create()
 
                         if dev_type in ('smartir') and dev_id not in str(Devices):
                             DomoticzEx.Log('Infrared device: ' + str(dev['name']))
@@ -2038,6 +2041,8 @@ def onHandleThread(startup, local):
                             DomoticzEx.Unit(Name=dev['name'] + ' (Motion switch)', DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('basic_indicator', StatusProperties):
                             DomoticzEx.Unit(Name=dev['name'] + ' (Indicator)', DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev_id, 5) and searchCode('decibel_switch', StatusProperties):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Siren)', DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
                     if dev_type == 'fan':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
@@ -3479,7 +3484,7 @@ def onHandleThread(startup, local):
                             update_text_device('fault',18)
                             battery_device()
 
-                        if dev_type in ('sensor', 'smartir'):
+                        if dev_type in ('sensor', 'smartir', 'switch'):
                             if update_value_device('va_temperature', 1):
                                 pass
                             elif update_value_device('temp_current', 1):
@@ -3584,6 +3589,9 @@ def onHandleThread(startup, local):
                                     pass
                                 if update_dualvalue_device(f"ch{channel}_temp", f"ch{channel}_humi", unit_base):
                                     pass
+                            update_level_device('liquid_state', 72, {"normal": 1, "lower_alarm": 4, "upper_alarm": 4})
+                            update_svalue_device('liquid_depth', 73)
+                            update_value_device('liquid_level_percent', 74)
                             battery_device()
 
                         if dev_type == 'doorbell':
@@ -3594,6 +3602,7 @@ def onHandleThread(startup, local):
                             elif update_bool_device('movement_detect_pic', 3, '$'):
                                 pass
                             update_bool_device('basic_indicator', 4)
+                            update_bool_device('decibel_switch', 5)
 
                         if dev_type == 'fan':
                             update_bool_device('switch', 1)
