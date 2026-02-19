@@ -1896,7 +1896,7 @@ def onHandleThread(startup):
                             Domoticz.Log(f'Create Combined Sensor device for channel {channel}')
                             Domoticz.Unit(Name=dev['name'] + f' (CH{channel} Temperature + Humidity)', DeviceID=dev['id'], Unit=unit_base, Type=82, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 70) and (searchCode('liquid_state', StatusProperties)):
-                        Domoticz.Unit(Name=dev['name'] + ' (Percent)', DeviceID=dev['id'], Unit=70, Type=243, Subtype=22, Switchtype=0, Image=11, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=70, Type=243, Subtype=22, Switchtype=0, Image=11, Used=1).Create()
                     if createDevice(dev['id'], 71) and (searchCode('liquid_level_percent', StatusProperties)):
                         Domoticz.Unit(Name=dev['name'] + ' (Percent)', DeviceID=dev['id'], Unit=71, Type=243, Subtype=6, Switchtype=0, Image=11, Used=1).Create()
                     if createDevice(dev['id'], 72) and (searchCode('liquid_depth', StatusProperties)):
