@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.6d" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.3.6d</h2><br/>
+        <h2>TinyTUYA Plugin version 2.3.7</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -446,7 +446,7 @@ class BasePlugin:
                         SendCommandCloud(DeviceID, 'anti_bother', True)
                         UpdateDevice(DeviceID, Unit, True, 1, 0)
 
-                if dev_type == 'sensor':
+                if dev_type in ('sensor', 'switch'):
                     if Command == 'Set Level' and Unit == 15:
                         SendCommandCloud(DeviceID, 'ph_warn_min', Level)
                         UpdateDevice(DeviceID, Unit, Level, 1, 0)
@@ -1649,7 +1649,7 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 18) and searchCode('fault', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
 
-                if dev_type in ('sensor', 'smartir'):
+                if dev_type in ('sensor', 'smartir', 'switch'):
                     temp = searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue) or searchCode('local_temp', ResultValue) or searchCode('Tin', ResultValue)
                     hum = searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue) or searchCode('humidity', ResultValue) or searchCode('Hin', ResultValue)
                     if createDevice(dev['id'], 1) and temp:
@@ -3448,7 +3448,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 18, str(currentmode), 1, 0)
                         battery_device()
 
-                    if dev_type in ('sensor', 'smartir'):
+                    if dev_type in ('sensor', 'smartir', 'switch'):
                         temp = searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue) or searchCode('local_temp', ResultValue) or searchCode('Tin', ResultValue)
                         hum = searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue) or searchCode('humidity', ResultValue) or searchCode('Hin', ResultValue)
                         if temp:
@@ -4740,9 +4740,10 @@ def DumpConfigToLog():
 def DeviceType(category, product_id=None):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
-    if product_id in {'uoa3mayicscacseb', 'igtakqsfhbr7qsp7', 'vmyibm9bvdbudprp'}:
-        result = 'cover'
-    elif product_id == 'chfpey4klfcp1ipl':
+    # if product_id in {'uoa3mayicscacseb', 'igtakqsfhbr7qsp7', 'vmyibm9bvdbudprp', 'x3o8epevyeo3z3oa'}:
+    #     result = 'cover'
+    #elif
+    if product_id == 'chfpey4klfcp1ipl':
         result = 'dimmer'
     elif product_id in {'x3o8epevyeo3z3oa', 'gk0d4i8g5akryd9d'}:
         result = 'sensor'
