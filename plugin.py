@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.3.7</h2><br/>
+        <h2>TinyTUYA Plugin version 2.3.8</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1872,31 +1872,29 @@ def onHandleThread(startup):
                                 options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                         Domoticz.Unit(Name=dev['name'] + ' (Checking result)', DeviceID=dev['id'], Unit=51, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     # Create devices for channels 1-7
-                    for channel in range(1, 8):
+                    for channel in range(1, 8): # Unit 51, 54, 57, 60, 63, 66, 69
                         temp = searchCode(f'ch{channel}_temp', ResultValue)
                         hum = searchCode(f'ch{channel}_humi', ResultValue)
-                        unit_base = 50 + (channel * 3)  # Unit 51, 54, 57, 60, 63, 66, 69
-                        
-                        # Get current values to check if they're valid
+                        unit_base = 50 + (channel * 3)
                         current_temp = StatusDeviceTuya(f'ch{channel}_temp') if temp else None
                         current_hum = StatusDeviceTuya(f'ch{channel}_humi') if hum else None
-                        
-                        # Check if temperature is valid (not -40)
                         temp_valid = temp and current_temp is not None and current_temp != -40
-                        # Check if humidity is valid (not 0)
                         hum_valid = hum and current_hum is not None and current_hum != 0
-                        
                         if createDevice(dev['id'], unit_base - 2) and temp_valid:
                             Domoticz.Log(f'Create Temperature Sensor device for channel {channel}')
                             Domoticz.Unit(Name=dev['name'] + f' (CH{channel} Temperature)', DeviceID=dev['id'], Unit=unit_base - 2, Type=80, Subtype=5, Used=0 if hum_valid else 1).Create()
-                        
                         if createDevice(dev['id'], unit_base - 1) and hum_valid:
                             Domoticz.Log(f'Create Humidity Sensor device for channel {channel}')
                             Domoticz.Unit(Name=dev['name'] + f' (CH{channel} Humidity)', DeviceID=dev['id'], Unit=unit_base - 1, Type=81, Subtype=1, Used=0).Create()
-                        
                         if createDevice(dev['id'], unit_base) and temp_valid and hum_valid:
                             Domoticz.Log(f'Create Combined Sensor device for channel {channel}')
                             Domoticz.Unit(Name=dev['name'] + f' (CH{channel} Temperature + Humidity)', DeviceID=dev['id'], Unit=unit_base, Type=82, Subtype=5, Used=1).Create()
+                    if createDevice(dev['id'], 70) and (searchCode('liquid_state', StatusProperties)):
+                        Domoticz.Unit(Name=dev['name'] + ' (Percent)', DeviceID=dev['id'], Unit=70, Type=243, Subtype=22, Switchtype=0, Image=11, Used=1).Create()
+                    if createDevice(dev['id'], 71) and (searchCode('liquid_level_percent', StatusProperties)):
+                        Domoticz.Unit(Name=dev['name'] + ' (Percent)', DeviceID=dev['id'], Unit=71, Type=243, Subtype=6, Switchtype=0, Image=11, Used=1).Create()
+                    if createDevice(dev['id'], 72) and (searchCode('liquid_depth', StatusProperties)):
+                        Domoticz.Unit(Name=dev['name'] + ' (Depth)', DeviceID=dev['id'], Unit=72, Type=243, Subtype=27, Switchtype=0, Image=11, Used=1).Create()
 
                     # if createDevice(dev['id'], 47) and searchCode('alarm_switch', FunctionProperties):
                     #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -3695,27 +3693,23 @@ def onHandleThread(startup):
                                         mode.extend(the_values.get('range'))
                             if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[51].sValue):
                                 UpdateDevice(dev['id'], 51, int(mode.index(str(currentmode)) * 10), 1, 0)
-
                         # Update devices for channels 1-7
-                        for channel in range(1, 8):
+                        for channel in range(1, 8):  # Unit 51, 54, 57, 60, 63, 66, 69
                             temp = searchCode(f'ch{channel}_temp', ResultValue)
                             hum = searchCode(f'ch{channel}_humi', ResultValue)
-                            unit_base = 50 + (channel * 3)  # Unit 51, 54, 57, 60, 63, 66, 69
-                            
+                            unit_base = 50 + (channel * 3)
                             if temp:
                                 if searchCode(f'ch{channel}_temp', ResultValue):
                                     currenttemp = StatusDeviceTuya(f'ch{channel}_temp')
                                     # Only update if temperature is valid (not -40)
                                     if currenttemp != -40 and str(currenttemp) != str(Devices[dev['id']].Units[unit_base - 2].sValue):
                                         UpdateDevice(dev['id'], unit_base - 2, currenttemp, 0, 0)
-                            
                             if hum:
                                 if searchCode(f'ch{channel}_humi', ResultValue):
                                     currenthumi = StatusDeviceTuya(f'ch{channel}_humi')
                                     # Only update if humidity is valid (not 0)
                                     if currenthumi != 0 and str(currenthumi) != str(Devices[dev['id']].Units[unit_base - 1].nValue):
                                         UpdateDevice(dev['id'], unit_base - 1, 0, int(currenthumi), 0)
-
                             if temp and hum:
                                 currenttemp = StatusDeviceTuya(f'ch{channel}_temp')
                                 currenthumi = StatusDeviceTuya(f'ch{channel}_humi')
@@ -3724,6 +3718,21 @@ def onHandleThread(startup):
                                     currentdomo = Devices[dev['id']].Units[unit_base].sValue
                                     if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                         UpdateDevice(dev['id'], unit_base, str(currenttemp) + ';' + str(currenthumi) + ';0', 0, 0)
+                        if searchCode('liquid_state', ResultValue):
+                            currentstatus = StatusDeviceTuya('liquid_state')
+                            UpdateDevice(dev['id'], 70, currentstatus, 1 if currentstatus == 'normal' else 4, 0)
+                        if searchCode('liquid_level_percent', ResultValue):
+                            currentstatus = StatusDeviceTuya('liquid_level_percent')
+                            UpdateDevice(dev['id'], 71, currentstatus, 0, 0)
+                        if searchCode('liquid_depth', ResultValue):
+                            currentstatus = StatusDeviceTuya('liquid_depth')
+                            UpdateDevice(dev['id'], 72, currentstatus * 100, 0, 0)
+
+
+
+
+
+
                         # if searchCode('alarm_switch', ResultValue):
                         #     currentstatus = StatusDeviceTuya('alarm_switch')
                         #     UpdateDevice(dev['id'], 47, bool(currentstatus), int(bool(currentstatus)), 0)
@@ -4761,7 +4770,7 @@ def DeviceType(category, product_id=None):
         result = 'heater'
     elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt','hwktwkq', 'ydkt', 'cjkg'}:
         result = 'thermostat'
-    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','pir','dgnbj','cobj'}:
+    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','pir','dgnbj','cobj','ywcgq'}:
         result = 'sensor'
     elif category in {'rs'}:
         result = 'heatpump'
