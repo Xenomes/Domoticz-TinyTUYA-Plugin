@@ -100,6 +100,7 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 | 2.3.6 | Add Cover detection #192 |
 | 2.3.7 | Modification for Sensor detected as Switch #193 |
 | 2.3.8 | Add EPT ultrasonic sensor 3m #194 |
+| 2.3.9 | Add Siren function to Camera #195 |
 
  [The full Change log](CHANGELOG.md)
 
