@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.9A" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.9B" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.3.9A</h2><br/>
+        <h2>TinyTUYA Plugin version 2.3.9B</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -491,6 +491,18 @@ class BasePlugin:
                     elif Command == 'On' and Unit == 2:
                         SendCommandCloud(DeviceID, 'floodlight_switch', True)
                         UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 3:
+                        SendCommandCloud(DeviceID, 'motion_switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 3:
+                        SendCommandCloud(DeviceID, 'motion_switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 4:
+                        SendCommandCloud(DeviceID, 'basic_indicator', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 4:
+                        SendCommandCloud(DeviceID, 'basic_indicator', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
                     if Command == 'Off' and Unit == 5:
                         SendCommandCloud(DeviceID, 'decibel_switch', False)
                         UpdateDevice(DeviceID, Unit, False, 0, 0)
@@ -521,12 +533,10 @@ class BasePlugin:
                     elif Command == 'On' and Unit == 9:
                         SendCommandCloud(DeviceID, 'siren_switch', True)
                         UpdateDevice(DeviceID, Unit, True, 1, 0)
-                    if Command == 'Off' and Unit == 10:
-                        SendCommandCloud(DeviceID, 'nightvision_mode', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
-                    elif Command == 'On' and Unit == 10:
-                        SendCommandCloud(DeviceID, 'nightvision_mode', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Set Level' and Unit  == 10:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 10, mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 10, Level, 1, 0)
                     if Command == 'Off' and Unit == 11:
                         SendCommandCloud(DeviceID, 'floodlight_switch', False)
                         UpdateDevice(DeviceID, Unit, False, 0, 0)
@@ -1953,7 +1963,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
                     if createDevice(dev['id'], 2) and searchCode('floodlight_switch', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Light switch)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    if createDevice(dev['id'], 3) and (searchCode('motion_switch', StatusProperties) or searchCode('movement_detect_pic', StatusProperties)):
+                    if createDevice(dev['id'], 3) and searchCode('motion_switch', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Motion switch)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('basic_indicator', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Indicator)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -1968,7 +1978,20 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 9) and searchCode('siren_switch', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Siren)', DeviceID=dev['id'], Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 10) and searchCode('nightvision_mode', StatusProperties):
-                        Domoticz.Unit(Name=dev['name'] + ' (Night vision mode)', DeviceID=dev['id'], Unit=10, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        for item in StatusProperties:
+                            if item['code'] == 'nightvision_mode':
+                                the_values = json.loads(item['values'])
+                                mode = ['off']
+                                if item['type'] == 'Bitmap':
+                                    mode.extend(the_values.get('label'))
+                                else:
+                                    mode.extend(the_values.get('range'))
+                                options = {}
+                                options['LevelOffHidden'] = 'true'
+                                options['LevelActions'] = ''
+                                options['LevelNames'] = '|'.join(mode)
+                                options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                        Domoticz.Unit(Name=dev['name'] + ' (Night vision mode)', DeviceID=dev['id'], Unit=10, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                     if createDevice(dev['id'], 11) and searchCode('floodlight_switch', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Floodlight)', DeviceID=dev['id'], Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
@@ -3810,10 +3833,6 @@ def onHandleThread(startup):
                         if searchCode('motion_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('motion_switch')
                             UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('movement_detect_pic', StatusProperties):
-                            current = StatusDeviceTuya('movement_detect_pic')
-                            currentstatus = False if current == '$' else True
-                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
                         if searchCode('basic_indicator', StatusProperties):
                             currentstatus = StatusDeviceTuya('basic_indicator')
                             UpdateDevice(dev['id'], 4, bool(currentstatus), int(bool(currentstatus)), 0)
@@ -3829,14 +3848,23 @@ def onHandleThread(startup):
                         if searchCode('motion_area_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('motion_area_switch')
                             UpdateDevice(dev['id'], 8, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('decibel_switch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('decibel_switch')
+                        if searchCode('siren_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('siren_switch')
                             UpdateDevice(dev['id'], 9, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('nightvision_mode', StatusProperties):
-                            currentstatus = StatusDeviceTuya('nightvision_mode')
-                            UpdateDevice(dev['id'], 10, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('decibel_sfloodlight_switchwitch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('decibel_sfloodlight_switchwitch')
+                        if searchCode('nightvision_mode', ResultValue):
+                            currentmode = StatusDeviceTuya('nightvision_mode')
+                            for item in StatusProperties:
+                                if item['code'] == 'nightvision_mode':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[10].sValue):
+                                UpdateDevice(dev['id'], 10, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('loodlight_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('floodlight_switch')
                             UpdateDevice(dev['id'], 11, bool(currentstatus), int(bool(currentstatus)), 0)
 
                     if dev_type == 'fan':
