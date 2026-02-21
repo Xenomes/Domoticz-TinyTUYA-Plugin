@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.3.9A" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.3.9</h2><br/>
+        <h2>TinyTUYA Plugin version 2.3.9A</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -496,6 +496,42 @@ class BasePlugin:
                         UpdateDevice(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 5:
                         SendCommandCloud(DeviceID, 'decibel_switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 6:
+                        SendCommandCloud(DeviceID, 'basic_private', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 6:
+                        SendCommandCloud(DeviceID, 'basic_private', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 7:
+                        SendCommandCloud(DeviceID, 'motion_tracking', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 7:
+                        SendCommandCloud(DeviceID, 'motion_tracking', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 8:
+                        SendCommandCloud(DeviceID, 'motion_area_switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 8:
+                        SendCommandCloud(DeviceID, 'motion_area_switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 9:
+                        SendCommandCloud(DeviceID, 'siren_switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 9:
+                        SendCommandCloud(DeviceID, 'siren_switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 10:
+                        SendCommandCloud(DeviceID, 'nightvision_mode', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 10:
+                        SendCommandCloud(DeviceID, 'nightvision_mode', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 11:
+                        SendCommandCloud(DeviceID, 'floodlight_switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 11:
+                        SendCommandCloud(DeviceID, 'floodlight_switch', True)
                         UpdateDevice(DeviceID, Unit, True, 1, 0)
 
                 if dev_type == 'fan':
@@ -1922,7 +1958,19 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 4) and searchCode('basic_indicator', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Indicator)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 5) and searchCode('decibel_switch', StatusProperties):
-                        Domoticz.Unit(Name=dev['name'] + ' (Siren)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        Domoticz.Unit(Name=dev['name'] + ' (Decibel)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 6) and searchCode('basic_private', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Private)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 7) and searchCode('motion_tracking', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Motion tracking)', DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 8) and searchCode('motion_area_switch', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Motion area switch)', DeviceID=dev['id'], Unit=8, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 9) and searchCode('siren_switch', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Siren)', DeviceID=dev['id'], Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 10) and searchCode('nightvision_mode', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Night vision mode)', DeviceID=dev['id'], Unit=10, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 11) and searchCode('floodlight_switch', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Floodlight)', DeviceID=dev['id'], Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
                 if dev_type == 'fan':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
@@ -3772,6 +3820,24 @@ def onHandleThread(startup):
                         if searchCode('decibel_switch', StatusProperties):
                             currentstatus = StatusDeviceTuya('decibel_switch')
                             UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('basic_private', StatusProperties):
+                            currentstatus = StatusDeviceTuya('basic_private')
+                            UpdateDevice(dev['id'], 6, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('motion_tracking', StatusProperties):
+                            currentstatus = StatusDeviceTuya('motion_tracking')
+                            UpdateDevice(dev['id'], 7, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('motion_area_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('motion_area_switch')
+                            UpdateDevice(dev['id'], 8, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('decibel_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('decibel_switch')
+                            UpdateDevice(dev['id'], 9, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('nightvision_mode', StatusProperties):
+                            currentstatus = StatusDeviceTuya('nightvision_mode')
+                            UpdateDevice(dev['id'], 10, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('decibel_sfloodlight_switchwitch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('decibel_sfloodlight_switchwitch')
+                            UpdateDevice(dev['id'], 11, bool(currentstatus), int(bool(currentstatus)), 0)
 
                     if dev_type == 'fan':
                         if searchCode('switch', FunctionProperties):
