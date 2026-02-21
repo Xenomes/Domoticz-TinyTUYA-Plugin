@@ -509,7 +509,7 @@ class BasePlugin:
                         SendCommandTuya(DeviceID, 'anti_bother', True)
                         UpdateDomoticz(DeviceID, Unit, True, 1, 0)
 
-                if dev_type in ('sensor', 'switch'):
+                if dev_type in ('sensor', 'switch/sensor'):
                     if Command == 'Set Level' and Unit == 15:
                         SendCommandTuya(DeviceID, 'ph_warn_min', Level)
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
@@ -1781,7 +1781,7 @@ def onHandleThread(startup, local):
                         if createDevice(dev_id, 18) and searchCode('fault', StatusProperties):
                             DomoticzEx.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev_id, Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
 
-                    if dev_type in ('sensor', 'smartir', 'switch'):
+                    if dev_type in ('sensor', 'smartir', 'switch/sensor'):
                         temp = searchCode('va_temperature', StatusProperties) or searchCode('temp_current', StatusProperties) or searchCode('local_temp', StatusProperties) or searchCode('Tin', StatusProperties)
                         hum = searchCode('va_humidity', StatusProperties) or searchCode('humidity_value', StatusProperties) or searchCode('local_hum', StatusProperties) or searchCode('humidity', StatusProperties) or searchCode('Hin', StatusProperties)
                         if createDevice(dev_id, 1) and temp:
@@ -2019,11 +2019,11 @@ def onHandleThread(startup, local):
                         # if createDevice(dev_id, 47) and searchCode('alarm_switch', FunctionProperties):
                         #     DomoticzEx.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev_id, Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                     if createDevice(dev['id'], 72) and (searchCode('liquid_state', StatusProperties)):
-                        Domoticz.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=72, Type=243, Subtype=22, Switchtype=0, Image=11, Used=1).Create()
+                        DomoticzEx.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=72, Type=243, Subtype=22, Switchtype=0, Image=11, Used=1).Create()
                     if createDevice(dev['id'], 73) and (searchCode('liquid_level_percent', StatusProperties)):
-                        Domoticz.Unit(Name=dev['name'] + ' (Percent)', DeviceID=dev['id'], Unit=73, Type=243, Subtype=6, Switchtype=0, Image=11, Used=1).Create()
+                        DomoticzEx.Unit(Name=dev['name'] + ' (Percent)', DeviceID=dev['id'], Unit=73, Type=243, Subtype=6, Switchtype=0, Image=11, Used=1).Create()
                     if createDevice(dev['id'], 74) and (searchCode('liquid_depth', StatusProperties)):
-                        Domoticz.Unit(Name=dev['name'] + ' (Depth)', DeviceID=dev['id'], Unit=74, Type=243, Subtype=27, Switchtype=0, Image=11, Used=1).Create()
+                        DomoticzEx.Unit(Name=dev['name'] + ' (Depth)', DeviceID=dev['id'], Unit=74, Type=243, Subtype=27, Switchtype=0, Image=11, Used=1).Create()
 
                         if dev_type in ('smartir') and dev_id not in str(Devices):
                             DomoticzEx.Log('Infrared device: ' + str(dev['name']))
@@ -3484,7 +3484,7 @@ def onHandleThread(startup, local):
                             update_text_device('fault',18)
                             battery_device()
 
-                        if dev_type in ('sensor', 'smartir', 'switch'):
+                        if dev_type in ('sensor', 'smartir', 'switch/sensor'):
                             if update_value_device('va_temperature', 1):
                                 pass
                             elif update_value_device('temp_current', 1):
@@ -3590,8 +3590,8 @@ def onHandleThread(startup, local):
                                 if update_dualvalue_device(f"ch{channel}_temp", f"ch{channel}_humi", unit_base):
                                     pass
                             update_level_device('liquid_state', 72, {"normal": 1, "lower_alarm": 4, "upper_alarm": 4})
-                            update_svalue_device('liquid_depth', 73)
-                            update_value_device('liquid_level_percent', 74)
+                            update_value_device('liquid_level_percent', 73)
+                            update_value_device('liquid_depth', 74)
                             battery_device()
 
                         if dev_type == 'doorbell':
@@ -3931,7 +3931,7 @@ def DeviceType(category, product_id=None):
         resultdev = 'dimmer'
     elif product_id in {'p6sqiuesvhmhvv4f'}:
         resultdev = 'doorcontact'
-    elif category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr', 'aqcz'}:
+    elif category in {'kg', 'cz', 'pc', 'znjdq', 'szjqr', 'aqcz'}:
         resultdev = 'switch'
     elif category in {'tdq'}:
         resultdev = 'switch/sensor'
@@ -3945,7 +3945,7 @@ def DeviceType(category, product_id=None):
         resultdev = 'heater'
     elif category in {'wk', 'wkf', 'mjj', 'wkcz', 'kt','hwktwkq', 'ydkt', 'cjkg'}:
         resultdev = 'thermostat'
-    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','pir','dgnbj','cobj'}:
+    elif category in {'wsdcg', 'co2bj', 'hjjcy', 'qxj', 'ldcg', 'swtz', 'zwjcy','pir','dgnbj','cobj', 'ywcgq'}:
         resultdev = 'sensor'
     elif category in {'rs'}:
         resultdev = 'heatpump'
@@ -4231,6 +4231,8 @@ def get_scale(device_functions, actual_function_name, raw):
             resultscale = float(raw / 2)
         if product_id == 'g9m7honkxjweukvt' and actual_function_name == 'temp_current':
             resultscale = float(raw / 10)
+        if unit == 'm':
+            resultscale = float(resultscale * 100)
     except:
         resultscale = raw
         DomoticzEx.Debug('Scale device:' + str(actual_function_name) + ' Value: ' + str(resultscale))
