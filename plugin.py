@@ -6,8 +6,8 @@
 <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
-        <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
-            https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441
+        <a href="https://www.Domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
+            https://www.Domoticz.com/forum/viewtopic.php?f=65&amp;t=39441
         </a>
         <br/><br/>
 
@@ -1038,8 +1038,6 @@ class BasePlugin:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'F', mode[int(Level / 10)])
                         UpdateDomoticz(DeviceID, 4, Level, 1, 0)
-        except Exception as e:
-            DomoticzEx.Error('onCommand ERROR: {}'.format(str(e)))
 
                 if dev_type == 'siren':
                     if Command == 'Off':
@@ -1384,8 +1382,9 @@ class BasePlugin:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandCloud(DeviceID, 'F', mode[int(Level / 10)])
                         UpdateDevice(DeviceID, 4, Level, 1, 0)
+
         except Exception as e:
-            Domoticz.Error("onCommand ERROR: {}".format(str(e)))
+            DomoticzEx.Error("onCommand ERROR: {}".format(str(e)))
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         DomoticzEx.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
 
@@ -2415,12 +2414,12 @@ def onHandleThread(startup, local):
                                 DomoticzEx.Unit(Name=dev['name'] + f" (CH{channel} Temperature + Humidity)", DeviceID=dev_id, Unit=unit_base, Type=82, Subtype=5, Used=1).Create()
                         # if createDevice(dev_id, 47) and searchCode('alarm_switch', FunctionProperties):
                         #     DomoticzEx.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev_id, Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                    if createDevice(dev['id'], 72) and (searchCode('liquid_state', StatusProperties)):
-                        DomoticzEx.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=72, Type=243, Subtype=22, Switchtype=0, Image=11, Used=1).Create()
-                    if createDevice(dev['id'], 73) and (searchCode('liquid_level_percent', StatusProperties)):
-                        DomoticzEx.Unit(Name=dev['name'] + ' (Percent)', DeviceID=dev['id'], Unit=73, Type=243, Subtype=6, Switchtype=0, Image=11, Used=1).Create()
-                    if createDevice(dev['id'], 74) and (searchCode('liquid_depth', StatusProperties)):
-                        DomoticzEx.Unit(Name=dev['name'] + ' (Depth)', DeviceID=dev['id'], Unit=74, Type=243, Subtype=27, Switchtype=0, Image=11, Used=1).Create()
+                        if createDevice(dev['id'], 72) and (searchCode('liquid_state', StatusProperties)):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=72, Type=243, Subtype=22, Switchtype=0, Image=11, Used=1).Create()
+                        if createDevice(dev['id'], 73) and (searchCode('liquid_level_percent', StatusProperties)):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Percent)', DeviceID=dev['id'], Unit=73, Type=243, Subtype=6, Switchtype=0, Image=11, Used=1).Create()
+                        if createDevice(dev['id'], 74) and (searchCode('liquid_depth', StatusProperties)):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Depth)', DeviceID=dev['id'], Unit=74, Type=243, Subtype=27, Switchtype=0, Image=11, Used=1).Create()
 
                         if dev_type in ('smartir') and dev_id not in str(Devices):
                             DomoticzEx.Log('Infrared device: ' + str(dev['name']))
@@ -2428,46 +2427,27 @@ def onHandleThread(startup, local):
                             UpdateDomoticz(dev_id, 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
 
                     if dev_type == 'doorbell':
-                        if searchCode('doorbell_active', StatusProperties):
-                            # datetimestamp = StatusDeviceTuya('doorbell_active')
-                            # # UpdateDevice(dev['id'], 1, datetimestamp, 0, 0)
-                            # # timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
-                            # # if (int(timestamp) - int(datetimestamp)) < 61:
-                            # #     UpdateDevice(dev['id'], 1, True, 1, 0)
-                            # # else:
-                            # #     UpdateDevice(dev['id'], 1, False, 0, 0)
-                            # if datetimestamp == '' or datetimestamp == None:
-                            #     timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
-                            # currentstatus = (int(timestamp) - int(datetimestamp)) < 61
-                            current = StatusDeviceTuya('doorbell_active')
-                            currentstatus = False if current == '' or current == None else True
-                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('floodlight_switch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('floodlight_switch')
-                            UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('motion_switch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('motion_switch')
-                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('basic_indicator', StatusProperties):
-                            currentstatus = StatusDeviceTuya('basic_indicator')
-                            UpdateDevice(dev['id'], 4, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('decibel_switch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('decibel_switch')
-                            UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('basic_private', StatusProperties):
-                            currentstatus = StatusDeviceTuya('basic_private')
-                            UpdateDevice(dev['id'], 6, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('motion_tracking', StatusProperties):
-                            currentstatus = StatusDeviceTuya('motion_tracking')
-                            UpdateDevice(dev['id'], 7, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('motion_area_switch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('motion_area_switch')
-                            UpdateDevice(dev['id'], 8, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('siren_switch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('siren_switch')
-                            UpdateDevice(dev['id'], 9, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('nightvision_mode', ResultValue):
-                            currentmode = StatusDeviceTuya('nightvision_mode')
+                        if createDevice(dev['id'], 1) and searchCode('doorbell_active', StatusProperties):
+                            DomoticzEx.Log('Create device Doorbell')
+                            #DomoticzEx.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
+                            DomoticzEx.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
+                        if createDevice(dev['id'], 2) and searchCode('floodlight_switch', StatusProperties):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Light switch)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], 3) and searchCode('motion_switch', StatusProperties):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Motion switch)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], 4) and searchCode('basic_indicator', StatusProperties):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Indicator)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], 5) and searchCode('decibel_switch', StatusProperties):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Decibel)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], 6) and searchCode('basic_private', StatusProperties):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Private)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], 7) and searchCode('motion_tracking', StatusProperties):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Motion tracking)', DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], 8) and searchCode('motion_area_switch', StatusProperties):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Motion area switch)', DeviceID=dev['id'], Unit=8, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], 9) and searchCode('siren_switch', StatusProperties):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Siren)', DeviceID=dev['id'], Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], 10) and searchCode('nightvision_mode', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'nightvision_mode':
                                     the_values = json.loads(item['values'])
@@ -2476,19 +2456,37 @@ def onHandleThread(startup, local):
                                         mode.extend(the_values.get('label'))
                                     else:
                                         mode.extend(the_values.get('range'))
-                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[10].sValue):
-                                UpdateDevice(dev['id'], 10, int(mode.index(str(currentmode)) * 10), 1, 0)
-                        if searchCode('loodlight_switch', StatusProperties):
-                            currentstatus = StatusDeviceTuya('floodlight_switch')
-                            UpdateDevice(dev['id'], 11, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if  searchCode('ipc_siren_volume', StatusProperties):
-                            currentstatus = StatusDeviceTuya('ipc_siren_volume')
-                            if str(currentstatus) != str(Devices[dev['id']].Units[12].nValue):
-                                UpdateDevice(dev['id'], 12, str(currentstatus), 1, 0)
-                        if  searchCode('ipc_siren_duration', StatusProperties):
-                            currentstatus = StatusDeviceTuya('ipc_siren_duration')
-                            if str(currentstatus) != str(Devices[dev['id']].Units[13].nValue):
-                                UpdateDevice(dev['id'], 13, str(currentstatus), 1, 0)
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Night vision mode)', DeviceID=dev['id'], Unit=10, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], 11) and searchCode('floodlight_switch', StatusProperties):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Floodlight)', DeviceID=dev['id'], Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev['id'], 12) and searchCode('ipc_siren_volume', FunctionProperties):
+                            for item in FunctionProperties:
+                                temp = 'ipc_siren_volume'
+                                if item['code'] == temp:
+                                    the_values = json.loads(item['values'])
+                                    options = {}
+                                    options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                    options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                    options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                    options['ValueUnit'] = the_values.get('unit')
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Siren Volume)', DeviceID=dev['id'], Unit=12, Type=242, Subtype=1, Options=options, Image=8, Used=1).Create()
+                        if createDevice(dev['id'], 13) and searchCode('ipc_siren_duration', FunctionProperties):
+                            for item in FunctionProperties:
+                                temp = 'ipc_siren_duration'
+                                if item['code'] == temp:
+                                    the_values = json.loads(item['values'])
+                                    options = {}
+                                    options['ValueStep'] = get_scale(StatusProperties, temp, the_values.get('step'))
+                                    options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
+                                    options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
+                                    options['ValueUnit'] = the_values.get('unit')
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Siren Duration)', DeviceID=dev['id'], Unit=13, Type=242, Subtype=1, Options=options, Image=21, Used=1).Create()
+
 
                     if dev_type == 'fan':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
