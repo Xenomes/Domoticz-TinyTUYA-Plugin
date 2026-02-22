@@ -3464,10 +3464,13 @@ def onHandleThread(startup, local):
                 battery = is_battery_device(StatusProperties)
 
                 if not battery:
-                    if online and Devices[dev_id].TimedOut == 1:
-                        UpdateDomoticz(dev_id, 1, None, 0, 0)
-                    elif not online and Devices[dev_id].TimedOut == 0:
-                        UpdateDomoticz(dev_id, 1, False, 0, 1)
+                    try:
+                        if online and Devices[dev_id].TimedOut == 1:
+                            UpdateDomoticz(dev_id, 1, None, 0, 0)
+                        elif not online and Devices[dev_id].TimedOut == 0:
+                            UpdateDomoticz(dev_id, 1, False, 0, 1)
+                    except:
+                        DomoticzEx.Log(f'Device {dev_name} offline')
                 else:
                     # Battery devices never timeout
                     if Devices[dev_id].TimedOut == 1:
