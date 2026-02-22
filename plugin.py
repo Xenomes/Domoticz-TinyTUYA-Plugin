@@ -549,6 +549,7 @@ class BasePlugin:
                     if Command == 'Set Level' and Unit == 13:
                         SendCommandCloud(DeviceID, 'ipc_siren_duration', Level)
                         UpdateDevice(DeviceID, Unit, Level, 1, 0)
+
                 if dev_type == 'fan':
                     if Command == 'Off' and Unit == 1:
                         SendCommandCloud(DeviceID, 'switch', False)
@@ -3896,11 +3897,11 @@ def onHandleThread(startup):
                         if  searchCode('ipc_siren_volume', StatusProperties):
                             currentstatus = StatusDeviceTuya('ipc_siren_volume')
                             if str(currentstatus) != str(Devices[dev['id']].Units[12].nValue):
-                                UpdateDevice(dev['id'], 12, str(currentstatus), 0, 0)
+                                UpdateDevice(dev['id'], 12, str(currentstatus), 1, 0)
                         if  searchCode('ipc_siren_duration', StatusProperties):
                             currentstatus = StatusDeviceTuya('ipc_siren_duration')
                             if str(currentstatus) != str(Devices[dev['id']].Units[13].nValue):
-                                UpdateDevice(dev['id'], 13, str(currentstatus), 0, 0)
+                                UpdateDevice(dev['id'], 13, str(currentstatus), 1, 0)
 
                     if dev_type == 'fan':
                         if searchCode('switch', FunctionProperties):
