@@ -549,17 +549,69 @@ class BasePlugin:
 
                 if dev_type == 'doorbell':
                     if Command == 'Off' and Unit == 2:
-                        SendCommandTuya(DeviceID, 'floodlight_switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        SendCommandCloud(DeviceID, 'floodlight_switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 2:
-                        SendCommandTuya(DeviceID, 'floodlight_switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        SendCommandCloud(DeviceID, 'floodlight_switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 3:
+                        SendCommandCloud(DeviceID, 'motion_switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 3:
+                        SendCommandCloud(DeviceID, 'motion_switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 4:
+                        SendCommandCloud(DeviceID, 'basic_indicator', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 4:
+                        SendCommandCloud(DeviceID, 'basic_indicator', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
                     if Command == 'Off' and Unit == 5:
-                        SendCommandTuya(DeviceID, 'decibel_switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        SendCommandCloud(DeviceID, 'decibel_switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 5:
-                        SendCommandTuya(DeviceID, 'decibel_switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        SendCommandCloud(DeviceID, 'decibel_switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 6:
+                        SendCommandCloud(DeviceID, 'basic_private', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 6:
+                        SendCommandCloud(DeviceID, 'basic_private', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 7:
+                        SendCommandCloud(DeviceID, 'motion_tracking', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 7:
+                        SendCommandCloud(DeviceID, 'motion_tracking', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 8:
+                        SendCommandCloud(DeviceID, 'motion_area_switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 8:
+                        SendCommandCloud(DeviceID, 'motion_area_switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 9:
+                        SendCommandCloud(DeviceID, 'siren_switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 9:
+                        SendCommandCloud(DeviceID, 'siren_switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Set Level' and Unit  == 10:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 10, mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 10, Level, 1, 0)
+                    if Command == 'Off' and Unit == 11:
+                        SendCommandCloud(DeviceID, 'floodlight_switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 11:
+                        SendCommandCloud(DeviceID, 'floodlight_switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Set Level' and Unit == 12:
+                        SendCommandCloud(DeviceID, 'ipc_siren_volume', Level)
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                    if Command == 'Set Level' and Unit == 13:
+                        SendCommandCloud(DeviceID, 'ipc_siren_duration', Level)
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
                 if dev_type == 'fan':
                     if Command == 'Off' and Unit == 1:
@@ -989,6 +1041,351 @@ class BasePlugin:
         except Exception as e:
             DomoticzEx.Error('onCommand ERROR: {}'.format(str(e)))
 
+                if dev_type == 'siren':
+                    if Command == 'Off':
+                        SendCommandCloud(DeviceID, 'AlarmSwitch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On':
+                        SendCommandCloud(DeviceID, 'AlarmSwitch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    elif Command == 'Set Level' and Unit == 2:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 2, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit == 3:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 3, Level, 1, 0)
+                    # Other Type of alarm with same code
+                    if Command == 'Off' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'muffling', False)
+                        UpdateDevice(DeviceID, 1, False, 0, 0)
+                    elif Command == 'On' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'muffling', True)
+                        UpdateDevice(DeviceID, 1, True, 1, 0)
+                    elif Command == 'Set Level' and Unit == 2:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'alarm_state', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 2, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit == 3:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'alarm_volume', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 3, Level, 1, 0)
+
+                if dev_type == 'pirlight':
+                    if Command == 'Off' and Unit == 2:
+                        SendCommandCloud(DeviceID, 'switch_pir', False)
+                        UpdateDevice(DeviceID, 2, False, 0, 0)
+                    elif Command == 'On' and Unit == 2:
+                        SendCommandCloud(DeviceID, 'switch_pir', True)
+                        UpdateDevice(DeviceID, 2, True, 1, 0)
+                    elif Command == 'Set Level' and Unit == 3:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'device_mode', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 3, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit == 4:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'pir_sensitivity', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 4, Level, 1, 0)
+
+                if dev_type == 'garagedooropener':
+                    if Command == 'Off' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'switch_1', False)
+                        UpdateDevice(DeviceID, 1, False, 0, 0)
+                    elif Command == 'On' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'switch_1', True)
+                        UpdateDevice(DeviceID, 1, True, 1, 0)
+
+                if dev_type == 'feeder':
+                    if Command == 'Off' and Unit == 5:
+                        SendCommandCloud(DeviceID, 'light', False)
+                        UpdateDevice(DeviceID, 5, False, 0, 0)
+                    elif Command == 'On' and Unit == 5:
+                        SendCommandCloud(DeviceID, 'light', True)
+                        UpdateDevice(DeviceID, 5, True, 1, 0)
+                    elif Command == 'Set Level' and Unit == 1:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
+                        UpdateDevice(DeviceID, 1, Level, 1, 0)
+
+                if dev_type == 'irrigation':
+                    if searchCode('switch_1', function):
+                        switch = 'switch_1'
+                    else:
+                        switch = 'switch'
+                    if Command == 'Off' and Unit == 1:
+                        SendCommandCloud(DeviceID, switch, False)
+                        UpdateDevice(DeviceID, 1, False, 0, 0)
+                    elif Command == 'On' and Unit == 1:
+                        SendCommandCloud(DeviceID, switch, True)
+                        UpdateDevice(DeviceID, 1, True, 1, 0)
+                    if Command == 'Off' and Unit == 3:
+                        SendCommandCloud(DeviceID, 'areaone', False)
+                        UpdateDevice(DeviceID, 3, False, 0, 0)
+                    elif Command == 'On' and Unit == 3:
+                        SendCommandCloud(DeviceID, 'areaone', True)
+                        UpdateDevice(DeviceID, 3, True, 1, 0)
+                    if Command == 'Off' and Unit == 4:
+                        SendCommandCloud(DeviceID, 'areatwo', False)
+                        UpdateDevice(DeviceID, 4, False, 0, 0)
+                    elif Command == 'On' and Unit == 4:
+                        SendCommandCloud(DeviceID, 'areatwo', True)
+                        UpdateDevice(DeviceID, 4, True, 1, 0)
+                    if Command == 'Off' and Unit == 5:
+                        SendCommandCloud(DeviceID, 'areathree', False)
+                        UpdateDevice(DeviceID, 5, False, 0, 0)
+                    elif Command == 'On' and Unit == 5:
+                        SendCommandCloud(DeviceID, 'areathree', True)
+                        UpdateDevice(DeviceID, 5, True, 1, 0)
+                    if Command == 'Off' and Unit == 6:
+                        SendCommandCloud(DeviceID, 'areafour', False)
+                        UpdateDevice(DeviceID, 6, False, 0, 0)
+                    elif Command == 'On' and Unit == 6:
+                        SendCommandCloud(DeviceID, 'areafour', True)
+                        UpdateDevice(DeviceID, 6, True, 1, 0)
+                    if Command == 'Off' and Unit == 7:
+                        SendCommandCloud(DeviceID, 'areafive', False)
+                        UpdateDevice(DeviceID, 7, False, 0, 0)
+                    elif Command == 'On' and Unit == 7:
+                        SendCommandCloud(DeviceID, 'areafive', True)
+                        UpdateDevice(DeviceID, 7, True, 1, 0)
+                    if Command == 'Off' and Unit == 8:
+                        SendCommandCloud(DeviceID, 'areasix', False)
+                        UpdateDevice(DeviceID, 8, False, 0, 0)
+                    elif Command == 'On' and Unit == 8:
+                        SendCommandCloud(DeviceID, 'areasix', True)
+                        UpdateDevice(DeviceID, 8, True, 1, 0)
+
+                if dev_type == 'starlight':
+                    if Command == 'Off' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'switch_led', False)
+                        SendCommandCloud(DeviceID, 'colour_switch', False)
+                        UpdateDevice(DeviceID, 1, False, 0, 0)
+                        UpdateDevice(DeviceID, 2, False, 0, 0)
+                    elif Command == 'On' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'switch_led', True)
+                        SendCommandCloud(DeviceID, 'colour_switch', True)
+                        UpdateDevice(DeviceID, 1, True, 1, 0)
+                        UpdateDevice(DeviceID, 2, True, 1, 0)
+                    elif Command == 'Set Level' and Unit == 1:
+                        Color = Devices[DeviceID].Units[1].Color
+                        if Color == '': Color ={"b":255,"cw":0,"g":255,"m":3,"r":255,"t":0,"ww":0}
+                        h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
+                        hvs = {'h':h, 's':s, 'v':Level * 10}
+                        SendCommandCloud(DeviceID, 'colour_data', hvs)
+                        SendCommandCloud(DeviceID, 'colour_switch', True)
+                        UpdateDevice(DeviceID, 1, Color, 1, 0)
+                    elif Command == 'Set Color' and Unit == 1: #
+                        h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
+                        hvs = {'h':h, 's':s, 'v':Level * 10}
+                        SendCommandCloud(DeviceID, 'colour_data', hvs)
+                        SendCommandCloud(DeviceID, 'colour_switch', True)
+                        UpdateDevice(DeviceID, 1, Color, 1, 0)
+                    if Command == 'Off' and Unit == 2:
+                        SendCommandCloud(DeviceID, 'colour_switch', False)
+                        UpdateDevice(DeviceID, 2, False, 0, 0)
+                        UpdateDevice(DeviceID, 1, False, 0, 0)
+                    elif Command == 'On' and Unit == 2:
+                        SendCommandCloud(DeviceID, 'colour_switch', True)
+                        UpdateDevice(DeviceID, 2, True, 1, 0)
+                        UpdateDevice(DeviceID, 1, True, 1, 0)
+                    if Command == 'Off' and Unit == 3:
+                        SendCommandCloud(DeviceID, 'laser_switch', False)
+                        UpdateDevice(DeviceID, 3, False, 0, 0)
+                    elif Command == 'On' and Unit == 3:
+                        SendCommandCloud(DeviceID, 'laser_switch', True)
+                        UpdateDevice(DeviceID, 3, True, 1, 0)
+                    elif Command == 'Set Level' and Unit == 3:
+                        SendCommandCloud(DeviceID, 'laser_switch', True)
+                        SendCommandCloud(DeviceID, 'laser_bright', 21.25 + ((Level / 100) * 78.75)) # 21.25 + ((Level / 100) * 78.75) ) * 10
+                        UpdateDevice(DeviceID, 3, True, 1, 0)
+                        UpdateDevice(DeviceID, 3, Level, 1, 0)
+                    if Command == 'Off' and Unit == 4:
+                        SendCommandCloud(DeviceID, 'fan_switch', False)
+                        UpdateDevice(DeviceID, 4, False, 0, 0)
+                    elif Command == 'On' and Unit == 4:
+                        SendCommandCloud(DeviceID, 'fan_switch', True)
+                        UpdateDevice(DeviceID, 4, True, 1, 0)
+                    elif Command == 'Set Level' and Unit == 4:
+                        SendCommandCloud(DeviceID, 'fan_switch', True)
+                        SendCommandCloud(DeviceID, 'fan_speed', Level)
+                        UpdateDevice(DeviceID, 4, True, 1, 0)
+                        UpdateDevice(DeviceID, 4, Level, 1, 0)
+
+                if dev_type == 'smartlock':
+                    if searchCode('lock_motor_state', function):
+                        if Command == 'Off' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'lock_motor_state', False)
+                            UpdateDevice(DeviceID, 1, 10, 0, 0)
+                        elif Command == 'On' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'lock_motor_state', True)
+                            UpdateDevice(DeviceID, 1, 0, 1, 0)
+                    elif searchCode('rtc_lock', function):
+                        if Command == 'Off' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'rtc_lock', 0)
+                            UpdateDevice(DeviceID, 1, 10, 0, 0)
+                        elif Command == 'On' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'rtc_lock', 1)
+                            UpdateDevice(DeviceID, 1, 0, 1, 0)
+                    else:
+                        if Command == 'Off' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'switch', False)
+                            UpdateDevice(DeviceID, 1, 10, 0, 0)
+                        elif Command == 'On' and Unit == 1:
+                            SendCommandCloud(DeviceID, 'switch', True)
+                            UpdateDevice(DeviceID, 1, 0, 1, 0)
+
+                if dev_type == 'dehumidifier':
+                    if Command == 'Off' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    elif Command == 'Set Level' and Unit == 2:
+                        if searchCode('dehumidify_set_value', function):
+                            tdev = 'dehumidify_set_value'
+                        elif searchCode('dehumidify_set_enum', function):
+                            tdev = 'dehumidify_set_enum'
+                        SendCommandCloud(DeviceID, tdev, Level)
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit == 3:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'fan_speed_enum', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit == 4:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                    if Command == 'Off' and Unit == 9:
+                        SendCommandCloud(DeviceID, 'child_lock', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 9:
+                        SendCommandCloud(DeviceID, 'child_lock', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 10:
+                        SendCommandCloud(DeviceID, 'anion', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 10:
+                        SendCommandCloud(DeviceID, 'anion', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 11:
+                        SendCommandCloud(DeviceID, 'anion', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 11:
+                        SendCommandCloud(DeviceID, 'anion', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    if Command == 'Off' and Unit == 13:
+                        SendCommandCloud(DeviceID, 'anion', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 13:
+                        SendCommandCloud(DeviceID, 'anion', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+
+                if dev_type == 'vacuum':
+                    if Command == 'Off' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'power_go', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'power_go', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    elif Command == 'Set Level' and Unit == 3:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit == 4:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'suction', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit == 5:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'cistern', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+
+                if dev_type == 'purifier':
+                    if Command == 'Off' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'switch', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'switch', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    elif Command == 'Set Level' and Unit == 3:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit == 4:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'speed', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+
+                if dev_type == 'smartkettle':
+                    if Command == 'Off' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'start', False)
+                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'start', True)
+                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    elif Command == 'Set Level' and Unit  == 4:
+                        SendCommandCloud(DeviceID, 'cook_temperature', Level)
+                        UpdateDevice(DeviceID, 4, Level, 1, 0)
+
+                if dev_type == 'mower':
+                    if Command == 'Set Level' and Unit == 1:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'MachineControlCmd', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 1, Level, 1, 0)
+                    if Command == 'Off' and Unit == 2:
+                        SendCommandCloud(DeviceID, 'MachineRainMode', False)
+                        UpdateDevice(DeviceID, 2, False, 0, 0)
+                    elif Command == 'On' and Unit == 2:
+                        SendCommandCloud(DeviceID, 'MachineRainMode', True)
+                        UpdateDevice(DeviceID, 2, True, 1, 0)
+                    if Command == 'Set Level' and Unit == 6:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'MachineWorkMode', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 6, Level, 1, 0)
+
+                if dev_type == 'human_presence':
+                    if Command == 'Set Level' and Unit == 2:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'sensitivity', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit  == 3:
+                        SendCommandCloud(DeviceID, 'near_detection', Level)
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit  == 4:
+                        SendCommandCloud(DeviceID, 'far_detection', Level)
+                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+
+                if dev_type == 'evcharger':
+                    if searchCode('switch', function):
+                        if Command == 'Off':
+                            SendCommandCloud(DeviceID, 'switch', False)
+                            UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        elif Command == 'On':
+                            SendCommandCloud(DeviceID, 'switch', True)
+                            UpdateDevice(DeviceID, Unit, True, 1, 0)
+
+                if dev_type == 'infrared_ac':
+                    if Command == 'Off' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'PowerOff', 'PowerOff')
+                        UpdateDevice(DeviceID, 1, False, 0, 0)
+                    elif Command == 'On' and Unit == 1:
+                        SendCommandCloud(DeviceID, 'PowerOn', 'PowerOn')
+                        UpdateDevice(DeviceID, 1, True, 1, 0)
+                    elif Command == 'Set Level' and Unit  == 2:
+                        SendCommandCloud(DeviceID, 'T', Level)
+                        UpdateDevice(DeviceID, 2, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit == 3:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'M', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 3, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit == 4:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandCloud(DeviceID, 'F', mode[int(Level / 10)])
+                        UpdateDevice(DeviceID, 4, Level, 1, 0)
+        except Exception as e:
+            Domoticz.Error("onCommand ERROR: {}".format(str(e)))
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         DomoticzEx.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
 
@@ -2031,18 +2428,67 @@ def onHandleThread(startup, local):
                             UpdateDomoticz(dev_id, 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
 
                     if dev_type == 'doorbell':
-                        if createDevice(dev_id, 1) and searchCode('doorbell_active', StatusProperties):
-                            DomoticzEx.Log('Create device Doorbell')
-                            #DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=243, Subtype=19, Used=1).Create()
-                            DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
-                        if createDevice(dev_id, 2) and searchCode('floodlight_switch', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Light switch)', DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if createDevice(dev_id, 3) and (searchCode('motion_switch', StatusProperties) or searchCode('movement_detect_pic', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Motion switch)', DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if createDevice(dev_id, 4) and searchCode('basic_indicator', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Indicator)', DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if createDevice(dev_id, 5) and searchCode('decibel_switch', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Siren)', DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if searchCode('doorbell_active', StatusProperties):
+                            # datetimestamp = StatusDeviceTuya('doorbell_active')
+                            # # UpdateDevice(dev['id'], 1, datetimestamp, 0, 0)
+                            # # timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
+                            # # if (int(timestamp) - int(datetimestamp)) < 61:
+                            # #     UpdateDevice(dev['id'], 1, True, 1, 0)
+                            # # else:
+                            # #     UpdateDevice(dev['id'], 1, False, 0, 0)
+                            # if datetimestamp == '' or datetimestamp == None:
+                            #     timestamp = int(time.mktime(time.strptime(Devices[dev['id']].Units[1].LastUpdate, '%Y-%m-%d %H:%M:%S')))
+                            # currentstatus = (int(timestamp) - int(datetimestamp)) < 61
+                            current = StatusDeviceTuya('doorbell_active')
+                            currentstatus = False if current == '' or current == None else True
+                            UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('floodlight_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('floodlight_switch')
+                            UpdateDevice(dev['id'], 2, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('motion_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('motion_switch')
+                            UpdateDevice(dev['id'], 3, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('basic_indicator', StatusProperties):
+                            currentstatus = StatusDeviceTuya('basic_indicator')
+                            UpdateDevice(dev['id'], 4, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('decibel_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('decibel_switch')
+                            UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('basic_private', StatusProperties):
+                            currentstatus = StatusDeviceTuya('basic_private')
+                            UpdateDevice(dev['id'], 6, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('motion_tracking', StatusProperties):
+                            currentstatus = StatusDeviceTuya('motion_tracking')
+                            UpdateDevice(dev['id'], 7, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('motion_area_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('motion_area_switch')
+                            UpdateDevice(dev['id'], 8, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('siren_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('siren_switch')
+                            UpdateDevice(dev['id'], 9, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('nightvision_mode', ResultValue):
+                            currentmode = StatusDeviceTuya('nightvision_mode')
+                            for item in StatusProperties:
+                                if item['code'] == 'nightvision_mode':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label'))
+                                    else:
+                                        mode.extend(the_values.get('range'))
+                            if str(mode.index(str(currentmode)) * 10) != str(Devices[dev['id']].Units[10].sValue):
+                                UpdateDevice(dev['id'], 10, int(mode.index(str(currentmode)) * 10), 1, 0)
+                        if searchCode('loodlight_switch', StatusProperties):
+                            currentstatus = StatusDeviceTuya('floodlight_switch')
+                            UpdateDevice(dev['id'], 11, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if  searchCode('ipc_siren_volume', StatusProperties):
+                            currentstatus = StatusDeviceTuya('ipc_siren_volume')
+                            if str(currentstatus) != str(Devices[dev['id']].Units[12].nValue):
+                                UpdateDevice(dev['id'], 12, str(currentstatus), 1, 0)
+                        if  searchCode('ipc_siren_duration', StatusProperties):
+                            currentstatus = StatusDeviceTuya('ipc_siren_duration')
+                            if str(currentstatus) != str(Devices[dev['id']].Units[13].nValue):
+                                UpdateDevice(dev['id'], 13, str(currentstatus), 1, 0)
 
                     if dev_type == 'fan':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
@@ -3597,12 +4043,17 @@ def onHandleThread(startup, local):
                         if dev_type == 'doorbell':
                             update_bool_device('doorbell_active', 1, '')
                             update_bool_device('floodlight_switch', 2)
-                            if update_bool_device('motion_switch', 3):
-                                pass
-                            elif update_bool_device('movement_detect_pic', 3, '$'):
-                                pass
+                            update_bool_device('motion_switch', 3)
                             update_bool_device('basic_indicator', 4)
                             update_bool_device('decibel_switch', 5)
+                            update_bool_device('basic_private', 6)
+                            update_bool_device('motion_area_switch', 7)
+                            update_bool_device('motion_area_switch', 8)
+                            update_bool_device('siren_switch', 9)
+                            update_select_device('nightvision_mode', 10)
+                            update_bool_device('floodlight_switch', 11)
+                            update_value_device('ipc_siren_volume', 12)
+                            update_value_device('ipc_siren_duration', 13)
 
                         if dev_type == 'fan':
                             update_bool_device('switch', 1)

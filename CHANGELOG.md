@@ -104,11 +104,22 @@
 | 2.1.6 | Add Contact Sensor (category mismatch) |
 | 2.1.7 | Reduce api calls |
 | 2.1.8 | Add W2839 Pool Digital Monitor #166 |
-| 2.2.0 | Add Pulsar Push system |
-| 2.2.1 | Add Camera Motion Detection #154 |
-| 2.2.2 | Clean up the code  |
-| 2.2.3 | Change ResultValue to StatusProperties |
-| 2.2.4 | Change update lines to use defs |
-| 2.2.5 | Merge lightsensor in to sensor group |
-| 2.2.6 | Add Contact Sensor (category mismatch) |
+| 2.1.9 | Fix update to Domoticz 2025.1 |
+| 2.2.0 | remove update to Domoticz 2025.1 was bug |
+| 2.2.1 | Add Aromatherapy |
+| 2.2.2 | Add Extra Mower devices |
+| 2.2.3 | Fix Aromatherapy |
+| 2.2.4 | Add another variant of the cover control |
+| 2.2.5 | Add another variant Powercontrol |
+| 2.2.6 | Update Smartlock #176 |
+| 2.2.7 | Update CO detection/alarm device #179 |
+| 2.2.8 | Update Dehumidifier MEDION DH30S #180 |
+| 2.2.9 | Fix bug with vacuum #178 |
+| 2.3.0 | Add new window smart remote control system |
+| 2.3.1 | Fixed humidity can not have decimals #183 |
+| 2.3.2 | Fixed cover channel 2 #184 |
+| 2.3.3 | Add multi-channel weather station #187 |
+| 2.3.4 | Add mismatch pir deivce #188 |
+| 2.3.5 | Modification for Thermostat #190 |
+| 2.3.6 | Add Cover detection #192 |
 | 3.0.0 | Release of hybrid version |
