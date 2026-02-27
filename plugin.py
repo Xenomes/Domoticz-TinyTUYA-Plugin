@@ -6,8 +6,8 @@
 <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
-        <a href="https://www.Domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
-            https://www.Domoticz.com/forum/viewtopic.php?f=65&amp;t=39441
+        <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
+            https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441
         </a>
         <br/><br/>
 
@@ -239,6 +239,13 @@ class BasePlugin:
                             UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                         elif Command == 'On':
                             SendCommandTuya(DeviceID, 'switch', True)
+                            UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                    elif searchCode('switch_on', function):
+                        if Command == 'Off':
+                            SendCommandTuya(DeviceID, 'switch_on', False)
+                            UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        elif Command == 'On':
+                            SendCommandTuya(DeviceID, 'switch_on', True)
                             UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     else:
                         if Command == 'Off':
@@ -1836,7 +1843,7 @@ def onHandleThread(startup, local):
                             #     deleteDevice(dev_id,2)
 
                     if dev_type in ('switch', 'switch/sensor'):
-                        if  createDevice(dev_id, 1) and (searchCode('switch_1', FunctionProperties) or searchCode('switch', FunctionProperties)) and not searchCode('switch_2', FunctionProperties):
+                        if  createDevice(dev_id, 1) and (searchCode('switch_1', FunctionProperties) or searchCode('switch', FunctionProperties) or searchCode('switch_on', FunctionProperties)) and not searchCode('switch_2', FunctionProperties):
                             DomoticzEx.Log('Create device Switch')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if searchCode('switch_2', FunctionProperties):
@@ -3661,6 +3668,8 @@ def onHandleThread(startup, local):
                             if update_bool_device('switch_1', 1):
                                 pass
                             elif update_bool_device('switch', 1):
+                                pass
+                            elif update_bool_device('switch_on', 1):
                                 pass
 
                             for switch_number in range(2, 9):
