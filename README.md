@@ -93,14 +93,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
-| 2.3.2 | Fixed cover channel 2 #184 |
-| 2.3.3 | Add multi-channel weather station #187 |
-| 2.3.4 | Add mismatch pir deivce #188 |
-| 2.3.5 | Modification for Thermostat #190 |
 | 2.3.6 | Add Cover detection #192 |
 | 2.3.7 | Modification for Sensor detected as Switch #193 |
 | 2.3.8 | Add EPT ultrasonic sensor 3m #194 |
 | 2.3.9 | Add Siren function to Camera #195 |
+| 2.4.0 | Add Add CKM-01 device #196 |
 
  [The full Change log](CHANGELOG.md)
 
