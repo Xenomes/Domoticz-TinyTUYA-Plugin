@@ -3281,7 +3281,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Close', 0, 0)
                             elif currentstatus == '3':
                                 UpdateDevice(dev['id'], 1, 'Stop', 0, 0)
-                        if searchCode('position_2', StatusProerties) or searchCode('percent_control_2', FunctionProperties):
+                        if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', FunctionProperties):
                             if searchCode('position_2', StatusProperties):
                                 currentposition = StatusDeviceTuya('position_2')
                             elif searchCode('percent_control_2', FunctionProperties):
