@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -156,9 +156,9 @@ class BasePlugin:
             # rpdb.set_trace()
             DumpConfigToLog()
 
-        DomoticzEx.Log('Domoticz version: ' + Parameters['DomoticzVersion'])
-        DomoticzEx.Log('TinyTUYA ' + Parameters['Version'] + ' plugin started')
-        DomoticzEx.Log('TinyTuya Version: ' + tinytuya.version )
+        DomoticzEx.Log(f"Domoticz version: {Parameters['DomoticzVersion']}")
+        DomoticzEx.Log(f"TinyTUYA {Parameters['Version']} plugin started")
+        DomoticzEx.Log(f"TinyTuya Version: {tinytuya.version}")
 
         global testdata, Error, fulllocal
 
@@ -200,19 +200,14 @@ class BasePlugin:
         DomoticzEx.Log('onMessage called')
 
     def onCommand(self, DeviceID, Unit, Command, Level, Color):
-        DomoticzEx.Debug("onCommand called for Device " +
-                       str(DeviceID) + " Unit " +
-                       str(Unit) + ": Parameter '" +
-                       str(Command) + "', Level: " +
-                       str(Level) + "', Color: " +
-                       str(Color))
+        DomoticzEx.Debug(f"onCommand called for Device {DeviceID} Unit {Unit}: Parameter '{Command}', Level: {Level}', Color: {Color}")
 
         # device for the DomoticzEx
         dev = Devices[DeviceID].Units[Unit]
-        DomoticzEx.Debug('Device ID: ' + str(DeviceID))
-        DomoticzEx.Debug('nValue: ' + str(dev.nValue))
-        DomoticzEx.Debug('sValue: ' + str(dev.sValue) + ' Type ' + str(type(dev.sValue)))
-        DomoticzEx.Debug('LastLevel: ' + str(dev.LastLevel))
+        DomoticzEx.Debug(f"Device ID: {DeviceID}")
+        DomoticzEx.Debug(f"nValue: {dev.nValue}")
+        DomoticzEx.Debug(f"sValue: {dev.sValue} Type {type(dev.sValue)}")
+        DomoticzEx.Debug(f"LastLevel: {dev.LastLevel}")
 
         try:
             if Error is not None:
@@ -249,30 +244,30 @@ class BasePlugin:
                             UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     else:
                         if Command == 'Off':
-                            SendCommandTuya(DeviceID, 'switch_' + str(Unit), False)
+                            SendCommandTuya(DeviceID, f"switch_{Unit}", False)
                             UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                         elif Command == 'On':
-                            SendCommandTuya(DeviceID, 'switch_' + str(Unit), True)
+                            SendCommandTuya(DeviceID, f"switch_{Unit}", True)
                             UpdateDomoticz(DeviceID, Unit, True, 1, 0)
 
                 if dev_type == 'wswitch':
                     if Command == 'Set Level':
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        if searchCode('switch' + str(Unit) + '_value', status):
-                            SendCommandTuya(DeviceID, 'switch' + str(Unit) + '_value', mode[int(Level / 10)])
-                        if searchCode('switch_type_' + str(Unit), status):
-                            SendCommandTuya(DeviceID, 'switch_type_' + str(Unit), mode[int(Level / 10)])
-                        if searchCode('switch_mode' + str(Unit), status):
-                            SendCommandTuya(DeviceID, 'switch_mode' + str(Unit), mode[int(Level / 10)])
+                        if searchCode(f"switch{Unit}_value", status):
+                            SendCommandTuya(DeviceID, f"switch{Unit}_value", mode[int(Level / 10)])
+                        if searchCode(f"switch_type_{Unit}", status):
+                            SendCommandTuya(DeviceID, f"switch_type_{Unit}", mode[int(Level / 10)])
+                        if searchCode(f"switch_mode{Unit}", status):
+                            SendCommandTuya(DeviceID, f"switch_mode{Unit}", mode[int(Level / 10)])
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
 
                 if dev_type in ('dimmer'):
                     if Command == 'Off':
-                        SendCommandTuya(DeviceID, 'switch_led_' + str(Unit), False)
+                        SendCommandTuya(DeviceID, f"switch_led_{Unit}", False)
                         UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'Set Level':
-                        SendCommandTuya(DeviceID, 'switch_led_' + str(Unit), True)
-                        SendCommandTuya(DeviceID, 'bright_value_' + str(Unit), Level)
+                        SendCommandTuya(DeviceID, f"switch_led_{Unit}", True)
+                        SendCommandTuya(DeviceID, f"bright_value_{Unit}", Level)
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
 
                 if (dev_type in ('light') or dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1:
@@ -349,34 +344,34 @@ class BasePlugin:
                 if dev_type == ('cover'):
                     ext = '_' + str(Unit) if Unit > 1 else ''
                     if Command == 'Open':
-                        if searchCode('mach_operate' + ext, function):
-                            SendCommandTuya(DeviceID, 'mach_operate' + ext, 'FZ')
-                        elif searchCode('status' + ext , function):
+                        if searchCode(f"mach_operate{ext}", function):
+                            SendCommandTuya(DeviceID, f"mach_operate{ext}", 'FZ')
+                        elif searchCode(f"status{ext}" , function):
                             SendCommandTuya(DeviceID, 'status', '1')
                         else:
-                            SendCommandTuya(DeviceID, 'control' + ext, 'open')
+                            SendCommandTuya(DeviceID, f"control{ext}", 'open')
                         UpdateDomoticz(DeviceID, Unit, 'Open', 0, 0)
                     elif Command == 'Close':
-                        if searchCode('mach_operate' + ext, function):
-                            SendCommandTuya(DeviceID, 'mach_operate' + ext, 'ZZ')
-                        elif searchCode('status' + ext , function):
+                        if searchCode(f"mach_operate{ext}", function):
+                            SendCommandTuya(DeviceID, f"mach_operate{ext}", 'ZZ')
+                        elif searchCode(f"status{ext}" , function):
                             SendCommandTuya(DeviceID, 'status', '2')
                         else:
-                            SendCommandTuya(DeviceID, 'control' + ext, 'close')
+                            SendCommandTuya(DeviceID, f"control{ext}", 'close')
                         UpdateDomoticz(DeviceID, Unit, 'Close', 1, 0)
                     elif Command == 'Stop':
-                        if searchCode('mach_operate' + ext, function):
-                            SendCommandTuya(DeviceID, 'mach_operate' + ext, 'STOP')
-                        elif searchCode('status' + ext , function):
+                        if searchCode(f"mach_operate{ext}", function):
+                            SendCommandTuya(DeviceID, f"mach_operate{ext}", 'STOP')
+                        elif searchCode(f"status{ext}" , function):
                             SendCommandTuya(DeviceID, 'status', '3')
                         else:
-                            SendCommandTuya(DeviceID, 'control' + ext, 'stop')
+                            SendCommandTuya(DeviceID, f"control{ext}", 'stop')
                         UpdateDomoticz(DeviceID, Unit, 'Stop', 1, 0)
                     elif Command == 'Set Level':
-                        if searchCode('percent_control' + ext, function):
-                            control = 'percent_control' + ext
-                        elif searchCode('position' + ext, function):
-                            control = 'position' + ext
+                        if searchCode(f"percent_control{ext}", function):
+                            control = f"percent_control{ext}"
+                        elif searchCode(f"position{ext}", function):
+                            control = f"position{ext}"
                         SendCommandTuya(DeviceID, control, Level)
                         UpdateDomoticz(DeviceID, 1, Level, 1, 0)
 
@@ -479,7 +474,7 @@ class BasePlugin:
                         SendCommandTuya(DeviceID, switch3, Level)
                         UpdateDomoticz(DeviceID, 3, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 4:
-                        mode = getConfigItem(str(DeviceID) + '-4', 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        mode = getConfigItem(f"{DeviceID}-4", 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, switch4, mode[int(Level / 10)])
                         UpdateDomoticz(DeviceID, 4, Level, 1, 0)
                     if Command == 'Off' and Unit == 5:
@@ -1391,9 +1386,9 @@ class BasePlugin:
                         UpdateDevice(DeviceID, 4, Level, 1, 0)
 
         except Exception as e:
-            DomoticzEx.Error("onCommand ERROR: {}".format(str(e)))
+            DomoticzEx.Error(f"onCommand ERROR: {str(e)}")
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
-        DomoticzEx.Log('Notification: ' + Name + ', ' + Subject + ', ' + Text + ', ' + Status + ', ' + str(Priority) + ', ' + Sound + ', ' + ImageFile)
+        DomoticzEx.Log(f"Notification: {Name}, {Subject}, {Text}, {Status}, {Priority}, {Sound}, {ImageFile}")
 
     def onDeviceRemoved(self, DeviceID, Unit):
         DomoticzEx.Log('onDeviceDeleted called')
@@ -1787,8 +1782,8 @@ def onHandleThread(startup, local):
             except Exception as err:
                 # Device unreachable fallback
                 ResultValue = []       
-                DomoticzEx.Error('Error line ' + format(sys.exc_info()[-1].tb_lineno))
-                DomoticzEx.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
+                DomoticzEx.Error(f"Error line {sys.exc_info()[-1].tb_lineno}")
+                DomoticzEx.Debug(f"handleThread: {err} line {sys.exc_info()[-1].tb_lineno}")
 
             # Create devices
             if startup:
@@ -1822,7 +1817,7 @@ def onHandleThread(startup, local):
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
                         elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)):
                             DomoticzEx.Log('Create device Light On/Off (Unknown Light Device)')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Unknown Light Device)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Unknown Light Device)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
                         # elif not (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)):
                         #     deleteDevice(dev_id,1)
 
@@ -1834,11 +1829,11 @@ def onHandleThread(startup, local):
                         #     deleteDevice(dev_id,1)
                         if searchCode('switch_led_2', FunctionProperties):
                             if createDevice(dev_id, 1):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Dimmer 1)', DeviceID=dev_id, Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Dimmer 1)", DeviceID=dev_id, Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
                             # elif not createDevice(dev_id, 1) and not searchCode('switch_led_1', FunctionProperties):
                             #     deleteDevice(dev_id,1)
                             if createDevice(dev_id, 2):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Dimmer 2)', DeviceID=dev_id, Unit=2, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Dimmer 2)", DeviceID=dev_id, Unit=2, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
                             # elif not createDevice(dev_id, 2) and not searchCode('switch_led_2', FunctionProperties):
                             #     deleteDevice(dev_id,2)
 
@@ -1849,86 +1844,86 @@ def onHandleThread(startup, local):
                         if searchCode('switch_2', FunctionProperties):
                             DomoticzEx.Log('Create device Switch')
                             if createDevice(dev_id, 1):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Switch 1)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Switch 1)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                             if createDevice(dev_id, 2):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Switch 2)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('switch_3', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Switch 3)', DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 3)", DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('switch_4', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Switch 4)', DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 4)", DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('switch_5', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Switch 5)', DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 5)", DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 6) and searchCode('switch_6', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Switch 6)', DeviceID=dev_id, Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 6)", DeviceID=dev_id, Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 7) and searchCode('switch_7', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Switch 7)', DeviceID=dev_id, Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 7)", DeviceID=dev_id, Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 8) and searchCode('switch_8', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Switch 8)', DeviceID=dev_id, Unit=8, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 8)", DeviceID=dev_id, Unit=8, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 9) and searchCode('switch_9', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Switch 9)', DeviceID=dev_id, Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 9)", DeviceID=dev_id, Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 11) and ((searchCode('cur_current', StatusProperties) and get_unit('cur_current', StatusProperties) == 'A') or searchCode('phase_a', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (A)', DeviceID=dev_id, Unit=11, Type=243, Subtype=23, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (A)", DeviceID=dev_id, Unit=11, Type=243, Subtype=23, Used=1).Create()
                         if createDevice(dev_id, 12) and (searchCode('cur_power', StatusProperties) or searchCode('phase_a', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (W)', DeviceID=dev_id, Unit=12, Type=248, Subtype=1, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (W)", DeviceID=dev_id, Unit=12, Type=248, Subtype=1, Used=1).Create()
                         if createDevice(dev_id, 13) and (searchCode('cur_voltage', StatusProperties) or searchCode('phase_a', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (V)', DeviceID=dev_id, Unit=13, Type=243, Subtype=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (V)", DeviceID=dev_id, Unit=13, Type=243, Subtype=8, Used=1).Create()
                         if createDevice(dev_id, 14) and (searchCode('cur_power', StatusProperties) or searchCode('phase_a', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev_id, Unit=14, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (kWh)", DeviceID=dev_id, Unit=14, Type=243, Subtype=29, Used=1).Create()
                             #UpdateDomoticz(dev_id, 14, '0;0', 0, 0, 1)
                         if createDevice(dev_id, 15) and (searchCode('cur_current', StatusProperties) and get_unit('cur_current', StatusProperties) == 'mA' or searchCode('leakage_current', StatusProperties)):
                             options = {}
                             options['Custom'] = '1;mA'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (mA)', DeviceID=dev_id, Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (mA)", DeviceID=dev_id, Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 16) and searchCode('temp_current', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev_id, Unit=16, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature)", DeviceID=dev_id, Unit=16, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 17) and (searchCode('out_power', StatusProperties) or searchCode('phase_a', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' outpower (W)', DeviceID=dev_id, Unit=17, Type=248, Subtype=1, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} outpower (W)", DeviceID=dev_id, Unit=17, Type=248, Subtype=1, Used=1).Create()
                         if createDevice(dev_id, 18) and (searchCode('out_power', StatusProperties) or searchCode('phase_a', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' outpower (kWh)', DeviceID=dev_id, Unit=18, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} outpower (kWh)", DeviceID=dev_id, Unit=18, Type=243, Subtype=29, Used=1).Create()
                         if createDevice(dev_id, 19) and (searchCode('power_a', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' Reverse A(kWh)', DeviceID=dev_id, Unit=19, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} Reverse A(kWh)", DeviceID=dev_id, Unit=19, Type=243, Subtype=29, Used=1).Create()
                         if createDevice(dev_id, 20) and (searchCode('power_a', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' Forward A(kWh)', DeviceID=dev_id, Unit=20, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} Forward A(kWh)", DeviceID=dev_id, Unit=20, Type=243, Subtype=29, Used=1).Create()
                         if createDevice(dev_id, 21) and (searchCode('power_b', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' Reverse B(kWh)', DeviceID=dev_id, Unit=21, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} Reverse B(kWh)", DeviceID=dev_id, Unit=21, Type=243, Subtype=29, Used=1).Create()
                         if createDevice(dev_id, 22) and (searchCode('power_b', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' Forward B(kWh)', DeviceID=dev_id, Unit=22, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} Forward B(kWh)", DeviceID=dev_id, Unit=22, Type=243, Subtype=29, Used=1).Create()
 
                     if dev_type == 'cover' and createDevice(dev_id, 1):
                         DomoticzEx.Log('Create device Cover')
                         if searchCode('position', StatusProperties) or searchCode('percent_control', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Switch 1)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 1)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
                         else:
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=14, Used=1).Create()
                         if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 2)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
 
                     if dev_type == 'smartheatpump':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
                             DomoticzEx.Log('Create device Smartheatpump')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (On/Off)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (On/Off)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('intemp', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (INtemp)', DeviceID=dev_id, Unit=2, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (INtemp)", DeviceID=dev_id, Unit=2, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('outtemp', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (OUTtemp)', DeviceID=dev_id, Unit=3, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (OUTtemp)", DeviceID=dev_id, Unit=3, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('whjtemp', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (AMBtemp)', DeviceID=dev_id, Unit=4, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (AMBtemp)", DeviceID=dev_id, Unit=4, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('cmptemp', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (COMPRtemp)', DeviceID=dev_id, Unit=5, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (COMPRtemp)", DeviceID=dev_id, Unit=5, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 6) and searchCode('wttemp', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (DHWtemp)', DeviceID=dev_id, Unit=6, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (DHWtemp)", DeviceID=dev_id, Unit=6, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 7) and searchCode('hqtemp', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (rGAStemp)', DeviceID=dev_id, Unit=7, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (rGAStemp)", DeviceID=dev_id, Unit=7, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 8) and searchCode('cmp_act_frep', StatusProperties):
                             options = {}
                             options['Custom'] = '1;Hz'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (COMPfrq)', DeviceID=dev_id, Unit=8, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (COMPfrq)", DeviceID=dev_id, Unit=8, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 9) and searchCode('cmp_cur', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (COMPRcur)', DeviceID=dev_id, Unit=9, Type=243, Subtype=23, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (COMPRcur)", DeviceID=dev_id, Unit=9, Type=243, Subtype=23, Used=1).Create()
                         if createDevice(dev_id, 10) and searchCode('dc_fan_speed', StatusProperties):
                             options = {}
                             options['Custom'] = '1;Speed'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (FANspeed)', DeviceID=dev_id, Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (FANspeed)", DeviceID=dev_id, Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 11) and searchCode('ach_stemp', StatusProperties):
                             for item in StatusProperties:
                                 temp = 'ach_stemp'
@@ -1939,7 +1934,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (HEATtemp)', DeviceID=dev_id, Unit=11, Type=242, Subtype=1, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (HEATtemp)", DeviceID=dev_id, Unit=11, Type=242, Subtype=1, Options=options, Used=1).Create()
                         if createDevice(dev_id, 12) and searchCode('wth_stemp', StatusProperties):
                             for item in StatusProperties:
                                 temp = 'wth_stemp'
@@ -1950,7 +1945,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (DHWtemp)', DeviceID=dev_id, Unit=12, Type=242, Subtype=1, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (DHWtemp)", DeviceID=dev_id, Unit=12, Type=242, Subtype=1, Options=options, Used=1).Create()
                         if createDevice(dev_id, 13) and searchCode('aircond_temp_diff', StatusProperties):
                             for item in StatusProperties:
                                 temp = 'aircond_temp_diff'
@@ -1961,7 +1956,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (HE/COtemp-diff)', DeviceID=dev_id, Unit=13, Type=242, Subtype=1, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (HE/COtemp-diff)", DeviceID=dev_id, Unit=13, Type=242, Subtype=1, Options=options, Used=1).Create()
                         if createDevice(dev_id, 14) and searchCode('wth_temp_diff', StatusProperties):
                             for item in StatusProperties:
                                 temp = 'wth_temp_diff'
@@ -1972,7 +1967,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (DHWtemp-diff)', DeviceID=dev_id, Unit=14, Type=242, Subtype=1, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (DHWtemp-diff)", DeviceID=dev_id, Unit=14, Type=242, Subtype=1, Options=options, Used=1).Create()
                         if createDevice(dev_id, 15) and searchCode('acc_stemp', StatusProperties):
                             for item in StatusProperties:
                                 temp = 'acc_stemp'
@@ -1983,7 +1978,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (ACCtemp)', DeviceID=dev_id, Unit=15, Type=242, Subtype=1, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (ACCtemp)", DeviceID=dev_id, Unit=15, Type=242, Subtype=1, Options=options, Used=1).Create()
                         if createDevice(dev_id, 16) and searchCode('mode', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'mode':
@@ -1998,7 +1993,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev_id, Unit=16, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Mode)", DeviceID=dev_id, Unit=16, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 17) and searchCode('work_mode', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'work_mode':
@@ -2013,7 +2008,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (WorkMode)', DeviceID=dev_id, Unit=17, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (WorkMode)", DeviceID=dev_id, Unit=17, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if not(createDevice(dev_id, 18)):
                         # if createDevice(dev_id, 18) and searchCode('temp_current', StatusProperties):
                             # DomoticzEx.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev_id, Unit=18, Type=80, Subtype=5, Used=1).Create()
@@ -2028,7 +2023,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev_id, Unit=19, Type=242, Subtype=1, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Thermostat)", DeviceID=dev_id, Unit=19, Type=242, Subtype=1, Options=options, Used=1).Create()
                         if not(createDevice(dev_id, 20)):
                         # if createDevice(dev_id, 20) and searchCode('water_set', FunctionProperties):
                             # for item in FunctionProperties:
@@ -2043,15 +2038,15 @@ def onHandleThread(startup, local):
                             # DomoticzEx.Unit(Name=dev['name'] + ' (Water Thermostat)', DeviceID=dev_id, Unit=20, Type=242, Subtype=1, Options=options, Used=1).Create()
                             Devices[dev_id].Unit['20'].delete()
                         if createDevice(dev_id, 21) and searchCode('temp_top', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temp Top)', DeviceID=dev_id, Unit=21, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temp Top)", DeviceID=dev_id, Unit=21, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 22) and searchCode('temp_bottom', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temp Bottom)', DeviceID=dev_id, Unit=22, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temp Bottom)", DeviceID=dev_id, Unit=22, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 23) and searchCode('switch', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Defrost)', DeviceID=dev_id, Unit=23, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Defrost)", DeviceID=dev_id, Unit=23, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 24) and searchCode('water_flow', StatusProperties):
                             options = {}
                             options['Custom'] = '1;L/Min'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (L/Min)', DeviceID=dev_id, Unit=24, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (L/Min)", DeviceID=dev_id, Unit=24, Type=243, Subtype=31, Options=options, Used=1).Create()
 
                     if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                         temp = searchCode('temp_current', StatusProperties) or searchCode('upper_temp', StatusProperties) or searchCode('c_temperature', StatusProperties) or searchCode('TempCurrent', StatusProperties)
@@ -2059,11 +2054,11 @@ def onHandleThread(startup, local):
                         if createDevice(dev_id, 1):
                             DomoticzEx.Log('Create device Thermostat/heater/heatpump')
                             if searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties) or searchCode('Power', FunctionProperties) or searchCode('infared_switch', FunctionProperties):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                             else:
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=0).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=0).Create()
                         if createDevice(dev_id, 2) and temp:
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev_id, Unit=2, Type=80, Subtype=5, Used=0 if hum else 1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature)", DeviceID=dev_id, Unit=2, Type=80, Subtype=5, Used=0 if hum else 1).Create()
                         if createDevice(dev_id, 3) and (searchCode('set_temp', FunctionProperties) or searchCode('temp_set', FunctionProperties) or searchCode('temperature_c', FunctionProperties) or searchCode('TempSet', FunctionProperties) or searchCode('target_temp', FunctionProperties)):
                             if searchCode('temp_set', FunctionProperties):
                                 temp = 'temp_set'
@@ -2083,7 +2078,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev_id, Unit=3, Type=242, Subtype=1, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Thermostat)", DeviceID=dev_id, Unit=3, Type=242, Subtype=1, Options=options, Used=1).Create()
                         if createDevice(dev_id, 4) and (searchCode('mode', StatusProperties) or searchCode('Mode', StatusProperties)) and product_id != 'al8g1qdamyu5cfcc':
                             if dev_type == 'thermostat':
                                 image = 16
@@ -2128,19 +2123,19 @@ def onHandleThread(startup, local):
                                     options['LevelOffHidden'] = 'true'
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode_final)
-                                    setConfigItem(str(dev_id) + '-4', {'mode': mode_final})
+                                    setConfigItem(f"{dev_id}-4", {'mode': mode_final})
                                     options['SelectorStyle'] = '0' if len(mode_final) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=image, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Mode)", DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=image, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('window_check', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Window check)', DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Window check)", DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 6) and searchCode('child_lock', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev_id, Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Child lock)", DeviceID=dev_id, Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 7) and searchCode('eco', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Eco)', DeviceID=dev_id, Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Eco)", DeviceID=dev_id, Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         # elif not createDevice(dev_id, 7) and not searchCode('Eco', FunctionProperties):
                         #     deleteDevice(dev_id,7)
                         if createDevice(dev_id, 8) and searchCode('temp_floor', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev_id, Unit=8, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature)", DeviceID=dev_id, Unit=8, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 9) and (searchCode('windspeed', StatusProperties) or searchCode('fan_level', StatusProperties) or searchCode('fan_speed_enum', StatusProperties)):
                             if searchCode('fan_level', StatusProperties):
                                 wind = 'fan_level'
@@ -2161,79 +2156,79 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                                    DomoticzEx.Unit(Name=dev['name'] + ' (' + wind.capitalize().replace('_', ' ') +')', DeviceID=dev_id, Unit=9, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                                    DomoticzEx.Unit(Name=f"{dev['name']} ({wind.capitalize().replace('_', ' ')})", DeviceID=dev_id, Unit=9, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                         if createDevice(dev_id, 10) and hum:
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev_id, Unit=10, Type=81, Subtype=1, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Humidity)", DeviceID=dev_id, Unit=10, Type=81, Subtype=1, Used=0).Create()
                         if createDevice(dev_id, 11) and ((searchCode('cur_current', StatusProperties) and get_unit('cur_current', StatusProperties) == 'A') or searchCode('phase_a', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (A)', DeviceID=dev_id, Unit=11, Type=243, Subtype=23, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (A)", DeviceID=dev_id, Unit=11, Type=243, Subtype=23, Used=1).Create()
                         if createDevice(dev_id, 12) and (searchCode('cur_power', StatusProperties) or searchCode('phase_a', StatusProperties) or searchCode('average_power', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (W)', DeviceID=dev_id, Unit=12, Type=248, Subtype=1, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (W)", DeviceID=dev_id, Unit=12, Type=248, Subtype=1, Used=1).Create()
                         if createDevice(dev_id, 13) and (searchCode('cur_voltage', StatusProperties) or searchCode('phase_a', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (V)', DeviceID=dev_id, Unit=13, Type=243, Subtype=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (V)", DeviceID=dev_id, Unit=13, Type=243, Subtype=8, Used=1).Create()
                         if createDevice(dev_id, 14) and (searchCode('cur_power', StatusProperties) or searchCode('phase_a', StatusProperties) or searchCode('average_power', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev_id, Unit=14, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (kWh)", DeviceID=dev_id, Unit=14, Type=243, Subtype=29, Used=1).Create()
                             #UpdateDomoticz(dev_id, 14, '0;0', 0, 0, 1)
                         if createDevice(dev_id, 15) and (searchCode('cur_current', StatusProperties) and get_unit('cur_current', StatusProperties) == 'mA' or searchCode('leakage_current', StatusProperties)):
                             options = {}
                             options['Custom'] = '1;mA'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (mA)', DeviceID=dev_id, Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (mA)", DeviceID=dev_id, Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 16) and temp and hum:
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev_id, Unit=16, Type=82, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature + Humidity)", DeviceID=dev_id, Unit=16, Type=82, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 17) and searchCode('anti_bother', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Anti bother)', DeviceID=dev_id, Unit=17, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Anti bother)", DeviceID=dev_id, Unit=17, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 18) and searchCode('fault', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev_id, Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Fault)", DeviceID=dev_id, Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                     if dev_type in ('sensor', 'smartir', 'switch/sensor'):
                         temp = searchCode('va_temperature', StatusProperties) or searchCode('temp_current', StatusProperties) or searchCode('local_temp', StatusProperties) or searchCode('Tin', StatusProperties)
                         hum = searchCode('va_humidity', StatusProperties) or searchCode('humidity_value', StatusProperties) or searchCode('local_hum', StatusProperties) or searchCode('humidity', StatusProperties) or searchCode('Hin', StatusProperties)
                         if createDevice(dev_id, 1) and temp:
                             DomoticzEx.Log('Create Sensor device')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev_id, Unit=1, Type=80, Subtype=5, Used=0 if hum else 1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature)", DeviceID=dev_id, Unit=1, Type=80, Subtype=5, Used=0 if hum else 1).Create()
                         if createDevice(dev_id, 2) and hum:
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev_id, Unit=2, Type=81, Subtype=1, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Humidity)", DeviceID=dev_id, Unit=2, Type=81, Subtype=1, Used=0).Create()
                         if createDevice(dev_id, 3) and temp and hum:
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev_id, Unit=3, Type=82, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature + Humidity)", DeviceID=dev_id, Unit=3, Type=82, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('co2_value', StatusProperties):
                             options = {}
                             options['Custom'] = '1;ppm'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (CO2)', DeviceID=dev_id, Unit=4, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (CO2)", DeviceID=dev_id, Unit=4, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('air_quality_index', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Index)', DeviceID=dev_id, Unit=5, Type=243, Subtype=22, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Index)", DeviceID=dev_id, Unit=5, Type=243, Subtype=22, Used=1).Create()
                         if createDevice(dev_id, 6) and searchCode('ch2o_value', StatusProperties):
                             options = {}
                             options['Custom'] = '1;mg/m3'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (CH2O)', DeviceID=dev_id, Unit=6, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (CH2O)", DeviceID=dev_id, Unit=6, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 7) and searchCode('voc_value', StatusProperties):
                             options = {}
                             options['Custom'] = '1;mg/m3'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (VOC)', DeviceID=dev_id, Unit=7, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (VOC)", DeviceID=dev_id, Unit=7, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 8) and searchCode('pm25_value', StatusProperties):
                             options = {}
                             options['Custom'] = '1;µg/m3'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (PM2.5)', DeviceID=dev_id, Unit=8, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (PM2.5)", DeviceID=dev_id, Unit=8, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 9) and searchCode('pm10', StatusProperties):
                             options = {}
                             options['Custom'] = '1;µg/m3'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (PM10)', DeviceID=dev_id, Unit=9, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (PM10)", DeviceID=dev_id, Unit=9, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 10) and searchCode('bright_value', StatusProperties):
                             options = {}
                             options['Custom'] = '1;lux'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Lux)', DeviceID=dev_id, Unit=10, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Lux)", DeviceID=dev_id, Unit=10, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
                         if createDevice(dev_id, 11) and searchCode('switch', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Switch)', DeviceID=dev_id, Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch)", DeviceID=dev_id, Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 12) and searchCode('ph_current', StatusProperties):
                             options = {}
                             options['Custom'] = '1;pH'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (pH)', DeviceID=dev_id, Unit=12, Type=243, Subtype=31, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (pH)", DeviceID=dev_id, Unit=12, Type=243, Subtype=31, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 13) and searchCode('pro_current', StatusProperties):
                             options = {}
                             options['Custom'] = '1;kPa'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (kPa)', DeviceID=dev_id, Unit=13, Type=243, Subtype=31, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (kPa)", DeviceID=dev_id, Unit=13, Type=243, Subtype=31, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 14) and searchCode('orp_current', StatusProperties):
                             options = {}
                             options['Custom'] = '1;ORP'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (ORP)', DeviceID=dev_id, Unit=14, Type=243, Subtype=31, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (ORP)", DeviceID=dev_id, Unit=14, Type=243, Subtype=31, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 15) and searchCode('ph_warn_min', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'ph_warn_min'
@@ -2244,7 +2239,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Min pH)', DeviceID=dev_id, Unit=15, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Min pH)", DeviceID=dev_id, Unit=15, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                         if createDevice(dev_id, 16) and searchCode('ph_warn_max', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'ph_warn_max'
@@ -2255,7 +2250,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Max pH)', DeviceID=dev_id, Unit=16, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Max pH)", DeviceID=dev_id, Unit=16, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                         if createDevice(dev_id, 17) and searchCode('pro_warn_min', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'pro_warn_min'
@@ -2266,7 +2261,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Min kPa)', DeviceID=dev_id, Unit=17, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Min kPa)", DeviceID=dev_id, Unit=17, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                         if createDevice(dev_id, 18) and searchCode('pro_warn_max', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'pro_warn_max'
@@ -2277,7 +2272,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Max kPa)', DeviceID=dev_id, Unit=18, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Max kPa)", DeviceID=dev_id, Unit=18, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                         if createDevice(dev_id, 19) and searchCode('orp_warn_min', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'orp_warn_min'
@@ -2288,7 +2283,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Min ORP)', DeviceID=dev_id, Unit=19, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Min ORP)", DeviceID=dev_id, Unit=19, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                         if createDevice(dev_id, 20) and searchCode('orp_warn_max', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'orp_warn_max'
@@ -2299,13 +2294,13 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Max ORP)', DeviceID=dev_id, Unit=20, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Max ORP)", DeviceID=dev_id, Unit=20, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                         if createDevice(dev_id, 21) and (searchCode('sub1_temp', StatusProperties) or searchCode('ToutCh1', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + '_ext1 (Temperature)', DeviceID=dev_id, Unit=21, Type=80, Subtype=5, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']}_ext1 (Temperature)", DeviceID=dev_id, Unit=21, Type=80, Subtype=5, Used=0).Create()
                         if createDevice(dev_id, 22) and (searchCode('sub1_hum', StatusProperties) or searchCode('HoutCh1', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + '_ext1 (Humidity)', DeviceID=dev_id, Unit=22, Type=81, Subtype=1, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']}_ext1 (Humidity)", DeviceID=dev_id, Unit=22, Type=81, Subtype=1, Used=0).Create()
                         if createDevice(dev_id, 23) and ((searchCode('sub1_temp', StatusProperties) and searchCode('sub1_hum', StatusProperties)) or (searchCode('ToutCh1', StatusProperties) and searchCode('HoutCh1', StatusProperties))):
-                            DomoticzEx.Unit(Name=dev['name'] + '_ext1 (Temperature + Humidity)', DeviceID=dev_id, Unit=23, Type=82, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']}_ext1 (Temperature + Humidity)", DeviceID=dev_id, Unit=23, Type=82, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 24) and searchCode('temp_warn_min', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'temp_warn_min'
@@ -2316,7 +2311,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Min Temp)', DeviceID=dev_id, Unit=24, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Min Temp)", DeviceID=dev_id, Unit=24, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                         if createDevice(dev_id, 25) and searchCode('temp_warn_max', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'temp_warn_max'
@@ -2327,21 +2322,21 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Max Temp)', DeviceID=dev_id, Unit=25, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Max Temp)", DeviceID=dev_id, Unit=25, Type=242, Subtype=1, Options=options, Image=13, Used=1).Create()
                         if createDevice(dev_id, 31) and (searchCode('sub2_temp', StatusProperties) or searchCode('ToutCh2', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + '_ext2 (Temperature)', DeviceID=dev_id, Unit=31, Type=80, Subtype=5, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']}_ext2 (Temperature)", DeviceID=dev_id, Unit=31, Type=80, Subtype=5, Used=0).Create()
                         if createDevice(dev_id, 32) and (searchCode('sub2_hum', StatusProperties) or searchCode('HoutCh2', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + '_ext2 (Humidity)', DeviceID=dev_id, Unit=32, Type=81, Subtype=1, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']}_ext2 (Humidity)", DeviceID=dev_id, Unit=32, Type=81, Subtype=1, Used=0).Create()
                         if createDevice(dev_id, 33) and ((searchCode('sub2_temp', StatusProperties) and searchCode('sub2_hum', StatusProperties)) or (searchCode('ToutCh2', StatusProperties) and searchCode('HoutCh2', StatusProperties))):
-                            DomoticzEx.Unit(Name=dev['name'] + '_ext2 (Temperature + Humidity)', DeviceID=dev_id, Unit=33, Type=82, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']}_ext2 (Temperature + Humidity)", DeviceID=dev_id, Unit=33, Type=82, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 41) and (searchCode('sub3_temp', StatusProperties) or searchCode('ToutCh3', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + '_ext3 (Temperature)', DeviceID=dev_id, Unit=41, Type=80, Subtype=5, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']}_ext3 (Temperature)", DeviceID=dev_id, Unit=41, Type=80, Subtype=5, Used=0).Create()
                         if createDevice(dev_id, 42) and (searchCode('sub3_hum', StatusProperties) or searchCode('HoutCh3', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + '_ext3 (Humidity)', DeviceID=dev_id, Unit=42, Type=81, Subtype=1, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']}_ext3 (Humidity)", DeviceID=dev_id, Unit=42, Type=81, Subtype=1, Used=0).Create()
                         if createDevice(dev_id, 43) and ((searchCode('sub3_temp', StatusProperties) and searchCode('sub3_hum', StatusProperties)) or (searchCode('ToutCh3', StatusProperties) and searchCode('HoutCh3', StatusProperties))):
-                            DomoticzEx.Unit(Name=dev['name'] + '_ext3 (Temperature + Humidity)', DeviceID=dev_id, Unit=43, Type=82, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']}_ext3 (Temperature + Humidity)", DeviceID=dev_id, Unit=43, Type=82, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 44) and searchCode('temp_current_2', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature 2)', DeviceID=dev_id, Unit=44, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature 2)", DeviceID=dev_id, Unit=44, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 45) and searchCode('cook_temperature', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'cook_temperature'
@@ -2352,7 +2347,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Cook temperature)', DeviceID=dev_id, Unit=45, Type=242, Subtype=1, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Cook temperature)", DeviceID=dev_id, Unit=45, Type=242, Subtype=1, Options=options, Used=1).Create()
                         if createDevice(dev_id, 46) and searchCode('cook_temperature_2', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'cook_temperature_2'
@@ -2363,15 +2358,15 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Cook temperature 2)', DeviceID=dev_id, Unit=46, Type=242, Subtype=1, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Cook temperature 2)", DeviceID=dev_id, Unit=46, Type=242, Subtype=1, Options=options, Used=1).Create()
                         if createDevice(dev_id, 47) and searchCode('atmosphere', StatusProperties):
                             options = {}
                             options['Custom'] = '1;inHg'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (inHg)', DeviceID=dev_id, Unit=47, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (inHg)", DeviceID=dev_id, Unit=47, Type=243, Subtype=31, Options=options, Image=19, Used=1).Create()
                         if createDevice(dev_id, 48) and (searchCode('pir', StatusProperties) or searchCode('pir_state', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Pir)', DeviceID=dev_id, Unit=48, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Pir)", DeviceID=dev_id, Unit=48, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 49) and searchCode('temper_alarm', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temper alarm)', DeviceID=dev_id, Unit=49, Type=244, Subtype=73, Switchtype=0, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temper alarm)", DeviceID=dev_id, Unit=49, Type=244, Subtype=73, Switchtype=0, Image=13, Used=1).Create()
                         if createDevice(dev_id, 50) and searchCode('co_status', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'co_status':
@@ -2386,7 +2381,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (CO status)', DeviceID=dev_id, Unit=50, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (CO status)", DeviceID=dev_id, Unit=50, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                         if createDevice(dev_id, 51) and searchCode('checking_result', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'checking_result':
@@ -2401,7 +2396,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Checking result)', DeviceID=dev_id, Unit=51, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Checking result)", DeviceID=dev_id, Unit=51, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                         for channel in range(1, 8): # Unit 51, 54, 57, 60, 63, 66, 69
                             temp = searchCode(f"ch{channel}_temp", ResultValue)
                             hum = searchCode(f"ch{channel}_humi", ResultValue)
@@ -2412,24 +2407,24 @@ def onHandleThread(startup, local):
                             hum_valid = hum and current_hum is not None and current_hum != 0
                             if createDevice(dev_id, unit_base - 2) and temp_valid:
                                 DomoticzEx.Log(f"Create Temperature Sensor device for channel {channel}")
-                                DomoticzEx.Unit(Name=dev['name'] + f" (CH{channel} Temperature)", DeviceID=dev_id, Unit=unit_base - 2, Type=80, Subtype=5, Used=0 if hum_valid else 1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (CH{channel} Temperature)", DeviceID=dev_id, Unit=unit_base - 2, Type=80, Subtype=5, Used=0 if hum_valid else 1).Create()
                             if createDevice(dev_id, unit_base - 1) and hum_valid:
                                 DomoticzEx.Log(f"Create Humidity Sensor device for channel {channel}")
-                                DomoticzEx.Unit(Name=dev['name'] + f" (CH{channel} Humidity)", DeviceID=dev_id, Unit=unit_base - 1, Type=81, Subtype=1, Used=0).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (CH{channel} Humidity)", DeviceID=dev_id, Unit=unit_base - 1, Type=81, Subtype=1, Used=0).Create()
                             if createDevice(dev_id, unit_base) and temp_valid and hum_valid:
                                 DomoticzEx.Log(f"Create Combined Sensor device for channel {channel}")
-                                DomoticzEx.Unit(Name=dev['name'] + f" (CH{channel} Temperature + Humidity)", DeviceID=dev_id, Unit=unit_base, Type=82, Subtype=5, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (CH{channel} Temperature + Humidity)", DeviceID=dev_id, Unit=unit_base, Type=82, Subtype=5, Used=1).Create()
                         # if createDevice(dev_id, 47) and searchCode('alarm_switch', FunctionProperties):
                         #     DomoticzEx.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev_id, Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev['id'], 72) and (searchCode('liquid_state', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (State)', DeviceID=dev['id'], Unit=72, Type=243, Subtype=22, Switchtype=0, Image=11, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (State)", DeviceID=dev['id'], Unit=72, Type=243, Subtype=22, Switchtype=0, Image=11, Used=1).Create()
                         if createDevice(dev['id'], 73) and (searchCode('liquid_level_percent', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Percent)', DeviceID=dev['id'], Unit=73, Type=243, Subtype=6, Switchtype=0, Image=11, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Percent)", DeviceID=dev['id'], Unit=73, Type=243, Subtype=6, Switchtype=0, Image=11, Used=1).Create()
                         if createDevice(dev['id'], 74) and (searchCode('liquid_depth', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Depth)', DeviceID=dev['id'], Unit=74, Type=243, Subtype=27, Switchtype=0, Image=11, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Depth)", DeviceID=dev['id'], Unit=74, Type=243, Subtype=27, Switchtype=0, Image=11, Used=1).Create()
 
                         if dev_type in ('smartir') and dev_id not in str(Devices):
-                            DomoticzEx.Log('Infrared device: ' + str(dev['name']))
+                            DomoticzEx.Log(f"Infrared device: {dev['name']}")
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=243, Subtype=19, Used=0).Create()
                             UpdateDomoticz(dev_id, 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
 
@@ -2439,21 +2434,21 @@ def onHandleThread(startup, local):
                             #DomoticzEx.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
                         if createDevice(dev['id'], 2) and searchCode('floodlight_switch', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Light switch)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Light switch)", DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev['id'], 3) and searchCode('motion_switch', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Motion switch)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Motion switch)", DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev['id'], 4) and searchCode('basic_indicator', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Indicator)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Indicator)", DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev['id'], 5) and searchCode('decibel_switch', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Decibel)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Decibel)", DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev['id'], 6) and searchCode('basic_private', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Private)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Private)", DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev['id'], 7) and searchCode('motion_tracking', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Motion tracking)', DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Motion tracking)", DeviceID=dev['id'], Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev['id'], 8) and searchCode('motion_area_switch', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Motion area switch)', DeviceID=dev['id'], Unit=8, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Motion area switch)", DeviceID=dev['id'], Unit=8, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev['id'], 9) and searchCode('siren_switch', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Siren)', DeviceID=dev['id'], Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Siren)", DeviceID=dev['id'], Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev['id'], 10) and searchCode('nightvision_mode', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'nightvision_mode':
@@ -2468,9 +2463,9 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Night vision mode)', DeviceID=dev['id'], Unit=10, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Night vision mode)", DeviceID=dev['id'], Unit=10, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev['id'], 11) and searchCode('floodlight_switch', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Floodlight)', DeviceID=dev['id'], Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Floodlight)", DeviceID=dev['id'], Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev['id'], 12) and searchCode('ipc_siren_volume', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'ipc_siren_volume'
@@ -2481,7 +2476,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                     options['ValueUnit'] = the_values.get('unit')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Siren Volume)', DeviceID=dev['id'], Unit=12, Type=242, Subtype=1, Options=options, Image=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Siren Volume)", DeviceID=dev['id'], Unit=12, Type=242, Subtype=1, Options=options, Image=8, Used=1).Create()
                         if createDevice(dev['id'], 13) and searchCode('ipc_siren_duration', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'ipc_siren_duration'
@@ -2492,7 +2487,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values.get('min'))
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                     options['ValueUnit'] = the_values.get('unit')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Siren Duration)', DeviceID=dev['id'], Unit=13, Type=242, Subtype=1, Options=options, Image=21, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Siren Duration)", DeviceID=dev['id'], Unit=13, Type=242, Subtype=1, Options=options, Image=21, Used=1).Create()
 
 
                     if dev_type == 'fan':
@@ -2513,7 +2508,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Mode)", DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('fan_speed', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'fan_speed':
@@ -2526,7 +2521,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Fan Speed)', DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Fan Speed)", DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('temp_set', FunctionProperties):
                             for item in FunctionProperties:
                                 temp = 'temp_set'
@@ -2537,34 +2532,34 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev_id, Unit=4, Type=242, Subtype=1, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Thermostat)", DeviceID=dev_id, Unit=4, Type=242, Subtype=1, Options=options, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('temp_current', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev_id, Unit=5, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature)", DeviceID=dev_id, Unit=5, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 6) and searchCode('fault', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev_id, Unit=6, Type=243, Subtype=19, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Fault)", DeviceID=dev_id, Unit=6, Type=243, Subtype=19, Image=13, Used=1).Create()
                         if createDevice(dev_id, 7) and searchCode('light', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Light)', DeviceID=dev_id, Unit=7, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Light)", DeviceID=dev_id, Unit=7, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
                         if createDevice(dev_id, 8) and searchCode('switch', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (RH Switch)', DeviceID=dev_id, Unit=8, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (RH Switch)", DeviceID=dev_id, Unit=8, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
                         if createDevice(dev_id, 9) and (searchCode('RH_threshold', StatusProperties)):
                             options = {}
                             options['Custom'] = '1;RH'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (RH Threshold)', DeviceID=dev_id, Unit=9, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (RH Threshold)", DeviceID=dev_id, Unit=9, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 10) and (searchCode('RH_value', StatusProperties)):
                             options = {}
                             options['Custom'] = '1;RH'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (RH Value)', DeviceID=dev_id, Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (RH Value)", DeviceID=dev_id, Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 11) and searchCode('anion', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Anion)', DeviceID=dev_id, Unit=11, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Anion)", DeviceID=dev_id, Unit=11, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
                         if createDevice(dev_id, 12) and searchCode('anion', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Free Cooling)', DeviceID=dev_id, Unit=12, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Free Cooling)", DeviceID=dev_id, Unit=12, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
                         if createDevice(dev_id, 13) and searchCode('anion', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Powerful)', DeviceID=dev_id, Unit=13, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Powerful)", DeviceID=dev_id, Unit=13, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
 
                     if dev_type == 'fanlight':
                         if createDevice(dev_id, 2) and searchCode('fan_switch', FunctionProperties):
                             DomoticzEx.Log('Create device Fanlight')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Fan Power)', DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Fan Power)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('fan_speed', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'fan_speed':
@@ -2577,7 +2572,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Fan Speed)', DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Fan Speed)", DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('fan_direction', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'fan_direction':
@@ -2592,7 +2587,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Fan Direction)', DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Fan Direction)", DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
 
                     if dev_type == 'siren':
                         if createDevice(dev_id, 1) and searchCode('AlarmSwitch', FunctionProperties):
@@ -2612,7 +2607,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Alarmtype)', DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Alarmtype)", DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=8, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('AlarmPeriod', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'AlarmPeriod':
@@ -2625,10 +2620,10 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (AlarmPeriod)', DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (AlarmPeriod)", DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         # Other type of alarm with same code
                         if createDevice(dev_id, 1) and searchCode('muffling', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Muffling)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Muffling)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=8, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('alarm_state', FunctionProperties):
                             DomoticzEx.Log('Create device Siren')
                             for item in FunctionProperties:
@@ -2644,7 +2639,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (State)', DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (State)", DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('alarm_volume', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'alarm_volume':
@@ -2659,96 +2654,96 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Volume)', DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Volume)", DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=8, Used=1).Create()
 
                     if dev_type == 'powermeter' and searchCode('Current', StatusProperties):
                         if createDevice(dev_id, 1) :
                             DomoticzEx.Log('Create Powermeter')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (3P A)', DeviceID=dev_id, Unit=1, Type=89, Subtype=1, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (3P A)", DeviceID=dev_id, Unit=1, Type=89, Subtype=1, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('Current', StatusProperties):
                             options = {}
                             options['Custom'] = '1;Hz'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Hz)', DeviceID=dev_id, Unit=2, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Hz)", DeviceID=dev_id, Unit=2, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('Temperature', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev_id, Unit=3, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature)", DeviceID=dev_id, Unit=3, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('Current', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (A)', DeviceID=dev_id, Unit=4, Type=243, Subtype=23, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (A)", DeviceID=dev_id, Unit=4, Type=243, Subtype=23, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('ActivePower', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev_id, Unit=5, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (kWh)", DeviceID=dev_id, Unit=5, Type=243, Subtype=29, Used=1).Create()
                         if createDevice(dev_id, 11) and searchCode('ActivePowerA', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' L1 (V)', DeviceID=dev_id, Unit=11, Type=243, Subtype=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} L1 (V)", DeviceID=dev_id, Unit=11, Type=243, Subtype=8, Used=1).Create()
                         if createDevice(dev_id, 12) and searchCode('ActivePowerA', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' L1 (kWh)', DeviceID=dev_id, Unit=12, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} L1 (kWh)", DeviceID=dev_id, Unit=12, Type=243, Subtype=29, Used=1).Create()
                         if createDevice(dev_id, 21) and searchCode('ActivePowerB', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' L2 (V)', DeviceID=dev_id, Unit=21, Type=243, Subtype=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} L2 (V)", DeviceID=dev_id, Unit=21, Type=243, Subtype=8, Used=1).Create()
                         if createDevice(dev_id, 22) and searchCode('ActivePowerB', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' L2 (kWh)', DeviceID=dev_id, Unit=22, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} L2 (kWh)", DeviceID=dev_id, Unit=22, Type=243, Subtype=29, Used=1).Create()
                         if createDevice(dev_id, 31) and searchCode('ActivePowerC', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' L3 (V)', DeviceID=dev_id, Unit=31, Type=243, Subtype=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} L3 (V)", DeviceID=dev_id, Unit=31, Type=243, Subtype=8, Used=1).Create()
                         if createDevice(dev_id, 32) and searchCode('ActivePowerC', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' L3 (kWh)', DeviceID=dev_id, Unit=32, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} L3 (kWh)", DeviceID=dev_id, Unit=32, Type=243, Subtype=29, Used=1).Create()
 
                     if dev_type == 'powermeter' and searchCode('phase_a', StatusProperties):
                         if createDevice(dev_id, 1):
                             DomoticzEx.Log('Create Powermeter')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (A)', DeviceID=dev_id, Unit=1, Type=243, Subtype=23, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (A)", DeviceID=dev_id, Unit=1, Type=243, Subtype=23, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('phase_a', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (W)', DeviceID=dev_id, Unit=2, Type=248, Subtype=1, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (W)", DeviceID=dev_id, Unit=2, Type=248, Subtype=1, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('phase_a', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (V)', DeviceID=dev_id, Unit=3, Type=243, Subtype=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (V)", DeviceID=dev_id, Unit=3, Type=243, Subtype=8, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('phase_a', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev_id, Unit=4, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (kWh)", DeviceID=dev_id, Unit=4, Type=243, Subtype=29, Used=1).Create()
                         if  createDevice(dev_id, 5) and searchCode('switch', StatusProperties):
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 6) and searchCode('fault', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev_id, Unit=6, Type=243, Subtype=19, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Fault)", DeviceID=dev_id, Unit=6, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                     if dev_type == 'powermeter' and (searchCode('direction_a', StatusProperties) or searchCode('power_direction_a', StatusProperties)):
                         if createDevice(dev_id, 1) and (searchCode('voltage_a', StatusProperties) or searchCode('f_ac_v', StatusProperties)):
                             DomoticzEx.Log('Create Powermeter')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (V)', DeviceID=dev_id, Unit=1, Type=243, Subtype=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (V)", DeviceID=dev_id, Unit=1, Type=243, Subtype=8, Used=1).Create()
                         if createDevice(dev_id, 2) and (searchCode('freq', StatusProperties) or searchCode('f_ac_line_freq', StatusProperties)):
                             options = {}
                             options['Custom'] = '1;Hz'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Hz)', DeviceID=dev_id, Unit=2, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Hz)", DeviceID=dev_id, Unit=2, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('total_power', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' Total (W)', DeviceID=dev_id, Unit=3, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} Total (W)", DeviceID=dev_id, Unit=3, Type=243, Subtype=29, Used=1).Create()
                         if createDevice(dev_id, 11) and searchCode('power_a', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' A (W)', DeviceID=dev_id, Unit=11, Type=248, Subtype=1, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} A (W)", DeviceID=dev_id, Unit=11, Type=248, Subtype=1, Used=1).Create()
                         if createDevice(dev_id, 12) and searchCode('current_a', StatusProperties):
                             options = {}
                             options['Custom'] = '1;mA'
-                            DomoticzEx.Unit(Name=dev['name'] + ' A (mA)', DeviceID=dev_id, Unit=12, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} A (mA)", DeviceID=dev_id, Unit=12, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 13) and searchCode('direction_a', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name']+ ' A (Direction)', DeviceID=dev_id, Unit=13, Type=243, Subtype=19, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} A (Direction)", DeviceID=dev_id, Unit=13, Type=243, Subtype=19, Used=1).Create()
                         if createDevice(dev_id, 14) and (searchCode('energy_forword_a', StatusProperties) or searchCode('forward_energy_a', StatusProperties)):
                             # DomoticzEx.Unit(Name=dev['name'] + ' A Forward (kWh)', DeviceID=dev_id, Unit=14, Type=243, Subtype=29, Used=1).Create()
                             options = {}
                             options['Custom'] = '1;kWh'
-                            DomoticzEx.Unit(Name=dev['name'] + ' A Forward (kWh)', DeviceID=dev_id, Unit=14, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} A Forward (kWh)", DeviceID=dev_id, Unit=14, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 15) and (searchCode('energy_reverse_a', StatusProperties) or searchCode('reverse_energy_a', StatusProperties)):
                             # DomoticzEx.Unit(Name=dev['name'] + ' A Reverse (kWh)', DeviceID=dev_id, Unit=15, Type=243, Subtype=29, Used=1).Create()
                             options = {}
                             options['Custom'] = '1;kWh'
-                            DomoticzEx.Unit(Name=dev['name'] + ' A Reverse (kWh)', DeviceID=dev_id, Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} A Reverse (kWh)", DeviceID=dev_id, Unit=15, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 21) and searchCode('power_b', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' B (W)', DeviceID=dev_id, Unit=21, Type=248, Subtype=1, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} B (W)", DeviceID=dev_id, Unit=21, Type=248, Subtype=1, Used=1).Create()
                         if createDevice(dev_id, 22) and searchCode('current_b', StatusProperties):
                             options = {}
                             options['Custom'] = '1;mA'
-                            DomoticzEx.Unit(Name=dev['name'] + ' B (mA)', DeviceID=dev_id, Unit=22, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} B (mA)", DeviceID=dev_id, Unit=22, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 23) and searchCode('direction_b', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name']+ ' B (Direction)', DeviceID=dev_id, Unit=23, Type=243, Subtype=19, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} B (Direction)", DeviceID=dev_id, Unit=23, Type=243, Subtype=19, Used=1).Create()
                         if createDevice(dev_id, 24) and (searchCode('energy_forword_b', StatusProperties) or searchCode('forward_energy_b', StatusProperties)):
                             # DomoticzEx.Unit(Name=dev['name'] + ' B Forward (kWh)', DeviceID=dev_id, Unit=24, Type=243, Subtype=29, Used=1).Create()
                             options = {}
                             options['Custom'] = '1;kWh'
-                            DomoticzEx.Unit(Name=dev['name'] + ' B Forward (kWh)', DeviceID=dev_id, Unit=24, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} B Forward (kWh)", DeviceID=dev_id, Unit=24, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 25) and (searchCode('energy_reverse_b', StatusProperties) or searchCode('reverse_energy_b', StatusProperties)):
                             # DomoticzEx.Unit(Name=dev['name'] + ' B Reverse (kWh)', DeviceID=dev_id, Unit=25, Type=243, Subtype=29, Used=1).Create()
                             options = {}
                             options['Custom'] = '1;kWh'
-                            DomoticzEx.Unit(Name=dev['name'] + ' B Reverse (kWh)', DeviceID=dev_id, Unit=25, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} B Reverse (kWh)", DeviceID=dev_id, Unit=25, Type=243, Subtype=31, Options=options, Used=1).Create()
 
                     if dev_type == 'powermeter' and (searchCode('switch_1', StatusProperties) or searchCode('switch', StatusProperties)) and not searchCode('phase_a', StatusProperties):
                         if  createDevice(dev_id, 1) and (searchCode('switch_1', StatusProperties) or searchCode('switch', StatusProperties)):
@@ -2757,13 +2752,13 @@ def onHandleThread(startup, local):
                         if createDevice(dev_id, 2) and searchCode('cur_current', StatusProperties):
                             options = {}
                             options['Custom'] = '1;mA'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (mA)', DeviceID=dev_id, Unit=2, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (mA)", DeviceID=dev_id, Unit=2, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('cur_power', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev_id, Unit=3, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (kWh)", DeviceID=dev_id, Unit=3, Type=243, Subtype=29, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('cur_voltage', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (V)', DeviceID=dev_id, Unit=4, Type=243, Subtype=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (V)", DeviceID=dev_id, Unit=4, Type=243, Subtype=8, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('fault', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev_id, Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Fault)", DeviceID=dev_id, Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                     if dev_type == 'gateway':
                         if createDevice(dev_id, 1):
@@ -2781,7 +2776,7 @@ def onHandleThread(startup, local):
                     if dev_type == 'pirlight':
                         if createDevice(dev_id, 2) and searchCode('switch_pir', FunctionProperties):
                             DomoticzEx.Log('Create device Pirlight')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Pir State)', DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=8, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Pir State)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=8, Image=9, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('device_mode', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'device_mode':
@@ -2796,7 +2791,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Mode)", DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('pir_sensitivity', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'pir_sensitivity':
@@ -2811,22 +2806,22 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Sensitivity)', DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Sensitivity)", DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                     if dev_type == 'smokedetector':
                         if createDevice(dev_id, 1):
                             DomoticzEx.Log('Create device Smokedetector')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=5, Used=1).Create()
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev_id, Unit=2, Type=243, Subtype=19, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Alarm)", DeviceID=dev_id, Unit=2, Type=243, Subtype=19, Used=1).Create()
 
                     if dev_type == 'garagedooropener':
                         if createDevice(dev_id, 1) and searchCode('switch_1', FunctionProperties):
                             DomoticzEx.Log('Create device Garage door opener')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=5, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('doorcontact_state', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Contact state)', DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Contact state)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('door_control_1', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (State)', DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (State)", DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                     if dev_type == 'feeder':
                         if createDevice(dev_id, 1) and searchCode('manual_feed', FunctionProperties):
@@ -2842,7 +2837,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Manual)', DeviceID=dev_id, Unit=1, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Manual)", DeviceID=dev_id, Unit=1, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('feed_state', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'feed_state':
@@ -2857,7 +2852,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Status)", DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('feed_report', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'feed_report':
@@ -2870,9 +2865,9 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Report)', DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Report)", DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('light', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Light)', DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Light)", DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
 
                     if dev_type == 'waterleak':
                         if createDevice(dev_id, 1):
@@ -2886,7 +2881,7 @@ def onHandleThread(startup, local):
 
                     if dev_type == 'irrigation':
                         if createDevice(dev_id, 1) and (searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('work_state', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'work_state':
@@ -2901,19 +2896,19 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=22, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Status)", DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=22, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('areaone', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Area One)', DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Area One)", DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('areatwo', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Area Two)', DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Area Two)", DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('areathree', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Area Three)', DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Area Three)", DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
                         if createDevice(dev_id, 6) and searchCode('areafour', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Area Four)', DeviceID=dev_id, Unit=6, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Area Four)", DeviceID=dev_id, Unit=6, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
                         if createDevice(dev_id, 7) and searchCode('areafive', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Area Five)', DeviceID=dev_id, Unit=7, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Area Five)", DeviceID=dev_id, Unit=7, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
                         if createDevice(dev_id, 8) and searchCode('areasix', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Area Six)', DeviceID=dev_id, Unit=8, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Area Six)", DeviceID=dev_id, Unit=8, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
 
                     if dev_type == 'wswitch':
                         # if createDevice(dev_id, 1) and searchCode('switch1_value', StatusProperties):
@@ -2921,9 +2916,9 @@ def onHandleThread(startup, local):
                         #     DomoticzEx.Unit(Name=dev['name'] + ' double click (Switch 1)', DeviceID=dev_id, Unit=12, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         #     DomoticzEx.Unit(Name=dev['name'] + ' long press (Switch 1)', DeviceID=dev_id, Unit=13, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         for x in range(1, 10):
-                            if createDevice(dev_id, x) and searchCode('switch' + str(x) + '_value', StatusProperties):
+                            if createDevice(dev_id, x) and searchCode(f"switch{x}_value", StatusProperties):
                                 for item in StatusProperties:
-                                    if item['code'] == 'switch' + str(x) + '_value':
+                                    if item['code'] == f"switch{x}_value":
                                         the_values = json.loads(item['values'])
                                         mode = ['off']
                                         if item['type'] == 'Bitmap':
@@ -2935,10 +2930,10 @@ def onHandleThread(startup, local):
                                         options['LevelActions'] = ''
                                         options['LevelNames'] = '|'.join(mode)
                                         options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev_id, Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
-                            if createDevice(dev_id, x) and searchCode('switch_type_' + str(x), StatusProperties):
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Switch {x})", DeviceID=dev_id, Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            if createDevice(dev_id, x) and searchCode(f"switch_type_{x}", StatusProperties):
                                 for item in StatusProperties:
-                                    if item['code'] == 'switch_type_' + str(x):
+                                    if item['code'] == f"switch_type_{x}":
                                         the_values = json.loads(item['values'])
                                         mode = ['off']
                                         if item['type'] == 'Bitmap':
@@ -2950,10 +2945,10 @@ def onHandleThread(startup, local):
                                         options['LevelActions'] = ''
                                         options['LevelNames'] = '|'.join(mode)
                                         options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev_id, Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
-                            if createDevice(dev_id, x) and searchCode('switch_mode' + str(x), StatusProperties):
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Switch {x})", DeviceID=dev_id, Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            if createDevice(dev_id, x) and searchCode(f"switch_mode{x}", StatusProperties):
                                 for item in StatusProperties:
-                                    if item['code'] == 'switch_mode' + str(x):
+                                    if item['code'] == f"switch_mode{x}":
                                         the_values = json.loads(item['values'])
                                         mode = ['off']
                                         if item['type'] == 'Bitmap':
@@ -2965,23 +2960,23 @@ def onHandleThread(startup, local):
                                         options['LevelActions'] = ''
                                         options['LevelNames'] = '|'.join(mode)
                                         options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Switch ' + str(x) + ')', DeviceID=dev_id, Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Switch {x})", DeviceID=dev_id, Unit=x, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                     if dev_type == 'starlight':
                         if createDevice(dev_id, 1) and searchCode('switch_led', FunctionProperties):
                             DomoticzEx.Log('Create device Starlight')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('colour_switch', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Colour)', DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Colour)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('laser_switch', FunctionProperties) and searchCode('laser_bright', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Laser)', DeviceID=dev_id, Unit=3, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Laser)", DeviceID=dev_id, Unit=3, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('fan_switch', FunctionProperties) and searchCode('fan_speed', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev_id, Unit=4, Type=241, Subtype=3, Switchtype=7, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Fan)", DeviceID=dev_id, Unit=4, Type=241, Subtype=3, Switchtype=7, Image=7, Used=1).Create()
 
                     if dev_type == 'smartlock':
                         if createDevice(dev_id, 1) and (searchCode('lock_motor_state', StatusProperties) or searchCode('rtc_lock', StatusProperties)):
                             DomoticzEx.Log('Create device smart lock')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (State)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (State)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         # if createDevice(dev_id, 3):
                         #     DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=19, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('alarm_lock', StatusProperties):
@@ -2998,11 +2993,11 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Status)", DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=13, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('unlock_ble', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (unlock ble)', DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (unlock ble)", DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('unlock_card', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (unlock card)', DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (unlock card)", DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                     if dev_type == 'dehumidifier':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
@@ -3014,13 +3009,13 @@ def onHandleThread(startup, local):
                                     if item['code'] == 'dehumidify_set_value':
                                         the_values = json.loads(item['values'])
                                         options = {'ValueStep':the_values['step'], 'ValueMin':the_values['min'], 'ValueMax':the_values['max'], 'ValueUnit':'%'}
-                                DomoticzEx.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev_id, Unit=2, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (dehumidify)", DeviceID=dev_id, Unit=2, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                             elif searchCode('dehumidify_set_enum', FunctionProperties):
                                 for item in FunctionProperties:
                                     if item['code'] == 'dehumidify_set_enum':
                                         the_values = json.loads(item['values'])
                                         options = {'ValueStep':the_values['step'], 'ValueMin':the_values['min'], 'ValueMax':the_values['max'], 'ValueUnit':'%'}
-                                DomoticzEx.Unit(Name=dev['name'] + ' (dehumidify)', DeviceID=dev_id, Unit=2, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (dehumidify)", DeviceID=dev_id, Unit=2, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('fan_speed_enum', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'fan_speed_enum':
@@ -3035,7 +3030,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (fan speed)', DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (fan speed)", DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('mode', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'mode':
@@ -3050,36 +3045,36 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                                    DomoticzEx.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                                    DomoticzEx.Unit(Name=f"{dev['name']} (Fan)", DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('fault', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev_id, Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Fault)", DeviceID=dev_id, Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
                         if createDevice(dev_id, 6) and (searchCode('temp_indoor', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev_id, Unit=6, Type=80, Subtype=5, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature)", DeviceID=dev_id, Unit=6, Type=80, Subtype=5, Used=0).Create()
                         if createDevice(dev_id, 7) and (searchCode('humidity_indoor', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev_id, Unit=7, Type=81, Subtype=1, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Humidity)", DeviceID=dev_id, Unit=7, Type=81, Subtype=1, Used=0).Create()
                         if createDevice(dev_id, 8) and ((searchCode('temp_indoor', StatusProperties) and searchCode('humidity_indoor', StatusProperties))):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev_id, Unit=8, Type=82, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature + Humidity)", DeviceID=dev_id, Unit=8, Type=82, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 9) and searchCode('child_lock', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Child lock)', DeviceID=dev_id, Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Child lock)", DeviceID=dev_id, Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 10) and searchCode('switch', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name']+ ' (Anion)', DeviceID=dev_id, Unit=10, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Anion)", DeviceID=dev_id, Unit=10, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 11) and searchCode('filter_reset', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name']+ ' (Filter reset)', DeviceID=dev_id, Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Filter reset)", DeviceID=dev_id, Unit=11, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 12) and searchCode('filter_life', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name']+ ' (Filter life)', DeviceID=dev_id, Unit=12, Type=243, Subtype=6, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Filter life)", DeviceID=dev_id, Unit=12, Type=243, Subtype=6, Used=1).Create()
                         if createDevice(dev_id, 13) and searchCode('runtime_total_reset', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name']+ ' (Runtime total Reset)', DeviceID=dev_id, Unit=13, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Runtime total Reset)", DeviceID=dev_id, Unit=13, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 14) and searchCode('type_of_equipment', StatusProperties):
                             options = {}
                             options['Custom'] = '1;Hour'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Runtime)', DeviceID=dev_id, Unit=14, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Runtime)", DeviceID=dev_id, Unit=14, Type=243, Subtype=31, Options=options, Used=1).Create()
 
                     if dev_type == 'infrared_ac':
                         if createDevice(dev_id, 1):
                             DomoticzEx.Log('Create device Infrared AC')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('temp', StatusProperties):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Thermostat)', DeviceID=dev_id, Unit=2, Type=242, Subtype=1, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Thermostat)", DeviceID=dev_id, Unit=2, Type=242, Subtype=1, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('mode', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'mode':
@@ -3092,7 +3087,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                                    DomoticzEx.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                                    DomoticzEx.Unit(Name=f"{dev['name']} (Mode)", DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('wind', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'wind':
@@ -3105,22 +3100,22 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                                    DomoticzEx.Unit(Name=dev['name'] + ' (Fan)', DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                                    DomoticzEx.Unit(Name=f"{dev['name']} (Fan)", DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('anion', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (anion)', DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (anion)", DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 6) and (searchCode('temp_indoor', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev_id, Unit=6, Type=80, Subtype=5, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature)", DeviceID=dev_id, Unit=6, Type=80, Subtype=5, Used=0).Create()
                         if createDevice(dev_id, 7) and (searchCode('humidity_indoor', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Humidity)', DeviceID=dev_id, Unit=7, Type=81, Subtype=1, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Humidity)", DeviceID=dev_id, Unit=7, Type=81, Subtype=1, Used=0).Create()
                         if createDevice(dev_id, 8) and ((searchCode('temp_indoor', StatusProperties) and searchCode('humidity_indoor', StatusProperties))):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature + Humidity)', DeviceID=dev_id, Unit=8, Type=82, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature + Humidity)", DeviceID=dev_id, Unit=8, Type=82, Subtype=5, Used=1).Create()
 
                     if dev_type == 'vacuum':
                         if createDevice(dev_id, 1) and searchCode('power_go', FunctionProperties):
                             DomoticzEx.Log('Create device Robot vacuum')
-                            DomoticzEx.Unit(Name=dev['name'] + ' Running', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} Running", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('switch_charge', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Charge)', DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Charge)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('mode', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'mode':
@@ -3135,7 +3130,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Mode)', DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create() #Image=7,
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Mode)", DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create() #Image=7,
                         if createDevice(dev_id, 4) and searchCode('suction', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'suction':
@@ -3150,7 +3145,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Suction)', DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Suction)", DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('cistern', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'cistern':
@@ -3165,29 +3160,29 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Cistern)', DeviceID=dev_id, Unit=5, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Cistern)", DeviceID=dev_id, Unit=5, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                         if createDevice(dev_id, 6) and searchCode('status', StatusProperties):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev_id, Unit=6, Type=243, Subtype=19, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Status)", DeviceID=dev_id, Unit=6, Type=243, Subtype=19, Used=1).Create()
                         if createDevice(dev_id, 7) and searchCode('electricity_left', StatusProperties):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Electricity left)', DeviceID=dev_id, Unit=7, Type=243, Subtype=6, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Electricity left)", DeviceID=dev_id, Unit=7, Type=243, Subtype=6, Used=1).Create()
                         if createDevice(dev_id, 8) and searchCode('edge_brush', StatusProperties):
                             options = {}
                             options['Custom'] = '1;Hour'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Edge brush))', DeviceID=dev_id, Unit=8, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Edge brush))", DeviceID=dev_id, Unit=8, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 9) and searchCode('roll_brush', StatusProperties):
                             options = {}
                             options['Custom'] = '1;Hour'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Roll brush))', DeviceID=dev_id, Unit=9, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Roll brush))", DeviceID=dev_id, Unit=9, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 10) and searchCode('filter', StatusProperties):
                             options = {}
                             options['Custom'] = '1;Hour'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Filter))', DeviceID=dev_id, Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Filter))", DeviceID=dev_id, Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 11) and searchCode('fault', StatusProperties):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev_id, Unit=11, Type=243, Subtype=19, Image=13, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Fault)", DeviceID=dev_id, Unit=11, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                     if dev_type == 'multifunctionalarm':
                         if createDevice(dev_id, 1):
-                            DomoticzEx.Log('Multifunction alarm: ' + str(dev['name']))
+                            DomoticzEx.Log(f"Multifunction alarm: {dev['name']}")
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=243, Subtype=19, Used=0).Create()
                             UpdateDomoticz(dev_id, 1, 'update wait', 0, 0)
 
@@ -3198,7 +3193,7 @@ def onHandleThread(startup, local):
                         if createDevice(dev_id, 2) and searchCode('pm25', StatusProperties):
                             options = {}
                             options['Custom'] = '1;µg/m3'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (PM2.5)', DeviceID=dev_id, Unit=2, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (PM2.5)", DeviceID=dev_id, Unit=2, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('mode', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'mode':
@@ -3213,7 +3208,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (mode)', DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (mode)", DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('speed', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'speed':
@@ -3228,16 +3223,16 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (speed)', DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (speed)", DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=7, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('filter', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Filter)', DeviceID=dev_id, Unit=5, Type=243, Subtype=6, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Filter)", DeviceID=dev_id, Unit=5, Type=243, Subtype=6, Used=1).Create()
                         if createDevice(dev_id, 6) and searchCode('air_quality', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Index)', DeviceID=dev_id, Unit=6, Type=243, Subtype=19, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Index)", DeviceID=dev_id, Unit=6, Type=243, Subtype=19, Used=1).Create()
 
                     if dev_type == 'smartkettle':
                         if createDevice(dev_id, 1) and searchCode('start', StatusProperties):
                             DomoticzEx.Log('Create device Smart Kettle')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Start)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Start)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('status', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'status':
@@ -3252,9 +3247,9 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = 0
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Status)", DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                         if createDevice(dev_id, 3) and (searchCode('temperature', StatusProperties)):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev_id, Unit=3, Type=80, Subtype=5, Used=0).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature)", DeviceID=dev_id, Unit=3, Type=80, Subtype=5, Used=0).Create()
                         if createDevice(dev_id, 4) and (searchCode('cook_temperature', StatusProperties)):
                             # options={'ValueStep':'0.5', ' ValueMin':'-200', 'ValueMax':'200', 'ValueUnit':'°C'}
                             for item in StatusProperties:
@@ -3266,9 +3261,9 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Cook Temperature)', DeviceID=dev_id, Unit=4, Type=242, Subtype=1, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Cook Temperature)", DeviceID=dev_id, Unit=4, Type=242, Subtype=1, Options=options, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('fault', StatusProperties):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev_id, Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Fault)", DeviceID=dev_id, Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
 
                     if dev_type == 'mower':
                         if createDevice(dev_id, 1) and searchCode('MachineControlCmd', FunctionProperties):
@@ -3286,15 +3281,15 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Control)', DeviceID=dev_id, Unit=1, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Control)", DeviceID=dev_id, Unit=1, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('MachineRainMode', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Rain Mode)', DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Rain Mode)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('MachineStatus', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Status)', DeviceID=dev_id, Unit=3, Type=243, Subtype=19, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Status)", DeviceID=dev_id, Unit=3, Type=243, Subtype=19, Image=13, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('MachineWarning', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Warnig)', DeviceID=dev_id, Unit=4, Type=243, Subtype=19, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Warnig)", DeviceID=dev_id, Unit=4, Type=243, Subtype=19, Image=13, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('MachineError', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Error)', DeviceID=dev_id, Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Error)", DeviceID=dev_id, Unit=5, Type=243, Subtype=19, Image=13, Used=1).Create()
                         if createDevice(dev_id, 6) and searchCode('MachineWorkMode', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'MachineWorkMode':
@@ -3309,12 +3304,12 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (WorkMode)', DeviceID=dev_id, Unit=6, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (WorkMode)", DeviceID=dev_id, Unit=6, Type=244, Subtype=62, Switchtype=18, Options=options, Used=1).Create()
 
                     if dev_type == 'human_presence':
                         if createDevice(dev_id, 1) and searchCode('presence_state', StatusProperties):
                             DomoticzEx.Log('Create device Human presence sensor')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Presence)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Presence)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('sensitivity', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'sensitivity':
@@ -3327,7 +3322,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Sensitivity)', DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Sensitivity)", DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 3) and (searchCode('near_detection', StatusProperties)):
                             for item in StatusProperties:
                                 temp = 'near_detection'
@@ -3338,7 +3333,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Near detection)', DeviceID=dev_id, Unit=3, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Near detection)", DeviceID=dev_id, Unit=3, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 4) and (searchCode('far_detection', StatusProperties)):
                             for item in StatusProperties:
                                 temp = 'far_detection'
@@ -3349,9 +3344,9 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Far detection)', DeviceID=dev_id, Unit=4, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Far detection)", DeviceID=dev_id, Unit=4, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('checking_result', StatusProperties):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Result)', DeviceID=dev_id, Unit=5, Type=243, Subtype=19, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Result)", DeviceID=dev_id, Unit=5, Type=243, Subtype=19, Used=1).Create()
                         if createDevice(dev_id, 6) and (searchCode('target_dis_closest', StatusProperties)):
                             for item in StatusProperties:
                                 temp = 'target_dis_closest'
@@ -3362,7 +3357,7 @@ def onHandleThread(startup, local):
                                     options['ValueMin'] = get_scale(StatusProperties, temp, the_values['min'])
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values['max'])
                                     options['ValueUnit'] = the_values['unit']
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Target)', DeviceID=dev_id, Unit=6, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Target)", DeviceID=dev_id, Unit=6, Type=242, Subtype=1, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 10) and searchCode('presence_state', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'presence_state':
@@ -3377,28 +3372,28 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Presence state)', DeviceID=dev_id, Unit=10, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Presence state)", DeviceID=dev_id, Unit=10, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                     if dev_type == 'evcharger':
                         if createDevice(dev_id, 1) and searchCode('switch', StatusProperties):
                             DomoticzEx.Log('Create EVcharger')
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('work_state', StatusProperties):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Work state)', DeviceID=dev_id, Unit=2, Type=243, Subtype=19, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Work state)", DeviceID=dev_id, Unit=2, Type=243, Subtype=19, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('temp_current', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Temperature)', DeviceID=dev_id, Unit=3, Type=80, Subtype=5, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temperature)", DeviceID=dev_id, Unit=3, Type=80, Subtype=5, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('power_total', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (W)', DeviceID=dev_id, Unit=4, Type=248, Subtype=1, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (W)", DeviceID=dev_id, Unit=4, Type=248, Subtype=1, Used=1).Create()
                         if createDevice(dev_id, 5) and searchCode('charge_cur_set', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (A)', DeviceID=dev_id, Unit=5, Type=243, Subtype=23, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (A)", DeviceID=dev_id, Unit=5, Type=243, Subtype=23, Used=1).Create()
                         # if createDevice(dev_id, 6) and searchCode('forward_energy_total', StatusProperties) :
                         #     DomoticzEx.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev_id, Unit=6, Type=243, Subtype=29, Used=1).Create()
                         if createDevice(dev_id, 6) and searchCode('forward_energy_total', StatusProperties) :
                             options = {}
                             options['Custom'] = '1;kWh'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (kWh)', DeviceID=dev_id, Unit=6, Type=243, Subtype=31, Options=options, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (kWh)", DeviceID=dev_id, Unit=6, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 7) and searchCode('online_state', StatusProperties):
-                                DomoticzEx.Unit(Name=dev['name'] + ' (Online state)', DeviceID=dev_id, Unit=7, Type=243, Subtype=19, Used=1).Create()
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Online state)", DeviceID=dev_id, Unit=7, Type=243, Subtype=19, Used=1).Create()
                         # if createDevice(dev_id, 8) and searchCode('fault', StatusProperties):
                         #         DomoticzEx.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev_id, Unit=8, Type=243, Subtype=19, Image=13, Used=1).Create()
 
@@ -3407,7 +3402,7 @@ def onHandleThread(startup, local):
                             DomoticzEx.Log('Create device Light RGBW')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=241, Subtype=1, Switchtype=7, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('Power', FunctionProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('lightmode', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'lightmode':
@@ -3422,7 +3417,7 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Lightmode)', DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Lightmode)", DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('dp_mist_grade', FunctionProperties):
                             for item in FunctionProperties:
                                 if item['code'] == 'dp_mist_grade':
@@ -3437,17 +3432,17 @@ def onHandleThread(startup, local):
                                     options['LevelActions'] = ''
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Mist grade)', DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Mist grade)", DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
 
                     if dev_type == 'infrared':
                         if createDevice(dev_id, 1):
-                            DomoticzEx.Log('Infrared device: ' + str(dev['name']))
+                            DomoticzEx.Log(f"Infrared device: {dev['name']}")
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=243, Subtype=19, Used=0).Create()
                             UpdateDomoticz(dev_id, 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
 
                     if createDevice(dev_id, 1) and dev_id not in str(Devices):
-                        DomoticzEx.Log('No controls found for device: ' + str(dev['name']))
-                        DomoticzEx.Unit(Name=dev['name'] + ' (Unknown Device)', DeviceID=dev_id, Unit=1, Type=243, Subtype=19, Used=1).Create()
+                        DomoticzEx.Log(f"No controls found for device: {dev['name']}")
+                        DomoticzEx.Unit(Name=f"{dev['name']} (Unknown Device)", DeviceID=dev_id, Unit=1, Type=243, Subtype=19, Used=1).Create()
                         UpdateDomoticz(dev_id, 1, 'This device is not recognized. Please run the debug_discovery with Python from the tools directory and create an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.', 0, 0)
 
                 except Exception:
@@ -3475,7 +3470,7 @@ def onHandleThread(startup, local):
                         elif not online and Devices[dev_id].TimedOut == 0:
                             UpdateDomoticz(dev_id, 1, False, 0, 1)
                     except:
-                        DomoticzEx.Log(f'Device {dev_name} offline')
+                        DomoticzEx.Log(f"Device {dev_name} offline")
                 else:
                     # Battery devices never timeout
                     if Devices[dev_id].TimedOut == 1:
@@ -3527,7 +3522,7 @@ def onHandleThread(startup, local):
                             currentvalue2 = StatusDeviceTuya(code2)
                             currentdomo = Devices[dev_id].Units[unit].sValue
                             if str(currentvalue1) != str(currentdomo.split(';')[0]) or str(currentvalue2) != str(currentdomo.split(';')[1]):
-                                UpdateDomoticz(dev_id, unit, str(currentvalue1 ) + ';' + str(currentvalue2) + ';0', 0, 0)
+                                UpdateDomoticz(dev_id, unit, f"{currentvalue1};{currentvalue2};0", 0, 0)
                             return True
 
                         def update_power_device(code, unit):
@@ -3539,7 +3534,7 @@ def onHandleThread(startup, local):
                             lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[unit].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                             lastvalue = Devices[dev_id].Units[unit].sValue if len(Devices[dev_id].Units[unit].sValue) > 0 else '0;0'
                             # Calculating the Power Difference in an time interval
-                            UpdateDomoticz(dev_id, unit, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
+                            UpdateDomoticz(dev_id, unit, f"{currentpower};{float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))}", 0, 0, 1)
                             return True
 
                         def update_select_device(code, unit):
@@ -3549,12 +3544,12 @@ def onHandleThread(startup, local):
                             # Get the current mode of the device
                             currentmode = StatusDeviceTuya(code)
                             # Get the mode configuration once
-                            mode = getConfigItem(dev_id + '-' + str(unit), 'mode')
+                            mode = getConfigItem(f"{dev_id}-{unit}", 'mode')
                             if mode is None or mode == {}:
                                 # Loop through StatusProperties to set the mode
                                 for item in StatusProperties:
                                     if item['code'] == code:
-                                        DomoticzEx.Debug('code: ' + str(item['code']))
+                                        DomoticzEx.Debug(f"code: {item['code']}")
                                         # Parse values based on item type
                                         the_values = json.loads(item['values'])
                                         mode = ['off']
@@ -3562,7 +3557,7 @@ def onHandleThread(startup, local):
                                             mode.extend(the_values['label'])
                                         else:
                                             mode.extend(the_values['range'])
-                                        setConfigItem(dev_id + '-' + str(unit), {'mode': mode})
+                                        setConfigItem(f"{dev_id}-{unit}", {'mode': mode})
                                         break  # Exit the loop once we find the code
                             # Calculate the new value
                             try:
@@ -3570,7 +3565,7 @@ def onHandleThread(startup, local):
                             except:
                                 mode.append(currentmode)
                                 Devices[dev_id].Units[unit].Options={'LevelNames': '|'.join(mode)}
-                                setConfigItem(str(dev_id) + '-' + str(unit), {'mode': mode})
+                                setConfigItem(f"{dev_id}-{unit}", {'mode': mode})
                                 Devices[dev_id].Units[unit].Update(UpdateOptions=True)
                                 new_value = mode.index(str(currentmode)) * 10
                             # Only update if the new value differs from the current value
@@ -3706,14 +3701,14 @@ def onHandleThread(startup, local):
                                     lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[19].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                                     lastvalue = Devices[dev_id].Units[19].sValue if len(Devices[dev_id].Units[19].sValue) > 0 else '0;0'
                                     lastvalueR = Devices[dev_id].Units[20].sValue if len(Devices[dev_id].Units[20].sValue) > 0 else '0;0'
-                                    UpdateDomoticz(dev_id, 19, str(powerA) + ';' + str(float(lastvalue.split(';')[1]) + ((powerA) * (lastupdate / 3600))) , 0, 0, 1)
-                                    UpdateDomoticz(dev_id, 20, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
+                                    UpdateDomoticz(dev_id, 19, f"{powerA};{float(lastvalue.split(';')[1]) + ((powerA) * (lastupdate / 3600))}", 0, 0, 1)
+                                    UpdateDomoticz(dev_id, 20, f"0;{float(lastvalueR.split(';')[1])}", 0, 0, 1)
                                 if dirA == 'FORWARD':
                                     lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[20].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                                     lastvalue = Devices[dev_id].Units[20].sValue if len(Devices[dev_id].Units[20].sValue) > 0 else '0;0'
                                     lastvalueR = Devices[dev_id].Units[19].sValue if len(Devices[dev_id].Units[19].sValue) > 0 else '0;0'
-                                    UpdateDomoticz(dev_id, 20, str(powerA) + ';' + str(float(lastvalue.split(';')[1]) + ((powerA) * (lastupdate / 3600))) , 0, 0, 1)
-                                    UpdateDomoticz(dev_id, 19, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
+                                    UpdateDomoticz(dev_id, 20, f"{powerA};{float(lastvalue.split(';')[1]) + ((powerA) * (lastupdate / 3600))}", 0, 0, 1)
+                                    UpdateDomoticz(dev_id, 19, f"0;{float(lastvalueR.split(';')[1])}", 0, 0, 1)
                             if searchCode('power_b', StatusProperties):
                                 powerB = StatusDeviceTuya('power_b')
                                 dirB = StatusDeviceTuya('direction_b')
@@ -3721,14 +3716,14 @@ def onHandleThread(startup, local):
                                     lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[21].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                                     lastvalue = Devices[dev_id].Units[21].sValue if len(Devices[dev_id].Units[21].sValue) > 0 else '0;0'
                                     lastvalueR = Devices[dev_id].Units[22].sValue if len(Devices[dev_id].Units[22].sValue) > 0 else '0;0'
-                                    UpdateDomoticz(dev_id, 21, str(powerB) + ';' + str(float(lastvalue.split(';')[1]) + ((powerB) * (lastupdate / 3600))) , 0, 0, 1)
-                                    UpdateDomoticz(dev_id, 22, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
+                                    UpdateDomoticz(dev_id, 21, f"{powerB};{float(lastvalue.split(';')[1]) + ((powerB) * (lastupdate / 3600))}", 0, 0, 1)
+                                    UpdateDomoticz(dev_id, 22, f"0;{float(lastvalueR.split(';')[1])}", 0, 0, 1)
                                 if dirB == 'FORWARD':
                                     lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[22].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                                     lastvalue = Devices[dev_id].Units[22].sValue if len(Devices[dev_id].Units[22].sValue) > 0 else '0;0'
                                     lastvalueR = Devices[dev_id].Units[21].sValue if len(Devices[dev_id].Units[21].sValue) > 0 else '0;0'
-                                    UpdateDomoticz(dev_id, 22, str(powerB) + ';' + str(float(lastvalue.split(';')[1]) + ((powerB) * (lastupdate / 3600))) , 0, 0, 1)
-                                    UpdateDomoticz(dev_id, 21, '0;' + str(float(lastvalueR.split(';')[1])) , 0, 0, 1)
+                                    UpdateDomoticz(dev_id, 22, f"{powerB};{float(lastvalue.split(';')[1]) + ((powerB) * (lastupdate / 3600))}", 0, 0, 1)
+                                    UpdateDomoticz(dev_id, 21, f"0;{float(lastvalueR.split(';')[1])}", 0, 0, 1)
                             battery_device()
 
                         if dev_type == 'dimmer':
@@ -4129,7 +4124,7 @@ def onHandleThread(startup, local):
                                 UpdateDomoticz(dev_id, 3, str(currentvoltage), 0, 0)
                                 lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[4].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                                 lastvalue = Devices[dev_id].Units[4].sValue if len(Devices[dev_id].Units[4].sValue) > 0 else '0;0'
-                                UpdateDomoticz(dev_id, 4, str(currentpower) + ';' + str(float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))) , 0, 0, 1)
+                                UpdateDomoticz(dev_id, 4, f"{currentpower};{float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))}", 0, 0, 1)
                             update_bool_device('switch', 5)
                             update_text_device('fault', 6)
                             # 2 phase Meter with reverse
@@ -4224,11 +4219,11 @@ def onHandleThread(startup, local):
 
                         if dev_type == 'wswitch':
                             for x in range(1, 4):
-                                if update_select_device('switch' + str(x) + '_value', x):
+                                if update_select_device(f"switch{x}_value", x):
                                     pass
-                                elif update_select_device('switch_type_' + str(x), x):
+                                elif update_select_device(f"switch_type_{x}", x):
                                     pass
-                                elif update_select_device('switch_mode' + str(x), x):
+                                elif update_select_device(f"switch_mode{x}", x):
                                     pass
                             battery_device()
 
@@ -4356,8 +4351,8 @@ def onHandleThread(startup, local):
                             # update_text_device('fault', 8)
 
                     except Exception as err:
-                        DomoticzEx.Error('Device read failed: ' + str(dev_id) + ' line ' + format(sys.exc_info()[-1].tb_lineno))
-                        DomoticzEx.Debug('handleThread: ' + str(err)  + ' line ' + format(sys.exc_info()[-1].tb_lineno))
+                        DomoticzEx.Error(f"Device read failed: {dev_id} line {sys.exc_info()[-1].tb_lineno}")
+                        DomoticzEx.Debug(f"handleThread: {err} line {sys.exc_info()[-1].tb_lineno}")
 
     except Exception as e:
         DomoticzEx.Error(str(e))
@@ -4367,19 +4362,19 @@ def onHandleThread(startup, local):
 def DumpConfigToLog():
     for x in Parameters:
         if Parameters[x] != "":
-            DomoticzEx.Debug( "'" + x + "':'" + str(Parameters[x]) + "'")
-    DomoticzEx.Debug("Device count: " + str(len(Devices)))
+            DomoticzEx.Debug(f"'{x}':'{Parameters[x]}'")
+    DomoticzEx.Debug(f"Device count: {len(Devices)}")
     for DeviceName in Devices:
         Device = Devices[DeviceName]
-        DomoticzEx.Debug("Device ID:       '" + str(Device.DeviceID) + "'")
-        DomoticzEx.Debug("--->Unit Count:      '" + str(len(Device.Units)) + "'")
+        DomoticzEx.Debug(f"Device ID:       '{Device.DeviceID}'")
+        DomoticzEx.Debug(f"--->Unit Count:      '{len(Device.Units)}'")
         for UnitNo in Device.Units:
             Unit = Device.Units[UnitNo]
-            DomoticzEx.Debug("--->Unit:           " + str(UnitNo))
-            DomoticzEx.Debug("--->Unit Name:     '" + Unit.Name + "'")
-            DomoticzEx.Debug("--->Unit nValue:    " + str(Unit.nValue))
-            DomoticzEx.Debug("--->Unit sValue:   '" + Unit.sValue + "'")
-            DomoticzEx.Debug("--->Unit LastLevel: " + str(Unit.LastLevel))
+            DomoticzEx.Debug(f"--->Unit:           {UnitNo}")
+            DomoticzEx.Debug(f"--->Unit Name:     '{Unit.Name}'")
+            DomoticzEx.Debug(f"--->Unit nValue:    {Unit.nValue}")
+            DomoticzEx.Debug(f"--->Unit sValue:   '{Unit.sValue}'")
+            DomoticzEx.Debug(f"--->Unit LastLevel: {Unit.LastLevel}")
     return
 
 # Select device type from category
@@ -4473,9 +4468,7 @@ def DeviceType(category, product_id=None):
 def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
 
     if not checkDevice(ID, Unit):
-        DomoticzEx.Debug(
-            f"Device {ID} Unit {Unit} doesn't exist. Nothing to update"
-        )
+        DomoticzEx.Debug(f"Device {ID} Unit {Unit} doesn't exist. Nothing to update")
         return
 
     unit = Devices[ID].Units[Unit]
@@ -4517,14 +4510,13 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
     Devices[ID].TimedOut = TimedOut
     unit.Update(Log=True)
 
-    DomoticzEx.Log(f"Update device: {Name} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}"
-    )
+    DomoticzEx.Log(f"Update device: {Name} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}")
 
 def StatusDeviceTuya(Function):
     if searchCode(Function, StatusProperties):
         valueRaw = [item['value'] for item in ResultValue if re.search(r'\b'+Function+r'\b', item['code']) != None][0]
     else:
-        DomoticzEx.Debug('StatusDeviceTuya called ' + Function + ' not found ')
+        DomoticzEx.Debug(f"StatusDeviceTuya called {Function} not found ")
         return None
     if isinstance(valueRaw, (int, float)):
         valueT = get_scale(StatusProperties, Function, valueRaw)
@@ -4696,7 +4688,7 @@ def get_scale(device_functions, actual_function_name, raw):
             resultscale = float(resultscale * 100)
     except:
         resultscale = raw
-        DomoticzEx.Debug('Scale device:' + str(actual_function_name) + ' Value: ' + str(resultscale))
+        DomoticzEx.Debug(f"Scale device:{actual_function_name} Value: {resultscale}")
     return resultscale
 
 def get_unit(actual_function_name, device_functions):
@@ -4816,10 +4808,10 @@ def createDevice(ID, Unit):
 
 def deleteDevice(ID, Unit):
     if ID in Devices:
-        DomoticzEx.Log('Deleting device with ID ' + str(ID) + ' Unit ' + str(Unit) + '.')
+        DomoticzEx.Log(f"Deleting device with ID {ID} Unit {Unit}.")
         Devices[ID].Units[Unit].Delete()
     else:
-        DomoticzEx.Debug('Device with ID ' + str(ID) + ' not found. Cannot delete.')
+        DomoticzEx.Debug(f"Device with ID {ID} not found. Cannot delete.")
 
 def updateDevice():
     templates = [
@@ -4847,14 +4839,14 @@ def updateDevice():
     for idx, dev in list(DomoticzEx.Devices.items()):
         for tpl in templates:
             if _matches_template(dev, tpl):
-                DomoticzEx.Log("Removing device matching template: idx={} Name='{}'".format(idx, dev.Name))
+                DomoticzEx.Log(f"Removing device matching template: idx={idx} Name='{dev.Name}'")
                 try:
                     DomoticzEx.Device(Unit=dev.Unit, DeviceID=dev.DeviceID).Delete()
                 except Exception:
                     try:
                         DomoticzEx.Device(idx).Delete()
                     except Exception as e:
-                        DomoticzEx.Log('Failed to remove device idx {}: {}'.format(idx, e), DomoticzEx.LOG_ERROR)
+                        DomoticzEx.Log(f"Failed to remove device idx {idx}: {e}", DomoticzEx.LOG_ERROR)
                 break
     return
 
@@ -4899,7 +4891,7 @@ def getConfigItem(Key=None, Values=None):
     except KeyError:
         Value = {}
     except Exception as inst:
-        DomoticzEx.Error('DomoticzEx.Configuration read failed: ' + str(inst))
+        DomoticzEx.Error(f"DomoticzEx.Configuration read failed: {inst}")
     return Value
 
 def setConfigItem(Key=None, Value=None):
@@ -4912,7 +4904,7 @@ def setConfigItem(Key=None, Value=None):
             Config = Value  # set whole configuration if no key specified
         Config = DomoticzEx.Configuration(Config)
     except Exception as inst:
-        DomoticzEx.Error('DomoticzEx.Configuration operation failed: ' + str(inst))
+        DomoticzEx.Error(f"DomoticzEx.Configuration operation failed: {inst}")
     return Config
 
 def version(ver):
