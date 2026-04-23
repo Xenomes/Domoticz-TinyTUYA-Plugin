@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.4.0</h2><br/>
+        <h2>TinyTUYA Plugin version 2.4.1</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -203,6 +203,18 @@ class BasePlugin:
                     elif searchCode('Light', function):
                         switch = 'Light'
 
+                    # Check if colour_data uses v2 scaling (max = 1000)
+                    colour_data_v2 = False
+                    for item in function:
+                        if item['code'] == 'colour_data':
+                            try:
+                                values = json.loads(item['values'])
+                                if values.get('v', {}).get('max', 255) == 1000:
+                                    colour_data_v2 = True
+                            except:
+                                pass
+                            break
+
                     if Command == 'Off':
                         SendCommandCloud(DeviceID, switch, False)
                         UpdateDevice(DeviceID, Unit, False, 0, 0)
@@ -232,33 +244,19 @@ class BasePlugin:
                                 SendCommandCloud(DeviceID, 'temp_value', int(Color['t']))
                                 UpdateDevice(DeviceID, 1, Level, 1, 0)
                                 UpdateDevice(DeviceID, 1, Color, 1, 0)
-                        # elif Color['m'] == 3:
-                        #     if scalemode == 'v2':
-                        #         h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
-                        #         hvs = {'h':h, 's':s, 'v':Level * 10}
-                        #         SendCommandCloud(DeviceID, switch, True)
-                        #         SendCommandCloud(DeviceID, 'colour_data', hvs)
-                        #     else:
-                        #         h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
-                        #         hvs = {'h':h, 's':s, 'v':Level * 2.55}
-                        #         SendCommandCloud(DeviceID, switch, True)
-                        #         SendCommandCloud(DeviceID, 'colour_data', hvs)
-                        #     UpdateDevice(DeviceID, 1, Level, 1, 0)
-                        #     UpdateDevice(DeviceID, 1, Color, 1, 0)
                         elif Color['m'] == 3:
-                            rgbcolor = format(rgb_temp(Color['r'], Level), '02x') + format(rgb_temp(Color['g'], Level), '02x') + format(rgb_temp(Color['b'], Level), '02x') + '0000ffff'
-                            if searchCode('colour_data_v2', function):
+                            if colour_data_v2:
+                                h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
+                                hvs = {'h':h, 's':s, 'v':Level * 10}
                                 SendCommandCloud(DeviceID, switch, True)
-                                SendCommandCloud(DeviceID, 'work_mode', 'colour')
-                                SendCommandCloud(DeviceID, 'colour_data_v2', rgbcolor)
-                                UpdateDevice(DeviceID, 1, Level, 1, 0)
-                                UpdateDevice(DeviceID, 1, Color, 1, 0)
-                            elif searchCode('colour_data', function):
+                                SendCommandCloud(DeviceID, 'colour_data', hvs)
+                            else:
+                                h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
+                                hvs = {'h':h, 's':s, 'v':Level * 2.55}
                                 SendCommandCloud(DeviceID, switch, True)
-                                SendCommandCloud(DeviceID, 'work_mode', 'colour')
-                                SendCommandCloud(DeviceID, 'colour_data', rgbcolor)
-                                UpdateDevice(DeviceID, 1, Level, 1, 0)
-                                UpdateDevice(DeviceID, 1, Color, 1, 0)
+                                SendCommandCloud(DeviceID, 'colour_data', hvs)
+                            UpdateDevice(DeviceID, 1, Level, 1, 0)
+                            UpdateDevice(DeviceID, 1, Color, 1, 0)
 
                 if dev_type in ('light') and Unit == 2:
                     if searchCode('Power', function):
@@ -3281,7 +3279,7 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 1, 'Close', 0, 0)
                             elif currentstatus == '3':
                                 UpdateDevice(dev['id'], 1, 'Stop', 0, 0)
-                        if searchCode('position_2', StatusProerties) or searchCode('percent_control_2', FunctionProperties):
+                        if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', FunctionProperties):
                             if searchCode('position_2', StatusProperties):
                                 currentposition = StatusDeviceTuya('position_2')
                             elif searchCode('percent_control_2', FunctionProperties):
