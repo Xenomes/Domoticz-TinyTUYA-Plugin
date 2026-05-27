@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.3</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.5</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -141,7 +141,7 @@ try:
     import tinytuya
 except ImportError:
     print('No tinytuya module installed')
-    SystemExit
+    sys.exit(1)
 print(f"Tinytuya version: {tinytuya.version}")
 class BasePlugin:
     def __init__(self):
@@ -438,7 +438,7 @@ class BasePlugin:
                             SendCommandTuya(DeviceID, switch, True)
                             UpdateDomoticz(DeviceID, 24, True, 1, 0)
 
-                elif dev_type == 'thermostat' or dev_type == 'heater'or dev_type == 'heatpump':
+                elif dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                     if searchCode('switch_1', function):
                         switch = 'switch_1'
                     elif searchCode('Power', function):
@@ -3466,7 +3466,7 @@ def onHandleThread(startup, local):
                 if not battery:
                     try:
                         if online and Devices[dev_id].TimedOut == 1:
-                            UpdateDomoticz(dev_id, 1, None, 0, 0)
+                            UpdateDomoticz(dev_id, 1, '', 0, 0)
                         elif not online and Devices[dev_id].TimedOut == 0:
                             UpdateDomoticz(dev_id, 1, False, 0, 1)
                     except:
@@ -3474,7 +3474,7 @@ def onHandleThread(startup, local):
                 else:
                     # Battery devices never timeout
                     if Devices[dev_id].TimedOut == 1:
-                        UpdateDomoticz(dev_id, 1, None, 0, 0)
+                        UpdateDomoticz(dev_id, 1, True, 0, 0)
                 if online:
                     try:
                         def update_bool_device(code, unit, value=None):
@@ -4526,14 +4526,24 @@ def StatusDeviceTuya(Function):
 
 def SendCommandTuya(ID, CommandName, Status):
     sendfunction = properties[ID]['functions']
+    if isinstance(CommandName, list):
+        CommandName = CommandName[0] if CommandName else ''
+
     actual_function_name = CommandName
-    CommandName = list([CommandName])
     actual_status = Status
 
     # Zoek juiste code
     for item in sendfunction:
-        if str(CommandName) in str(item['code']):
-            actual_function_name = str(item['code'])
+        code = item.get('code', '')
+        if CommandName == code:
+            actual_function_name = code
+            break
+    else:
+        for item in sendfunction:
+            code = item.get('code', '')
+            if code.startswith(f"{CommandName}_") or CommandName.startswith(f"{code}_"):
+                actual_function_name = code
+                break
 
     # Schaling (brightness, temp, numeric)
     if any(x in CommandName for x in ['bright_value', 'bright_value_v2', 'bright_value_1', 'bright_value_2', 'laser_bright']):
@@ -4558,9 +4568,17 @@ def SendCommandTuya(ID, CommandName, Status):
                 localtuya[ID]['ip'],
                 device_key
             )
-            d.set_version(float(localtuya[ID]['version']))
+            d.set_version(float(localtuya[ID].get('version', '3.3')))
             d.socketRetryLimit = 1
             d.socketRetryDelay = 1
+            if hasattr(d, 'set_socketTimeout'):
+                d.set_socketTimeout(3)
+            elif hasattr(d, 'set_timeout'):
+                d.set_timeout(3)
+            elif hasattr(d, 'socketTimeout'):
+                d.socketTimeout = 3
+            if hasattr(d, 'set_socketPersistent'):
+                d.set_socketPersistent(False)
 
             result = d.set_status(actual_status, int(dp_id))
 
