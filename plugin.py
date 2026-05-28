@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.5</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.6</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -128,6 +128,7 @@ import time
 import re
 import base64
 import traceback
+import threading
 
 # Runtime timing
 last_update = 0
@@ -200,11 +201,12 @@ class BasePlugin:
         DomoticzEx.Log('onMessage called')
 
     def onCommand(self, DeviceID, Unit, Command, Level, Color):
-        DomoticzEx.Debug(f"onCommand called for Device {DeviceID} Unit {Unit}: Parameter '{Command}', Level: {Level}', Color: {Color}")
-
         # device for the DomoticzEx
         dev = Devices[DeviceID].Units[Unit]
-        DomoticzEx.Debug(f"Device ID: {DeviceID}")
+        # Prefer the device-level name if available, otherwise fall back to unit name or ID
+        dev_name = Devices[DeviceID].Name if DeviceID in Devices and hasattr(Devices[DeviceID], 'Name') else getattr(dev, 'Name', DeviceID)
+        DomoticzEx.Debug(f"onCommand called for Device '{dev_name}' Unit {Unit}: Parameter '{Command}', Level: {Level}', Color: {Color}")
+        DomoticzEx.Debug(f"Device Name: {dev_name}")
         DomoticzEx.Debug(f"nValue: {dev.nValue}")
         DomoticzEx.Debug(f"sValue: {dev.sValue} Type {type(dev.sValue)}")
         DomoticzEx.Debug(f"LastLevel: {dev.LastLevel}")
@@ -1657,9 +1659,61 @@ def onHandleThread(startup, local):
             except:
                 pass
 
+        # Proactive ping loop for battery WiFi devices to wake them up
+        if local and not testdata and not fulllocal:
+            for dev in devs:
+                dev_id = dev.get('id')
+                if not dev_id:
+                    continue
+                    
+                # Check if WiFi device and has battery
+                connect_type = dev.get('connect_type', 'wifi')
+                protocol = dev.get('protocol', 'wifi')
+                if 'zigbee' in str(connect_type).lower() or 'zigbee' in str(protocol).lower():
+                    continue
+                
+                # Check battery status
+                StatusProperties = properties.get(dev_id, {}).get('status', [])
+                if not is_battery_device(StatusProperties):
+                    continue
+                
+                # Try to ping battery device
+                if dev_id in localtuya and localtuya[dev_id].get('ip', '') != '':
+                    try:
+                        DomoticzEx.Debug(f"Pinging battery device {dev.get('name', 'Unknown')} ({dev_id}) at {localtuya[dev_id].get('ip')}")
+                        d = tinytuya.Device(
+                            dev_id,
+                            localtuya[dev_id].get('ip'),
+                            dev.get('key', ''),
+                            version=localtuya[dev_id].get('version', '3.3')
+                        )
+                        d.socketRetryLimit = 1
+                        d.socketRetryDelay = 1
+                        if hasattr(d, 'set_socketTimeout'):
+                            d.set_socketTimeout(2)
+                        
+                        # Send ping
+                        ping_result = d.status()
+                        if ping_result and isinstance(ping_result, dict) and 'dps' in ping_result:
+                            DomoticzEx.Log(f"Battery device {dev.get('name', 'Unknown')} ({dev_id}) responded - woken up successfully")
+                            # Update result cache with fresh status
+                            if 'result' in str(ping_result) or 'dps' in ping_result:
+                                result[dev_id] = ping_result
+                        else:
+                            DomoticzEx.Debug(f"Battery device {dev.get('name', 'Unknown')} ({dev_id}) no valid response")
+                    except Exception as e:
+                        DomoticzEx.Debug(f"Ping to battery device {dev_id} failed: {e}")
+
         # Main loop 
         
         for dev in devs:
+            # Zigbee filtering - only support WiFi devices
+            connect_type = dev.get('connect_type', 'wifi')
+            protocol = dev.get('protocol', 'wifi')
+            if 'zigbee' in str(connect_type).lower() or 'zigbee' in str(protocol).lower():
+                DomoticzEx.Error(f"!! Device '{dev.get('name', 'Unknown')}' ({dev.get('id', 'Unknown')}) is Zigbee - NOT SUPPORTED. Only WiFi devices are supported.")
+                continue
+            
             # Default values (offline-safe)
             t = 0
             StatusProperties   = properties.get(dev['id'], {}).get('status', [])
@@ -1696,6 +1750,7 @@ def onHandleThread(startup, local):
                         d = tinytuya.Device(dev_id, localtuya[dev_id].get('ip'), dev['key'], version=localtuya.get(dev_id, {}).get('version', '3.3'))
                         d.socketRetryLimit = 1
                         d.socketRetryDelay = 1
+                        
                         d.detect_available_dps()
                         adps = d.detect_available_dps() # Two times for detection bulb devices
                         if adps:
@@ -4366,7 +4421,7 @@ def DumpConfigToLog():
     DomoticzEx.Debug(f"Device count: {len(Devices)}")
     for DeviceName in Devices:
         Device = Devices[DeviceName]
-        DomoticzEx.Debug(f"Device ID:       '{Device.DeviceID}'")
+        DomoticzEx.Debug(f"Device Name:     '{getattr(Device, 'Name', Device.DeviceID)}'")
         DomoticzEx.Debug(f"--->Unit Count:      '{len(Device.Units)}'")
         for UnitNo in Device.Units:
             Unit = Device.Units[UnitNo]
@@ -4555,41 +4610,75 @@ def SendCommandTuya(ID, CommandName, Status):
 
     DomoticzEx.Debug(f"SendCommand: {ID} | {actual_function_name} = {actual_status}")
 
-    #------ LOCAL TINYTUYA------
+    #------ LOCAL TINYTUYA (non-blocking) ------
     if ID in localtuya and ID in dps_map:
+        # prepare some values for immediate logging
         try:
-            dp_id = dps_map[ID]['by_code'].get(actual_function_name)
-            if dp_id is None:
-                raise Exception(f"No dp_id for code {actual_function_name}")
+            dp_id_preview = dps_map[ID]['by_code'].get(actual_function_name)
+        except Exception:
+            dp_id_preview = None
 
-            device_key = getConfigItem(ID, 'key')
-            d = tinytuya.Device(
-                ID,
-                localtuya[ID]['ip'],
-                device_key
-            )
-            d.set_version(float(localtuya[ID].get('version', '3.3')))
-            d.socketRetryLimit = 1
-            d.socketRetryDelay = 1
-            if hasattr(d, 'set_socketTimeout'):
-                d.set_socketTimeout(3)
-            elif hasattr(d, 'set_timeout'):
-                d.set_timeout(3)
-            elif hasattr(d, 'socketTimeout'):
-                d.socketTimeout = 3
-            if hasattr(d, 'set_socketPersistent'):
-                d.set_socketPersistent(False)
+        try:
+            name_preview = Devices[ID].Name
+        except Exception:
+            name_preview = ID
 
-            result = d.set_status(actual_status, int(dp_id))
+        # start background thread to avoid blocking Domoticz main loop
+        def _do_send():
+            try:
+                dp_id = dps_map[ID]['by_code'].get(actual_function_name)
+                if dp_id is None:
+                    raise Exception(f"No dp_id for code {actual_function_name}")
 
-            if not result or 'Error' in result or 'Err' in result:
-                raise Exception(result)
+                device_key = getConfigItem(ID, 'key')
+                d = tinytuya.Device(
+                    ID,
+                    localtuya[ID]['ip'],
+                    device_key
+                )
+                d.set_version(float(localtuya[ID].get('version', '3.3')))
+                d.socketRetryLimit = 1
+                d.socketRetryDelay = 1
+                if hasattr(d, 'set_socketTimeout'):
+                    d.set_socketTimeout(3)
+                elif hasattr(d, 'set_timeout'):
+                    d.set_timeout(3)
+                elif hasattr(d, 'socketTimeout'):
+                    d.socketTimeout = 3
+                if hasattr(d, 'set_socketPersistent'):
+                    d.set_socketPersistent(False)
 
-            DomoticzEx.Log(f"[LOCAL] Command sent: dp_id {dp_id} = {actual_status} ({ID})")
-            return
+                result = d.set_status(actual_status, int(dp_id))
 
-        except Exception as e:
-            DomoticzEx.Debug(f"[LOCAL FAILED] {ID}, fallback to cloud: {e}")
+                if not result or 'Error' in result or 'Err' in result:
+                    raise Exception(result)
+
+                DomoticzEx.Log(f"[LOCAL] Command sent: dp_id {dp_id} = {actual_status} ({name_preview})")
+                return
+
+            except Exception as e:
+                DomoticzEx.Debug(f"[LOCAL FAILED] {name_preview}, fallback to cloud: {e}")
+                # FALLBACK TO CLOUD (still in background)
+                try:
+                    if actual_function_name in ('PowerOff', 'PowerOn'):
+                        uri = 'devices/'
+                    else:
+                        uri = 'iot-03/devices/'
+
+                    if not testdata:
+                        tuya.sendcommand(
+                            ID,
+                            {'commands': [{'code': actual_function_name, 'value': actual_status}]},
+                            uri
+                        )
+
+                    DomoticzEx.Log(f"[CLOUD] Command sent to Tuya: {name_preview}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
+                except Exception as ce:
+                    DomoticzEx.Error(f"[CLOUD FAILED] {name_preview}: {ce}")
+
+        threading.Thread(target=_do_send, daemon=True).start()
+        DomoticzEx.Log(f"[LOCAL] Command queued: dp_id {dp_id_preview} = {actual_status} ({name_preview})")
+        return
 
     #------ FALLBACK: TUYA CLOUD------
     if actual_function_name in ('PowerOff', 'PowerOn'):
@@ -4826,7 +4915,11 @@ def createDevice(ID, Unit):
 
 def deleteDevice(ID, Unit):
     if ID in Devices:
-        DomoticzEx.Log(f"Deleting device with ID {ID} Unit {Unit}.")
+        try:
+            name = Devices[ID].Units[Unit].Name
+        except Exception:
+            name = getattr(Devices[ID], 'Name', ID)
+        DomoticzEx.Log(f"Deleting device '{name}' Unit {Unit}.")
         Devices[ID].Units[Unit].Delete()
     else:
         DomoticzEx.Debug(f"Device with ID {ID} not found. Cannot delete.")
