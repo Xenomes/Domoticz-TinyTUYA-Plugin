@@ -4628,6 +4628,9 @@ def SendCommandTuya(ID, CommandName, Status):
 
     DomoticzEx.Debug(f"SendCommand: {ID} | {actual_function_name} = {actual_status}")
 
+    # Get device name from devs list for all logging
+    dev_name = next((d.get('name', 'Unknown') for d in devs if d.get('id') == ID), ID)
+
     #------ LOCAL TINYTUYA (non-blocking) ------
     if ID in localtuya and ID in dps_map:
         # prepare some values for immediate logging
@@ -4635,11 +4638,6 @@ def SendCommandTuya(ID, CommandName, Status):
             dp_id_preview = dps_map[ID]['by_code'].get(actual_function_name)
         except Exception:
             dp_id_preview = None
-
-        try:
-            name_preview = Devices[ID].Name
-        except Exception:
-            name_preview = ID
 
         # start background thread to avoid blocking Domoticz main loop
         def _do_send():
@@ -4671,11 +4669,11 @@ def SendCommandTuya(ID, CommandName, Status):
                 if not result or 'Error' in result or 'Err' in result:
                     raise Exception(result)
 
-                DomoticzEx.Log(f"[LOCAL] Command sent: dp_id {dp_id} = {actual_status} ({name_preview})")
+                DomoticzEx.Log(f"[LOCAL] Command sent: dp_id {dp_id} = {actual_status} ({dev_name})")
                 return
 
             except Exception as e:
-                DomoticzEx.Debug(f"[LOCAL FAILED] {name_preview}, fallback to cloud: {e}")
+                DomoticzEx.Debug(f"[LOCAL FAILED] {dev_name}, fallback to cloud: {e}")
                 # FALLBACK TO CLOUD (still in background)
                 try:
                     if actual_function_name in ('PowerOff', 'PowerOn'):
@@ -4690,20 +4688,15 @@ def SendCommandTuya(ID, CommandName, Status):
                             uri
                         )
 
-                    DomoticzEx.Log(f"[CLOUD] Command sent to Tuya: {name_preview}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
+                    DomoticzEx.Log(f"[CLOUD] Command sent to Tuya: {dev_name}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
                 except Exception as ce:
-                    DomoticzEx.Error(f"[CLOUD FAILED] {name_preview}: {ce}")
+                    DomoticzEx.Error(f"[CLOUD FAILED] {dev_name}: {ce}")
 
         threading.Thread(target=_do_send, daemon=True).start()
-        DomoticzEx.Log(f"[LOCAL] Command queued: dp_id {dp_id_preview} = {actual_status} ({name_preview})")
+        DomoticzEx.Log(f"[LOCAL] Command queued: dp_id {dp_id_preview} = {actual_status} ({dev_name})")
         return
 
     #------ FALLBACK: TUYA CLOUD------
-    try:
-        name_fallback = Devices[ID].Name
-    except Exception:
-        name_fallback = ID
-    
     if actual_function_name in ('PowerOff', 'PowerOn'):
         uri = 'devices/'
     else:
@@ -4716,7 +4709,7 @@ def SendCommandTuya(ID, CommandName, Status):
             uri
         )
 
-    DomoticzEx.Log(f"[CLOUD] Command sent to Tuya: {name_fallback}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
+    DomoticzEx.Log(f"[CLOUD] Command sent to Tuya: {dev_name}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
 
 def pct_to_brightness(device_functions, actual_function_name, pct):
     if device_functions and actual_function_name:
