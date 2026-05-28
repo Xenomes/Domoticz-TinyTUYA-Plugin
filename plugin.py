@@ -1515,23 +1515,32 @@ def onHandleThread(startup, local):
                 if not devs:
                     raise Exception('No device data returned from Tuya cloud')
                 
+                DomoticzEx.Log(f'Successfully fetched {len(devs)} device(s) from Tuya cloud')
+                for dev in devs:
+                    DomoticzEx.Debug(f"  - Device: {dev.get('name', 'Unknown')} (ID: {dev.get('id', 'Unknown')})")
+                
                 # Fetch schemas 
                 for dev in devs:
                     dev_id = dev.get('id')
+                    dev_name = dev.get('name', 'Unknown')
 
-                    props = tuya.getproperties(dev_id).get('result', {})
-                    props.setdefault('functions', [])
-                    props.setdefault('status', [])
-                    properties[dev_id] = props
+                    try:
+                        props = tuya.getproperties(dev_id).get('result', {})
+                        props.setdefault('functions', [])
+                        props.setdefault('status', [])
+                        properties[dev_id] = props
 
-                    result[dev_id] = tuya.getstatus(dev_id).get('result', {})
+                        result[dev_id] = tuya.getstatus(dev_id).get('result', {})
 
-                    dps_map[dev_id] = {'by_code': {}, 'by_id': {}}
-                    schema = tuya.getdps(dev_id)
-                    if schema['success']:
-                        for f in schema['result'].get('status', []):
-                            dps_map[dev_id]['by_code'][f['code']] = f['dp_id']
-                            dps_map[dev_id]['by_id'][f['dp_id']] = f['code']
+                        dps_map[dev_id] = {'by_code': {}, 'by_id': {}}
+                        schema = tuya.getdps(dev_id)
+                        if schema['success']:
+                            for f in schema['result'].get('status', []):
+                                dps_map[dev_id]['by_code'][f['code']] = f['dp_id']
+                                dps_map[dev_id]['by_id'][f['dp_id']] = f['code']
+                        DomoticzEx.Debug(f"Fetched properties for {dev_name} ({dev_id}): {len(properties.get(dev_id, {}).get('functions', []))} functions, {len(properties.get(dev_id, {}).get('status', []))} status items")
+                    except Exception as e:
+                        DomoticzEx.Error(f"Failed to fetch properties for {dev_name} ({dev_id}): {e}")
             elif fulllocal:
                 DomoticzEx.Log('Full local mode: loading device data from files')
                 with open(Parameters['HomeFolder'] + '/tuya-raw.json') as dFile:
@@ -1647,7 +1656,12 @@ def onHandleThread(startup, local):
                     DomoticzEx.Log('Initial Tuya IP scan, Please wait...')
                     localtuya = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
                     last_ip_scan = time.time()
-                except:
+                    DomoticzEx.Log(f'Local IP scan completed: found {len(localtuya)} device(s) on local network')
+                    for dev_id, dev_info in localtuya.items():
+                        dev_name = next((d.get('name', 'Unknown') for d in devs if d.get('id') == dev_id), 'Unknown')
+                        DomoticzEx.Debug(f"  - Local device: {dev_name} ({dev_id}) at {dev_info.get('ip', 'unknown IP')}")
+                except Exception as e:
+                    DomoticzEx.Error(f"Local IP scan failed: {e}")
                     localtuya = {}
 
         # Periodic IP scan 
@@ -1656,8 +1670,12 @@ def onHandleThread(startup, local):
                 DomoticzEx.Log('Periodic Tuya IP scan, Please wait...')
                 localtuya = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
                 last_ip_scan = time.time()
-            except:
-                pass
+                DomoticzEx.Log(f'Periodic IP scan completed: found {len(localtuya)} device(s) on local network')
+                for dev_id, dev_info in localtuya.items():
+                    dev_name = next((d.get('name', 'Unknown') for d in devs if d.get('id') == dev_id), 'Unknown')
+                    DomoticzEx.Debug(f"  - Local device: {dev_name} ({dev_id}) at {dev_info.get('ip', 'unknown IP')}")
+            except Exception as e:
+                DomoticzEx.Error(f"Periodic IP scan failed: {e}")
 
         # Proactive ping loop for battery WiFi devices to wake them up
         if local and not testdata and not fulllocal:
@@ -4681,6 +4699,11 @@ def SendCommandTuya(ID, CommandName, Status):
         return
 
     #------ FALLBACK: TUYA CLOUD------
+    try:
+        name_fallback = Devices[ID].Name
+    except Exception:
+        name_fallback = ID
+    
     if actual_function_name in ('PowerOff', 'PowerOn'):
         uri = 'devices/'
     else:
@@ -4693,7 +4716,7 @@ def SendCommandTuya(ID, CommandName, Status):
             uri
         )
 
-    DomoticzEx.Log(f"[CLOUD] Command sent to Tuya: {ID}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
+    DomoticzEx.Log(f"[CLOUD] Command sent to Tuya: {name_fallback}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
 
 def pct_to_brightness(device_functions, actual_function_name, pct):
     if device_functions and actual_function_name:
