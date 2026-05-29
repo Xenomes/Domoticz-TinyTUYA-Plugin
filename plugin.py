@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.1a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.4.1</h2><br/>
+        <h2>TinyTUYA Plugin version 2.4.1a</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -206,14 +206,25 @@ class BasePlugin:
                     # Check if colour_data uses v2 scaling (max = 1000)
                     colour_data_v2 = False
                     for item in function:
+                        if item['code'] == 'colour_data_v2':
+                            colour_data_v2 = True
+                            break
                         if item['code'] == 'colour_data':
                             try:
                                 values = json.loads(item['values'])
                                 if values.get('v', {}).get('max', 255) == 1000:
                                     colour_data_v2 = True
+                                    break
                             except:
                                 pass
-                            break
+                        if item['code'] in ('bright_value', 'bright_value_1', 'bright_value_2'):
+                            try:
+                                values = json.loads(item['values'])
+                                if values.get('max', 0) >= 1000:
+                                    colour_data_v2 = True
+                                    break
+                            except:
+                                pass
 
                     if Command == 'Off':
                         SendCommandCloud(DeviceID, switch, False)
@@ -5158,7 +5169,7 @@ def rgb_to_hsv(r, g, b):
     return h, s, v
 
 def rgb_to_hsv_v2(r, g, b):
-    h, s, v = colorsys.rgb_to_hsv(r / 1000, g / 1000, b / 1000)
+    h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
     h = int(h * 360)
     s = int(s * 1000)
     v = int(v * 1000)
