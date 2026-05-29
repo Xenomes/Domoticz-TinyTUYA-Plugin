@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.6a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.6</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.6a</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -92,7 +92,7 @@
                 <option label="2 hour" value="7200" />
                 <option label="3 hour" value="10800" />
                 <option label="6 hour" value="21600" />
-                <option label="12 hour" value="21600" />
+                <option label="12 hour" value="43200" />
             </options>
         </param>
         <param field="Mode4" label="Local IP rescan interval" width="200px" required="true" default="3600">
@@ -205,7 +205,7 @@ class BasePlugin:
         dev = Devices[DeviceID].Units[Unit]
         # Prefer the device-level name if available, otherwise fall back to unit name or ID
         dev_name = Devices[DeviceID].Name if DeviceID in Devices and hasattr(Devices[DeviceID], 'Name') else getattr(dev, 'Name', DeviceID)
-        DomoticzEx.Debug(f"onCommand called for Device '{dev_name}' Unit {Unit}: Parameter '{Command}', Level: {Level}', Color: {Color}")
+        DomoticzEx.Debug(f"onCommand called for Device '{dev_name}' Unit {Unit}: Parameter '{Command}', Level: {Level}, Color: {Color}")
         DomoticzEx.Debug(f"Device Name: {dev_name}")
         DomoticzEx.Debug(f"nValue: {dev.nValue}")
         DomoticzEx.Debug(f"sValue: {dev.sValue} Type {type(dev.sValue)}")
@@ -4866,7 +4866,7 @@ def temp_cw_ww(t):
 
 def nextUnit(ID):
     unit = 1
-    while unit in Devices(ID) and unit < 255:
+    while unit in Devices[ID] and unit < 255:
         unit = unit + 1
     return unit
 
@@ -4973,7 +4973,7 @@ def updateDevice():
                     try:
                         DomoticzEx.Device(idx).Delete()
                     except Exception as e:
-                        DomoticzEx.Log(f"Failed to remove device idx {idx}: {e}", DomoticzEx.LOG_ERROR)
+                        DomoticzEx.Log(f"Failed to remove device idx {idx}: {e}", DomoticzEx.ERROR)
                 break
     return
 
