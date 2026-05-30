@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.6a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.6b" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.6a</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.6b</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -133,6 +133,9 @@ import threading
 # Runtime timing
 last_update = 0
 last_ip_scan = 0
+
+# Prevents overlapping heartbeat poll cycles from blocking onCommand
+_handle_lock = threading.Lock()
 
 try:
     import DomoticzEx
@@ -1401,10 +1404,20 @@ class BasePlugin:
     def onHeartbeat(self):
         DomoticzEx.Debug('onHeartbeat called')
         if Devices:
-            onHandleThread(False, True)
+            def _run_poll(do_cloud):
+                if not _handle_lock.acquire(blocking=False):
+                    DomoticzEx.Debug('onHeartbeat: poll already running, skipping this cycle')
+                    return
+                try:
+                    onHandleThread(False, True)
+                    if do_cloud:
+                        onHandleThread(False, False)
+                finally:
+                    _handle_lock.release()
+
+            do_cloud = (time.time() - last_update >= synctime and not fulllocal)
             DomoticzEx.Debug(f"Heartbeat check for sync {time.time() - last_update} >= {synctime} and fulllocal={fulllocal}")
-            if time.time() - last_update >= synctime and not fulllocal:
-                onHandleThread(False, False)
+            threading.Thread(target=_run_poll, args=(do_cloud,), daemon=True).start()
 
 global _plugin
 _plugin = BasePlugin()
