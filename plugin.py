@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.1a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.4.1a</h2><br/>
+        <h2>TinyTUYA Plugin version 2.4.2</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -256,18 +256,94 @@ class BasePlugin:
                                 UpdateDevice(DeviceID, 1, Level, 1, 0)
                                 UpdateDevice(DeviceID, 1, Color, 1, 0)
                         elif Color['m'] == 3:
-                            if colour_data_v2:
+                            # Determine target scale for colour_data 'v' (255 or 1000)
+                            bright_max = 0
+                            for it in function:
+                                if it.get('code') in ('bright_value', 'bright_value_1', 'bright_value_2'):
+                                    try:
+                                        vals = json.loads(it.get('values', '{}'))
+                                        bright_max = max(bright_max, int(vals.get('max', 0)))
+                                    except:
+                                        pass
+
+                            use_v1000 = colour_data_v2 or bright_max >= 1000
+                            if use_v1000:
                                 h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
-                                hvs = {'h':h, 's':s, 'v':Level * 10}
-                                SendCommandCloud(DeviceID, switch, True)
-                                SendCommandCloud(DeviceID, 'colour_data', hvs)
+                                v_scaled = int(Level * 10)
                             else:
                                 h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
-                                hvs = {'h':h, 's':s, 'v':Level * 2.55}
-                                SendCommandCloud(DeviceID, switch, True)
-                                SendCommandCloud(DeviceID, 'colour_data', hvs)
+                                v_scaled = Level * 2.55
+
+                            hvs = {'h': h, 's': s, 'v': v_scaled}
+                            SendCommandCloud(DeviceID, switch, True)
+                            SendCommandCloud(DeviceID, 'colour_data', hvs)
                             UpdateDevice(DeviceID, 1, Level, 1, 0)
                             UpdateDevice(DeviceID, 1, Color, 1, 0)
+
+                # Handle Set Color / Set Level for non-Unit-1 color-capable devices (e.g., Unit 11)
+                if (Command == 'Set Color' or Command == 'Set Level') and len(Color) != 0 and Unit != 1 and (searchCode('colour_data', function) or searchCode('colour_data_v2', function)):
+                    # determine switch name if present
+                    if searchCode('led_switch', function):
+                        switch = 'led_switch'
+                    elif searchCode('switch_led', function):
+                        switch = 'switch_led'
+                    elif searchCode('Light', function):
+                        switch = 'Light'
+                    else:
+                        switch = None
+
+                    # Determine if colour_data v2 scaling is used
+                    colour_data_v2_local = False
+                    for item in function:
+                        if item.get('code') == 'colour_data_v2':
+                            colour_data_v2_local = True
+                            break
+                        if item.get('code') == 'colour_data':
+                            try:
+                                values = json.loads(item.get('values','{}'))
+                                if values.get('v', {}).get('max', 255) == 1000:
+                                    colour_data_v2_local = True
+                                    break
+                            except:
+                                pass
+
+                    # determine bright max
+                    bright_max = 0
+                    for it in function:
+                        if it.get('code') in ('bright_value', 'bright_value_1', 'bright_value_2'):
+                            try:
+                                vals = json.loads(it.get('values', '{}'))
+                                bright_max = max(bright_max, int(vals.get('max', 0)))
+                            except:
+                                pass
+
+                    use_v1000 = colour_data_v2_local or bright_max >= 1000
+
+                    if Color.get('m') == 2:
+                        if switch:
+                            SendCommandCloud(DeviceID, switch, True)
+                        SendCommandCloud(DeviceID, 'work_mode', 'white')
+                        if searchCode('bright_value_v2', function):
+                            SendCommandCloud(DeviceID, 'bright_value_v2', Level)
+                            SendCommandCloud(DeviceID, 'temp_value_v2', int(Color['t']))
+                        elif searchCode('bright_value', function):
+                            SendCommandCloud(DeviceID, 'bright_value', Level)
+                            SendCommandCloud(DeviceID, 'temp_value', int(Color['t']))
+                    elif Color.get('m') == 3:
+                        if use_v1000:
+                            h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
+                            v_scaled = int(Level * 10)
+                        else:
+                            h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
+                            v_scaled = Level * 2.55
+
+                        hvs = {'h': h, 's': s, 'v': v_scaled}
+                        if switch:
+                            SendCommandCloud(DeviceID, switch, True)
+                        SendCommandCloud(DeviceID, 'colour_data', hvs)
+
+                    UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                    UpdateDevice(DeviceID, Unit, Color, 1, 0)
 
                 if dev_type in ('light') and Unit == 2:
                     if searchCode('Power', function):
@@ -1076,24 +1152,30 @@ def onHandleThread(startup):
                 synctime = 900
             if testData == True:
                 tuya = Domoticz.Log
-                with open(Parameters['HomeFolder'] + '/debug_devices.json') as dFile:
-                    devs = json.load(dFile)
+                with open(Parameters['HomeFolder'] + '/debug_devices.json', encoding='utf-8') as dFile:
+                    raw_devs = json.load(dFile)
+                if isinstance(raw_devs, dict):
+                    if 'id' in raw_devs:
+                        devs = [raw_devs]
+                    else:
+                        devs = list(raw_devs.values())
+                else:
+                    devs = raw_devs
                 token = 'Fake'
                 Error = None
                 properties = {}
-                with open(Parameters['HomeFolder'] + '/debug_functions.json') as fFile:
+                with open(Parameters['HomeFolder'] + '/debug_functions.json', encoding='utf-8') as fFile:
+                    functions_data = json.load(fFile)
                     for dev in devs:
-                        properties[dev['id']] = json.load(fFile)['result']
-                        try:
-                            properties[dev['id']]['functions']
-                        except:
+                        if isinstance(dev, dict) and 'id' in dev:
+                            properties[dev['id']] = functions_data['result']
+                        else:
+                            Domoticz.Error('!! Warning Invalid device structure in debug_devices.json !!')
+                            continue
+                        if 'functions' not in properties[dev['id']]:
                             properties[dev['id']]['functions'] = []
-                            Domoticz.Error('!! Warning Functions data is missing !!')
-                        try:
-                            properties[dev['id']]['status']
-                        except:
+                        if 'status' not in properties[dev['id']]:
                             properties[dev['id']]['status'] = []
-                            Domoticz.Error('!! Warning Status data is missing !!')
                 # Domoticz.Debug(properties[dev['id']])
             else:
                 # if version(tinytuya.version) >= version('1.11.0'):
@@ -1319,7 +1401,7 @@ def onHandleThread(startup):
         for dev in devs:
             run += 1
             try:
-                Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'],  dev['product_id'])))
+                Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'],  dev['product_id'], properties.get(dev['id'], {}).get('functions'))))
                 last_update = time.time()
                 if testData == True:
                     online = True
@@ -1327,11 +1409,11 @@ def onHandleThread(startup):
                     online = tuya.getconnectstatus(dev['id'])
                 # Set last update
                 FunctionProperties = properties[dev['id']]['functions']
-                dev_type = DeviceType(properties[dev['id']]['category'], dev['product_id'])
+                dev_type = DeviceType(properties[dev['id']]['category'], dev['product_id'], properties[dev['id']].get('functions'))
                 StatusProperties = properties[dev['id']]['status']
 
                 if testData == True:
-                    with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
+                    with open(Parameters['HomeFolder'] + '/debug_result.json', encoding='utf-8') as rFile:
                         rData = json.load(rFile)
                         ResultValue = rData['result']
                         t = rData['t']
@@ -1723,7 +1805,7 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 18) and searchCode('fault', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
 
-                if dev_type in ('sensor', 'smartir', 'switch'):
+                if dev_type in ('sensor', 'smartir'):
                     temp = searchCode('va_temperature', ResultValue) or searchCode('temp_current', ResultValue) or searchCode('local_temp', ResultValue) or searchCode('Tin', ResultValue)
                     hum = searchCode('va_humidity', ResultValue) or searchCode('humidity_value', ResultValue) or searchCode('local_hum', ResultValue) or searchCode('humidity', ResultValue) or searchCode('Hin', ResultValue)
                     if createDevice(dev['id'], 1) and temp:
@@ -1883,7 +1965,7 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + '_ext3 (Humidity)', DeviceID=dev['id'], Unit=42, Type=81, Subtype=1, Used=0).Create()
                     if createDevice(dev['id'], 43) and ((searchCode('sub3_temp', ResultValue) and searchCode('sub3_hum', ResultValue)) or (searchCode('ToutCh3', ResultValue) and searchCode('HoutCh3', ResultValue))):
                         Domoticz.Unit(Name=dev['name'] + '_ext3 (Temperature + Humidity)', DeviceID=dev['id'], Unit=43, Type=82, Subtype=5, Used=1).Create()
-                    if createDevice(dev['id'], 44) and searchCode('temp_current_2', ResultValue):
+                    if createDevice(dev['id'], 44) and (searchCode('temp_current_2', ResultValue) or searchCode('temp_current_external', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' (Temperature 2)', DeviceID=dev['id'], Unit=44, Type=80, Subtype=5, Used=1).Create()
                     if createDevice(dev['id'], 45) and searchCode('cook_temperature', FunctionProperties):
                         for item in FunctionProperties:
@@ -3601,6 +3683,10 @@ def onHandleThread(startup):
                                 currenthumi = StatusDeviceTuya('humidity_value')
                                 if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
                                     UpdateDevice(dev['id'], 2, 0, int(currenthumi), 0)
+                        if temp and searchCode('temp_current', ResultValue):
+                            currenttemp = StatusDeviceTuya('temp_current')
+                            if 1 in Devices[dev['id']].Units and str(currenttemp) != str(Devices[dev['id']].Units[1].sValue):
+                                UpdateDevice(dev['id'], 1, currenttemp, 0, 0)
                             if  searchCode('local_hum', ResultValue):
                                 currenthumi = StatusDeviceTuya('local_hum')
                                 if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
@@ -3614,12 +3700,14 @@ def onHandleThread(startup):
                                 if str(currenthumi) != str(Devices[dev['id']].Units[2].nValue):
                                     UpdateDevice(dev['id'], 2, 0, int(currenthumi), 0)
                         if temp and hum:
+                            if searchCode('temp_current', ResultValue):
+                                currenttemp = StatusDeviceTuya('temp_current')
                             currentdomo = Devices[dev['id']].Units[3].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 3, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
                         if  searchCode('co2_value', ResultValue):
                             currentco2 = StatusDeviceTuya('co2_value')
-                            if str(currentco2) != str(Devices[dev['id']].Units[4].nValue):
+                            if str(currentco2) != str(Devices[dev['id']].Units[5].nValue):
                                 UpdateDevice(dev['id'], 4, str(currentco2), 0, 0)
                         if searchCode('air_quality_index', ResultValue):
                             currentindex = StatusDeviceTuya('air_quality_index')
@@ -3769,8 +3857,9 @@ def onHandleThread(startup):
                             currentdomo = Devices[dev['id']].Units[43].sValue
                             if str(currenttemp) != str(currentdomo.split(';')[0]) or str(currenthumi) != str(currentdomo.split(';')[1]):
                                 UpdateDevice(dev['id'], 43, str(currenttemp ) + ';' + str(currenthumi) + ';0', 0, 0)
-                        if searchCode('temp_current_2', ResultValue):
-                            currenttemp = StatusDeviceTuya('temp_current_2')
+                        if searchCode('temp_current_2', ResultValue) or searchCode('temp_current_external', ResultValue):
+                            code_name = 'temp_current_2' if searchCode('temp_current_2', ResultValue) else 'temp_current_external'
+                            currenttemp = StatusDeviceTuya(code_name)
                             if str(currenttemp) != str(Devices[dev['id']].Units[44].sValue):
                                 UpdateDevice(dev['id'], 44, currenttemp, 0, 0)
                         if searchCode('cook_temperature', ResultValue):
@@ -4901,18 +4990,34 @@ def DumpConfigToLog():
     return
 
 # Select device type from category
-def DeviceType(category, product_id=None):
+def DeviceType(category, product_id=None, device_functions=None):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
     if product_id in {'uoa3mayicscacseb', 'igtakqsfhbr7qsp7', 'vmyibm9bvdbudprp', 'x3o8epevyeo3z3oa'}:
         result = 'cover'
     elif product_id == 'chfpey4klfcp1ipl':
         result = 'dimmer'
-    # elif product_id in {'x3o8epevyeo3z3oa', 'gk0d4i8g5akryd9d'}:
-    #     result = 'sensor'
     elif product_id == 'p6sqiuesvhmhvv4f':
         result = 'doorcontact'
-    elif category in {'kg', 'cz', 'pc', 'tdq', 'znjdq', 'szjqr', 'aqcz'}:
+    # Special handling for category 'tdq' which can be either a switch or a sensor
+    if category == 'tdq':
+        codes = set()
+        if device_functions:
+            try:
+                codes = {str(item.get('code', '')).lower() for item in device_functions}
+            except Exception:
+                codes = set()
+
+        # If function codes include a switch entry, treat as switch
+        if any(('switch' in c or c.startswith('switch')) for c in codes):
+            result = 'switch'
+        # If function codes indicate sensors (temperature, humidity, pir, etc.), treat as sensor
+        elif any(any(k in c for k in ('temp', 'temperature', 'humidity', 'pir', 'smoke', 'water', 'leak', 'co', 'voc', 'pm25', 'distance')) for c in codes):
+            result = 'sensor'
+        else:
+            # default fallback
+            result = 'switch'
+    elif category in {'kg', 'cz', 'pc', 'znjdq', 'szjqr', 'aqcz'}:
         result = 'switch'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj', 'tyd'}:
         result = 'light'
@@ -5250,6 +5355,7 @@ def createDevice(ID, Unit):
         value = True
 
     return value
+
 
 def deleteDevice(ID, Unit):
     if ID in Devices:
