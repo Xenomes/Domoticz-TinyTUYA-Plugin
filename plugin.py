@@ -3337,6 +3337,14 @@ def onHandleThread(startup):
                                 UpdateDevice(dev['id'], 4, int(mode.index(str(currentmode)) * 10), 1, 0)
 
                     if dev_type == 'cover':
+                        if searchCode('control', StatusProperties):
+                            currentstatus = StatusDeviceTuya('control')
+                            if currentstatus == 'close':
+                                UpdateDevice(dev['id'], 1, 'Open', 0, 0)
+                            elif currentstatus == 'open':
+                                UpdateDevice(dev['id'], 1, 'Close', 1, 0)
+                            elif currentstatus == 'stop':
+                                UpdateDevice(dev['id'], 1, 'Stop', 1, 0)
                         if searchCode('position', StatusProperties) or searchCode('percent_control', FunctionProperties):
                             if searchCode('position', StatusProperties):
                                 currentposition = StatusDeviceTuya('position')
@@ -3355,14 +3363,6 @@ def onHandleThread(startup):
                             elif currentstatus == 'FZ':
                                 UpdateDevice(dev['id'], 1, 'Close', 1, 0)
                             elif currentstatus == 'STOP':
-                                UpdateDevice(dev['id'], 1, 'Stop', 1, 0)
-                        if searchCode('control', StatusProperties):
-                            currentstatus = StatusDeviceTuya('control')
-                            if currentstatus == 'close':
-                                UpdateDevice(dev['id'], 1, 'Open', 0, 0)
-                            elif currentstatus == 'open':
-                                UpdateDevice(dev['id'], 1, 'Close', 1, 0)
-                            elif currentstatus == 'stop':
                                 UpdateDevice(dev['id'], 1, 'Stop', 1, 0)
                         if searchCode('status', StatusProperties):
                             currentstatus = StatusDeviceTuya('status')
