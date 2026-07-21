@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.2a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.4.2a</h2><br/>
+        <h2>TinyTUYA Plugin version 2.4.3</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1457,6 +1457,7 @@ def onHandleThread(startup):
                 except:
                     deviceinfo = {'version': 3.3}
 
+                Domoticz.Debug(dev_type)
                 if dev_type in ('light', 'fanlight', 'pirlight') and createDevice(dev['id'], 1):
                     if (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
                         Domoticz.Log('Create device Light RGBWW')
@@ -1553,13 +1554,13 @@ def onHandleThread(startup):
                     if createDevice(dev['id'], 22) and (searchCode('power_b', ResultValue)):
                         Domoticz.Unit(Name=dev['name'] + ' Forward B(kWh)', DeviceID=dev['id'], Unit=22, Type=243, Subtype=29, Used=1).Create()
 
-                if dev_type == 'cover' and createDevice(dev['id'], 1):
+                if dev_type == 'cover':
                     Domoticz.Log('Create device Cover')
-                    if searchCode('position', StatusProperties) or searchCode('percent_control', FunctionProperties):
+                    if createDevice(dev['id'], 1) and (searchCode('position', FunctionProperties) or searchCode('percent_control', FunctionProperties)):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 1)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
-                    else:
+                    elif createDevice(dev['id'], 1) and (searchCode('control', FunctionProperties) or searchCode('mach_operate', FunctionProperties) or searchCode('status', FunctionProperties)):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=14, Used=1).Create()
-                    if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', FunctionProperties):
+                    if createDevice(dev['id'], 2) and (searchCode('position_2', FunctionProperties) or searchCode('percent_control_2', FunctionProperties)):
                         Domoticz.Unit(Name=dev['name'] + ' (Switch 2)', DeviceID=dev['id'], Unit=2, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
 
                 if dev_type == 'smartheatpump':
@@ -5010,9 +5011,7 @@ def DumpConfigToLog():
 def DeviceType(category, product_id=None, device_functions=None):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
-    if product_id in {'uoa3mayicscacseb', 'igtakqsfhbr7qsp7', 'vmyibm9bvdbudprp', 'x3o8epevyeo3z3oa'}:
-        result = 'cover'
-    elif product_id == 'chfpey4klfcp1ipl':
+    if product_id == 'chfpey4klfcp1ipl':
         result = 'dimmer'
     elif product_id == 'p6sqiuesvhmhvv4f':
         result = 'doorcontact'
@@ -5025,15 +5024,17 @@ def DeviceType(category, product_id=None, device_functions=None):
             except Exception:
                 codes = set()
 
+        Domoticz.Debug(f"Codes detected: {codes}")
+
         # If function codes include a switch entry, treat as switch
         if any(('switch' in c or c.startswith('switch')) for c in codes):
             result = 'switch'
-        # If function codes indicate sensors (temperature, humidity, pir, etc.), treat as sensor
-        elif any(any(k in c for k in ('temp', 'temperature', 'humidity', 'pir', 'smoke', 'water', 'leak', 'co', 'voc', 'pm25', 'distance')) for c in codes):
+        # If function codes indicate cover (check FIRST before sensor)
+        elif any(any(k in c for k in ('position', 'percent_control', 'position_2', 'percent_control_2')) for c in codes):
+            result = 'cover'
+        # If function codes indicate sensors - use exact word matching or longer patterns
+        elif any(any(k in c for k in ('temp_', 'temperature', 'humidity', 'pir', 'smoke', 'water_leak', 'leak', 'co_', 'voc', 'pm25', 'distance')) for c in codes):
             result = 'sensor'
-        else:
-            # default fallback
-            result = 'switch'
     elif category in {'kg', 'cz', 'pc', 'znjdq', 'szjqr', 'aqcz'}:
         result = 'switch'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj', 'tyd'}:
