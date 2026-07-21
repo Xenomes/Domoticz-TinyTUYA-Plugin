@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.2a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.4.2</h2><br/>
+        <h2>TinyTUYA Plugin version 2.4.2a</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -186,7 +186,7 @@ class BasePlugin:
                             SendCommandCloud(DeviceID, 'switch_mode' + str(Unit), mode[int(Level / 10)])
                         UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
-                if dev_type in ('dimmer'):
+                if dev_type == 'dimmer':
                     if Command == 'Off':
                         SendCommandCloud(DeviceID, 'switch_led_' + str(Unit), False)
                         UpdateDevice(DeviceID, Unit, False, 0, 0)
@@ -195,7 +195,7 @@ class BasePlugin:
                         SendCommandCloud(DeviceID, 'bright_value_' + str(Unit), Level)
                         UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
-                if (dev_type in ('light') or dev_type in ('fanlight') or dev_type in ('pirlight')) and Unit == 1:
+                if (dev_type in ('light', 'fanlight', 'pirlight')) and Unit == 1:
                     if searchCode('led_switch', function):
                         switch = 'led_switch'
                     elif searchCode('switch_led', function):
@@ -345,7 +345,7 @@ class BasePlugin:
                     UpdateDevice(DeviceID, Unit, Level, 1, 0)
                     UpdateDevice(DeviceID, Unit, Color, 1, 0)
 
-                if dev_type in ('light') and Unit == 2:
+                if dev_type == 'light' and Unit == 2:
                     if searchCode('Power', function):
                         if Command == 'Off':
                             SendCommandCloud(DeviceID, 'Power', False)
@@ -353,14 +353,14 @@ class BasePlugin:
                         elif Command == 'On':
                             SendCommandCloud(DeviceID, 'Power', True)
                             UpdateDevice(DeviceID, Unit, True, 1, 0)
-                if dev_type in ('light') and Unit == 3:
+                if dev_type == 'light' and Unit == 3:
                     if searchCode('lightmode', function):
                         switch = 'lightmode'
                         if Command == 'Set Level' and Unit  == 3:
                             mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                             SendCommandCloud(DeviceID, switch, mode[int(Level / 10)])
                             UpdateDevice(DeviceID, Unit, Level, 1, 0)
-                if dev_type in ('light') and Unit == 4:
+                if dev_type == 'light' and Unit == 4:
                     if searchCode('dp_mist_grade', function):
                         switch = 'dp_mist_grade'
                         if Command == 'Set Level' and Unit  == 4:
@@ -368,7 +368,7 @@ class BasePlugin:
                             SendCommandCloud(DeviceID, switch, mode[int(Level / 10)])
                             UpdateDevice(DeviceID, Unit, Level, 1, 0)
 
-                if dev_type == ('cover'):
+                if dev_type == 'cover':
                     ext = '_' + str(Unit) if Unit > 1 else ''
                     if Command == 'Open':
                         if searchCode('mach_operate' + ext, function):
@@ -465,7 +465,7 @@ class BasePlugin:
                             SendCommandCloud(DeviceID, switch, True)
                             UpdateDevice(DeviceID, 24, True, 1, 0)
 
-                elif dev_type == 'thermostat' or dev_type == 'heater'or dev_type == 'heatpump':
+                elif dev_type in ('thermostat', 'heater', 'heatpump'):
                     if searchCode('switch_1', function):
                         switch = 'switch_1'
                     elif searchCode('Power', function):
@@ -1132,7 +1132,10 @@ def onHeartbeat():
 def onHandleThread(startup):
     # Run for every device on startup and heartbeat
     try:
-        if startup == True:
+        # Run full initialization on first startup or whenever the Tuya client
+        # is not present (so we can retry initialization on subsequent
+        # heartbeats if network was down at startup).
+        if startup == True or ('tuya' not in globals()) or (globals().get('tuya') is None):
             global tuya
             global devs
             global properties
@@ -1380,7 +1383,7 @@ def onHandleThread(startup):
                 except Exception as global_error:
                     error_msg = str(global_error)
                     Domoticz.Error(f"Fatal error during Tuya initialization: {error_msg}")
-                    
+
                     # Provide user-friendly messages for common issues
                     if 'credentials' in error_msg.lower() or 'auth' in error_msg.lower():
                         Domoticz.Error("Please check your Tuya API credentials in the hardware setup:")
@@ -1389,8 +1392,22 @@ def onHandleThread(startup):
                         Domoticz.Error(f"  - API Secret: {Parameters.get('Password', 'Not set')}")
                         Domoticz.Error(f"  - Device ID: {Parameters.get('Mode2', 'Not set')}")
                         Domoticz.Error("Visit https://iot.tuya.com/ to verify your credentials.")
-                    
-                    raise  # Re-raise the exception for Domoticz to handle
+
+                    # If the error looks like a transient network/DNS/connection
+                    # problem, do not raise: mark the Tuya client as not
+                    # initialized so a later heartbeat will retry initialization.
+                    transient_indicators = ['name or service not known', 'failed to establish a new connection', 'max retries', 'network is unreachable', 'timed out', 'connection']
+                    if any(ind in error_msg.lower() for ind in transient_indicators):
+                        Domoticz.Error("Tuya initialization failed due to network issue — will retry on next heartbeat")
+                        try:
+                            del tuya
+                        except Exception:
+                            pass
+                        tuya = None
+                        Error = {'Payload': error_msg}
+                    else:
+                        # For non-transient errors (auth/permission/etc.) raise
+                        raise
 
             # Domoticz.Log('Scanning for tuya devices on network...')
             # if testData == False:
@@ -1695,7 +1712,7 @@ def onHandleThread(startup):
                         options['Custom'] = '1;L/Min'
                         Domoticz.Unit(Name=dev['name'] + ' (L/Min)', DeviceID=dev['id'], Unit=24, Type=243, Subtype=31, Options=options, Used=1).Create()
 
-                if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
+                if dev_type in ('thermostat', 'heater', 'heatpump'):
                     temp = searchCode('temp_current', StatusProperties) or searchCode('upper_temp', StatusProperties) or searchCode('c_temperature', StatusProperties) or searchCode('TempCurrent', StatusProperties)
                     hum = searchCode('humidity_current', ResultValue)
                     if createDevice(dev['id'], 1):
@@ -2055,7 +2072,7 @@ def onHandleThread(startup):
                     # if createDevice(dev['id'], 47) and searchCode('alarm_switch', FunctionProperties):
                     #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
 
-                    if dev_type in ('smartir') and dev['id'] not in str(Devices):
+                    if dev_type == 'smartir' and dev['id'] not in str(Devices):
                         Domoticz.Log('Infrared device: ' + str(dev['name']))
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=0).Create()
                         UpdateDevice(dev['id'], 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
@@ -3030,7 +3047,7 @@ def onHandleThread(startup):
                     #         Domoticz.Unit(Name=dev['name'] + ' (Fault)', DeviceID=dev['id'], Unit=8, Type=243, Subtype=19, Image=13, Used=1).Create()
 
 
-                if dev_type in ('light'):
+                if dev_type == 'light':
                     if createDevice(dev['id'], 1) and searchCode('Light', FunctionProperties) and searchCode('work_mode', FunctionProperties) and (searchCode('colour_data', FunctionProperties) or searchCode('colour_data_v2', FunctionProperties)):
                         Domoticz.Log('Create device Light RGBW')
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=241, Subtype=1, Switchtype=7, Used=1).Create()
@@ -3509,7 +3526,7 @@ def onHandleThread(startup):
                             current = StatusDeviceTuya('water_flow')
                             UpdateDevice(dev['id'], 24, str(current), 0, 0)
 
-                    if dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
+                    if dev_type in ('thermostat', 'heater', 'heatpump'):
                         temp = searchCode('temp_current', StatusProperties) or searchCode('upper_temp', StatusProperties) or searchCode('c_temperature', StatusProperties) or searchCode('TempCurrent', StatusProperties)
                         hum = searchCode('humidity_current', ResultValue)
                         if searchCode('switch', ResultValue) or searchCode('switch_1', ResultValue) or searchCode('Power', ResultValue) or searchCode('infared_switch', ResultValue):
