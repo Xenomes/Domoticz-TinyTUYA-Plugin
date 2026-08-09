@@ -1516,17 +1516,29 @@ def onHandleThread(startup, local):
                 tuya.new_sign_algorithm = True
 
                 # Fetch devices 
+                devs = None
+                last_error = None
                 for attempt in range(4):
                     try:
-                        devs = tuya.getdevices()
-                        if devs:
+                        result_devs = tuya.getdevices()
+                        # On failure tinytuya returns an error dict like
+                        # {"Error": "...", "Err": "...", "Payload": ...}
+                        # instead of raising, so detect and retry on that too.
+                        if isinstance(result_devs, dict):
+                            last_error = result_devs.get('Payload', result_devs.get('Error', result_devs))
+                            DomoticzEx.Error(f"Tuya cloud returned an error (attempt {attempt + 1}/4), retrying... ({last_error})")
+                            time.sleep(1)
+                            continue
+                        if result_devs:
+                            devs = result_devs
                             break
-                    except:
-                        DomoticzEx.Log('No device data returned, retrying...')
+                    except Exception as e:
+                        last_error = e
+                        DomoticzEx.Error(f"getdevices() raised an exception (attempt {attempt + 1}/4), retrying... ({e})")
                         time.sleep(1)
 
                 if not devs:
-                    raise Exception('No device data returned from Tuya cloud')
+                    raise Exception(f'No device data returned from Tuya cloud: {last_error}')
                 
                 DomoticzEx.Log(f'Successfully fetched {len(devs)} device(s) from Tuya cloud')
                 for dev in devs:
