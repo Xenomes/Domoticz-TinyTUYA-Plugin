@@ -93,11 +93,11 @@ I had only a RGBWW light to fully test the script, if there is a fuction missing
 
 | Version | Information|
 | ----- | ---------- |
+| 2.3.8 | Add EPT ultrasonic sensor 3m #194 |
 | 2.3.9 | Add Siren function to Camera #195 |
 | 2.4.0 | Add Add CKM-01 device #196 |
 | 2.4.1 | Fix color (de)coding #199 |
 | 2.4.2 | Fix issue with 'tdq' catagory devices #201 |
-| 2.4.3 | Fix issue with 'tdq' catagory Cover #204 |
 
  [The full Change log](CHANGELOG.md)
 
