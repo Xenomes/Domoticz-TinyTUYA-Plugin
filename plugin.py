@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.6b" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.6b</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.7</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -323,6 +323,34 @@ class BasePlugin:
                                 SendCommandTuya(DeviceID, 'colour_data', rgbcolor)
                                 # UpdateDomoticz(DeviceID, Unit, json.dumps(Color), 1, 0)
                                 # UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
+
+                if (dev_type in ('light', 'fanlight', 'pirlight')) and searchCode('draw_tool', function) and Unit >= 10:
+                    led_index = Unit - 10
+                    if Command == 'Off':
+                        max_value = get_draw_tool_max_value(DeviceID)
+                        send_draw_tool_command(DeviceID, led_index, 0, 0, 0, 0, max_value)
+                        UpdateDomoticz(DeviceID, Unit, 0, 0, 0)
+                    elif Command == 'On':
+                        huidige_kleur = get_led_color(DeviceID, Unit)
+                        max_value = get_draw_tool_max_value(DeviceID)
+                        send_draw_tool_command(DeviceID, led_index, huidige_kleur['r'], huidige_kleur['g'], huidige_kleur['b'], 100, max_value)
+                        UpdateDomoticz(DeviceID, Unit, 100, 1, 0)
+                    elif Command == 'Set Level':
+                        huidige_kleur = get_led_color(DeviceID, Unit)
+                        max_value = get_draw_tool_max_value(DeviceID)
+                        send_draw_tool_command(DeviceID, led_index, huidige_kleur['r'], huidige_kleur['g'], huidige_kleur['b'], Level, max_value)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
+                    elif (Command == 'Set Color' or Command == 'Set Level') and len(Color) != 0:
+                        max_value = get_draw_tool_max_value(DeviceID)
+                        if Color['m'] == 2:
+                            send_draw_tool_command(DeviceID, led_index, 255, 255, 255, Level, max_value)
+                        elif Color['m'] == 3:
+                            send_draw_tool_command(DeviceID, led_index, int(Color['r']), int(Color['g']), int(Color['b']), Level, max_value)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
+                        if Color['m'] == 3:
+                            kleur_string = f"{int(Color['r'])},{int(Color['g'])},{int(Color['b'])}"
+                            UpdateDomoticz(DeviceID, Unit, kleur_string, 1, 0)
+
                 if dev_type in ('light') and Unit == 2:
                     if searchCode('Power', function):
                         if Command == 'Off':
@@ -556,69 +584,69 @@ class BasePlugin:
 
                 if dev_type == 'doorbell':
                     if Command == 'Off' and Unit == 2:
-                        SendCommandCloud(DeviceID, 'floodlight_switch', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'floodlight_switch', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 2:
-                        SendCommandCloud(DeviceID, 'floodlight_switch', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'floodlight_switch', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     if Command == 'Off' and Unit == 3:
-                        SendCommandCloud(DeviceID, 'motion_switch', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'motion_switch', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 3:
-                        SendCommandCloud(DeviceID, 'motion_switch', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'motion_switch', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     if Command == 'Off' and Unit == 4:
-                        SendCommandCloud(DeviceID, 'basic_indicator', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'basic_indicator', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 4:
-                        SendCommandCloud(DeviceID, 'basic_indicator', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'basic_indicator', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     if Command == 'Off' and Unit == 5:
-                        SendCommandCloud(DeviceID, 'decibel_switch', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'decibel_switch', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 5:
-                        SendCommandCloud(DeviceID, 'decibel_switch', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'decibel_switch', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     if Command == 'Off' and Unit == 6:
-                        SendCommandCloud(DeviceID, 'basic_private', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'basic_private', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 6:
-                        SendCommandCloud(DeviceID, 'basic_private', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'basic_private', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     if Command == 'Off' and Unit == 7:
-                        SendCommandCloud(DeviceID, 'motion_tracking', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'motion_tracking', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 7:
-                        SendCommandCloud(DeviceID, 'motion_tracking', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'motion_tracking', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     if Command == 'Off' and Unit == 8:
-                        SendCommandCloud(DeviceID, 'motion_area_switch', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'motion_area_switch', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 8:
-                        SendCommandCloud(DeviceID, 'motion_area_switch', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'motion_area_switch', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     if Command == 'Off' and Unit == 9:
-                        SendCommandCloud(DeviceID, 'siren_switch', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'siren_switch', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 9:
-                        SendCommandCloud(DeviceID, 'siren_switch', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'siren_switch', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     if Command == 'Set Level' and Unit  == 10:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 10, mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, 10, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 10, mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, 10, Level, 1, 0)
                     if Command == 'Off' and Unit == 11:
-                        SendCommandCloud(DeviceID, 'floodlight_switch', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'floodlight_switch', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 11:
-                        SendCommandCloud(DeviceID, 'floodlight_switch', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'floodlight_switch', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     if Command == 'Set Level' and Unit == 12:
-                        SendCommandCloud(DeviceID, 'ipc_siren_volume', Level)
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'ipc_siren_volume', Level)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     if Command == 'Set Level' and Unit == 13:
-                        SendCommandCloud(DeviceID, 'ipc_siren_duration', Level)
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'ipc_siren_duration', Level)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
 
                 if dev_type == 'fan':
                     if Command == 'Off' and Unit == 1:
@@ -1048,70 +1076,70 @@ class BasePlugin:
 
                 if dev_type == 'siren':
                     if Command == 'Off':
-                        SendCommandCloud(DeviceID, 'AlarmSwitch', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'AlarmSwitch', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On':
-                        SendCommandCloud(DeviceID, 'AlarmSwitch', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'AlarmSwitch', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     elif Command == 'Set Level' and Unit == 2:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, 2, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'Alarmtype', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, 2, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'Alarmtype', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, 3, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'Alarmtype', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, 3, Level, 1, 0)
                     # Other Type of alarm with same code
                     if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'muffling', False)
-                        UpdateDevice(DeviceID, 1, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'muffling', False)
+                        UpdateDomoticz(DeviceID, 1, False, 0, 0)
                     elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'muffling', True)
-                        UpdateDevice(DeviceID, 1, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'muffling', True)
+                        UpdateDomoticz(DeviceID, 1, True, 1, 0)
                     elif Command == 'Set Level' and Unit == 2:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'alarm_state', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, 2, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'alarm_state', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, 2, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'alarm_volume', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, 3, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'alarm_volume', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, 3, Level, 1, 0)
 
                 if dev_type == 'pirlight':
                     if Command == 'Off' and Unit == 2:
-                        SendCommandCloud(DeviceID, 'switch_pir', False)
-                        UpdateDevice(DeviceID, 2, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'switch_pir', False)
+                        UpdateDomoticz(DeviceID, 2, False, 0, 0)
                     elif Command == 'On' and Unit == 2:
-                        SendCommandCloud(DeviceID, 'switch_pir', True)
-                        UpdateDevice(DeviceID, 2, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'switch_pir', True)
+                        UpdateDomoticz(DeviceID, 2, True, 1, 0)
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'device_mode', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, 3, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'device_mode', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, 3, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 4:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'pir_sensitivity', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, 4, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'pir_sensitivity', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, 4, Level, 1, 0)
 
                 if dev_type == 'garagedooropener':
                     if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'switch_1', False)
-                        UpdateDevice(DeviceID, 1, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'switch_1', False)
+                        UpdateDomoticz(DeviceID, 1, False, 0, 0)
                     elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'switch_1', True)
-                        UpdateDevice(DeviceID, 1, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'switch_1', True)
+                        UpdateDomoticz(DeviceID, 1, True, 1, 0)
 
                 if dev_type == 'feeder':
                     if Command == 'Off' and Unit == 5:
-                        SendCommandCloud(DeviceID, 'light', False)
-                        UpdateDevice(DeviceID, 5, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'light', False)
+                        UpdateDomoticz(DeviceID, 5, False, 0, 0)
                     elif Command == 'On' and Unit == 5:
-                        SendCommandCloud(DeviceID, 'light', True)
-                        UpdateDevice(DeviceID, 5, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'light', True)
+                        UpdateDomoticz(DeviceID, 5, True, 1, 0)
                     elif Command == 'Set Level' and Unit == 1:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
-                        UpdateDevice(DeviceID, 1, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
+                        UpdateDomoticz(DeviceID, 1, Level, 1, 0)
 
                 if dev_type == 'irrigation':
                     if searchCode('switch_1', function):
@@ -1119,276 +1147,276 @@ class BasePlugin:
                     else:
                         switch = 'switch'
                     if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, switch, False)
-                        UpdateDevice(DeviceID, 1, False, 0, 0)
+                        SendCommandTuya(DeviceID, switch, False)
+                        UpdateDomoticz(DeviceID, 1, False, 0, 0)
                     elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, switch, True)
-                        UpdateDevice(DeviceID, 1, True, 1, 0)
+                        SendCommandTuya(DeviceID, switch, True)
+                        UpdateDomoticz(DeviceID, 1, True, 1, 0)
                     if Command == 'Off' and Unit == 3:
-                        SendCommandCloud(DeviceID, 'areaone', False)
-                        UpdateDevice(DeviceID, 3, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'areaone', False)
+                        UpdateDomoticz(DeviceID, 3, False, 0, 0)
                     elif Command == 'On' and Unit == 3:
-                        SendCommandCloud(DeviceID, 'areaone', True)
-                        UpdateDevice(DeviceID, 3, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'areaone', True)
+                        UpdateDomoticz(DeviceID, 3, True, 1, 0)
                     if Command == 'Off' and Unit == 4:
-                        SendCommandCloud(DeviceID, 'areatwo', False)
-                        UpdateDevice(DeviceID, 4, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'areatwo', False)
+                        UpdateDomoticz(DeviceID, 4, False, 0, 0)
                     elif Command == 'On' and Unit == 4:
-                        SendCommandCloud(DeviceID, 'areatwo', True)
-                        UpdateDevice(DeviceID, 4, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'areatwo', True)
+                        UpdateDomoticz(DeviceID, 4, True, 1, 0)
                     if Command == 'Off' and Unit == 5:
-                        SendCommandCloud(DeviceID, 'areathree', False)
-                        UpdateDevice(DeviceID, 5, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'areathree', False)
+                        UpdateDomoticz(DeviceID, 5, False, 0, 0)
                     elif Command == 'On' and Unit == 5:
-                        SendCommandCloud(DeviceID, 'areathree', True)
-                        UpdateDevice(DeviceID, 5, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'areathree', True)
+                        UpdateDomoticz(DeviceID, 5, True, 1, 0)
                     if Command == 'Off' and Unit == 6:
-                        SendCommandCloud(DeviceID, 'areafour', False)
-                        UpdateDevice(DeviceID, 6, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'areafour', False)
+                        UpdateDomoticz(DeviceID, 6, False, 0, 0)
                     elif Command == 'On' and Unit == 6:
-                        SendCommandCloud(DeviceID, 'areafour', True)
-                        UpdateDevice(DeviceID, 6, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'areafour', True)
+                        UpdateDomoticz(DeviceID, 6, True, 1, 0)
                     if Command == 'Off' and Unit == 7:
-                        SendCommandCloud(DeviceID, 'areafive', False)
-                        UpdateDevice(DeviceID, 7, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'areafive', False)
+                        UpdateDomoticz(DeviceID, 7, False, 0, 0)
                     elif Command == 'On' and Unit == 7:
-                        SendCommandCloud(DeviceID, 'areafive', True)
-                        UpdateDevice(DeviceID, 7, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'areafive', True)
+                        UpdateDomoticz(DeviceID, 7, True, 1, 0)
                     if Command == 'Off' and Unit == 8:
-                        SendCommandCloud(DeviceID, 'areasix', False)
-                        UpdateDevice(DeviceID, 8, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'areasix', False)
+                        UpdateDomoticz(DeviceID, 8, False, 0, 0)
                     elif Command == 'On' and Unit == 8:
-                        SendCommandCloud(DeviceID, 'areasix', True)
-                        UpdateDevice(DeviceID, 8, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'areasix', True)
+                        UpdateDomoticz(DeviceID, 8, True, 1, 0)
 
                 if dev_type == 'starlight':
                     if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'switch_led', False)
-                        SendCommandCloud(DeviceID, 'colour_switch', False)
-                        UpdateDevice(DeviceID, 1, False, 0, 0)
-                        UpdateDevice(DeviceID, 2, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'switch_led', False)
+                        SendCommandTuya(DeviceID, 'colour_switch', False)
+                        UpdateDomoticz(DeviceID, 1, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 2, False, 0, 0)
                     elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'switch_led', True)
-                        SendCommandCloud(DeviceID, 'colour_switch', True)
-                        UpdateDevice(DeviceID, 1, True, 1, 0)
-                        UpdateDevice(DeviceID, 2, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'switch_led', True)
+                        SendCommandTuya(DeviceID, 'colour_switch', True)
+                        UpdateDomoticz(DeviceID, 1, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 2, True, 1, 0)
                     elif Command == 'Set Level' and Unit == 1:
                         Color = Devices[DeviceID].Units[1].Color
                         if Color == '': Color ={"b":255,"cw":0,"g":255,"m":3,"r":255,"t":0,"ww":0}
                         h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
                         hvs = {'h':h, 's':s, 'v':Level * 10}
-                        SendCommandCloud(DeviceID, 'colour_data', hvs)
-                        SendCommandCloud(DeviceID, 'colour_switch', True)
-                        UpdateDevice(DeviceID, 1, Color, 1, 0)
+                        SendCommandTuya(DeviceID, 'colour_data', hvs)
+                        SendCommandTuya(DeviceID, 'colour_switch', True)
+                        UpdateDomoticz(DeviceID, 1, Color, 1, 0)
                     elif Command == 'Set Color' and Unit == 1: #
                         h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
                         hvs = {'h':h, 's':s, 'v':Level * 10}
-                        SendCommandCloud(DeviceID, 'colour_data', hvs)
-                        SendCommandCloud(DeviceID, 'colour_switch', True)
-                        UpdateDevice(DeviceID, 1, Color, 1, 0)
+                        SendCommandTuya(DeviceID, 'colour_data', hvs)
+                        SendCommandTuya(DeviceID, 'colour_switch', True)
+                        UpdateDomoticz(DeviceID, 1, Color, 1, 0)
                     if Command == 'Off' and Unit == 2:
-                        SendCommandCloud(DeviceID, 'colour_switch', False)
-                        UpdateDevice(DeviceID, 2, False, 0, 0)
-                        UpdateDevice(DeviceID, 1, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'colour_switch', False)
+                        UpdateDomoticz(DeviceID, 2, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 1, False, 0, 0)
                     elif Command == 'On' and Unit == 2:
-                        SendCommandCloud(DeviceID, 'colour_switch', True)
-                        UpdateDevice(DeviceID, 2, True, 1, 0)
-                        UpdateDevice(DeviceID, 1, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'colour_switch', True)
+                        UpdateDomoticz(DeviceID, 2, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 1, True, 1, 0)
                     if Command == 'Off' and Unit == 3:
-                        SendCommandCloud(DeviceID, 'laser_switch', False)
-                        UpdateDevice(DeviceID, 3, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'laser_switch', False)
+                        UpdateDomoticz(DeviceID, 3, False, 0, 0)
                     elif Command == 'On' and Unit == 3:
-                        SendCommandCloud(DeviceID, 'laser_switch', True)
-                        UpdateDevice(DeviceID, 3, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'laser_switch', True)
+                        UpdateDomoticz(DeviceID, 3, True, 1, 0)
                     elif Command == 'Set Level' and Unit == 3:
-                        SendCommandCloud(DeviceID, 'laser_switch', True)
-                        SendCommandCloud(DeviceID, 'laser_bright', 21.25 + ((Level / 100) * 78.75)) # 21.25 + ((Level / 100) * 78.75) ) * 10
-                        UpdateDevice(DeviceID, 3, True, 1, 0)
-                        UpdateDevice(DeviceID, 3, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'laser_switch', True)
+                        SendCommandTuya(DeviceID, 'laser_bright', 21.25 + ((Level / 100) * 78.75)) # 21.25 + ((Level / 100) * 78.75) ) * 10
+                        UpdateDomoticz(DeviceID, 3, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 3, Level, 1, 0)
                     if Command == 'Off' and Unit == 4:
-                        SendCommandCloud(DeviceID, 'fan_switch', False)
-                        UpdateDevice(DeviceID, 4, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'fan_switch', False)
+                        UpdateDomoticz(DeviceID, 4, False, 0, 0)
                     elif Command == 'On' and Unit == 4:
-                        SendCommandCloud(DeviceID, 'fan_switch', True)
-                        UpdateDevice(DeviceID, 4, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'fan_switch', True)
+                        UpdateDomoticz(DeviceID, 4, True, 1, 0)
                     elif Command == 'Set Level' and Unit == 4:
-                        SendCommandCloud(DeviceID, 'fan_switch', True)
-                        SendCommandCloud(DeviceID, 'fan_speed', Level)
-                        UpdateDevice(DeviceID, 4, True, 1, 0)
-                        UpdateDevice(DeviceID, 4, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'fan_switch', True)
+                        SendCommandTuya(DeviceID, 'fan_speed', Level)
+                        UpdateDomoticz(DeviceID, 4, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 4, Level, 1, 0)
 
                 if dev_type == 'smartlock':
                     if searchCode('lock_motor_state', function):
                         if Command == 'Off' and Unit == 1:
-                            SendCommandCloud(DeviceID, 'lock_motor_state', False)
-                            UpdateDevice(DeviceID, 1, 10, 0, 0)
+                            SendCommandTuya(DeviceID, 'lock_motor_state', False)
+                            UpdateDomoticz(DeviceID, 1, 10, 0, 0)
                         elif Command == 'On' and Unit == 1:
-                            SendCommandCloud(DeviceID, 'lock_motor_state', True)
-                            UpdateDevice(DeviceID, 1, 0, 1, 0)
+                            SendCommandTuya(DeviceID, 'lock_motor_state', True)
+                            UpdateDomoticz(DeviceID, 1, 0, 1, 0)
                     elif searchCode('rtc_lock', function):
                         if Command == 'Off' and Unit == 1:
-                            SendCommandCloud(DeviceID, 'rtc_lock', 0)
-                            UpdateDevice(DeviceID, 1, 10, 0, 0)
+                            SendCommandTuya(DeviceID, 'rtc_lock', 0)
+                            UpdateDomoticz(DeviceID, 1, 10, 0, 0)
                         elif Command == 'On' and Unit == 1:
-                            SendCommandCloud(DeviceID, 'rtc_lock', 1)
-                            UpdateDevice(DeviceID, 1, 0, 1, 0)
+                            SendCommandTuya(DeviceID, 'rtc_lock', 1)
+                            UpdateDomoticz(DeviceID, 1, 0, 1, 0)
                     else:
                         if Command == 'Off' and Unit == 1:
-                            SendCommandCloud(DeviceID, 'switch', False)
-                            UpdateDevice(DeviceID, 1, 10, 0, 0)
+                            SendCommandTuya(DeviceID, 'switch', False)
+                            UpdateDomoticz(DeviceID, 1, 10, 0, 0)
                         elif Command == 'On' and Unit == 1:
-                            SendCommandCloud(DeviceID, 'switch', True)
-                            UpdateDevice(DeviceID, 1, 0, 1, 0)
+                            SendCommandTuya(DeviceID, 'switch', True)
+                            UpdateDomoticz(DeviceID, 1, 0, 1, 0)
 
                 if dev_type == 'dehumidifier':
                     if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'switch', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'switch', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'switch', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'switch', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     elif Command == 'Set Level' and Unit == 2:
                         if searchCode('dehumidify_set_value', function):
                             tdev = 'dehumidify_set_value'
                         elif searchCode('dehumidify_set_enum', function):
                             tdev = 'dehumidify_set_enum'
-                        SendCommandCloud(DeviceID, tdev, Level)
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, tdev, Level)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'fan_speed_enum', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'fan_speed_enum', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 4:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'mode', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     if Command == 'Off' and Unit == 9:
-                        SendCommandCloud(DeviceID, 'child_lock', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'child_lock', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 9:
-                        SendCommandCloud(DeviceID, 'child_lock', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'child_lock', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     if Command == 'Off' and Unit == 10:
-                        SendCommandCloud(DeviceID, 'anion', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'anion', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 10:
-                        SendCommandCloud(DeviceID, 'anion', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'anion', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     if Command == 'Off' and Unit == 11:
-                        SendCommandCloud(DeviceID, 'anion', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'anion', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 11:
-                        SendCommandCloud(DeviceID, 'anion', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'anion', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     if Command == 'Off' and Unit == 13:
-                        SendCommandCloud(DeviceID, 'anion', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'anion', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 13:
-                        SendCommandCloud(DeviceID, 'anion', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'anion', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
 
                 if dev_type == 'vacuum':
                     if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'power_go', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'power_go', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'power_go', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'power_go', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'mode', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 4:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'suction', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'suction', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 5:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'cistern', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'cistern', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
 
                 if dev_type == 'purifier':
                     if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'switch', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'switch', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'switch', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'switch', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'mode', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'mode', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 4:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'speed', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'speed', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
 
                 if dev_type == 'smartkettle':
                     if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'start', False)
-                        UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'start', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                     elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'start', True)
-                        UpdateDevice(DeviceID, Unit, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'start', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     elif Command == 'Set Level' and Unit  == 4:
-                        SendCommandCloud(DeviceID, 'cook_temperature', Level)
-                        UpdateDevice(DeviceID, 4, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'cook_temperature', Level)
+                        UpdateDomoticz(DeviceID, 4, Level, 1, 0)
 
                 if dev_type == 'mower':
                     if Command == 'Set Level' and Unit == 1:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'MachineControlCmd', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, 1, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'MachineControlCmd', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, 1, Level, 1, 0)
                     if Command == 'Off' and Unit == 2:
-                        SendCommandCloud(DeviceID, 'MachineRainMode', False)
-                        UpdateDevice(DeviceID, 2, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'MachineRainMode', False)
+                        UpdateDomoticz(DeviceID, 2, False, 0, 0)
                     elif Command == 'On' and Unit == 2:
-                        SendCommandCloud(DeviceID, 'MachineRainMode', True)
-                        UpdateDevice(DeviceID, 2, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'MachineRainMode', True)
+                        UpdateDomoticz(DeviceID, 2, True, 1, 0)
                     if Command == 'Set Level' and Unit == 6:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'MachineWorkMode', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, 6, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'MachineWorkMode', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, 6, Level, 1, 0)
 
                 if dev_type == 'human_presence':
                     if Command == 'Set Level' and Unit == 2:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'sensitivity', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'sensitivity', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Level' and Unit  == 3:
-                        SendCommandCloud(DeviceID, 'near_detection', Level)
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'near_detection', Level)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Level' and Unit  == 4:
-                        SendCommandCloud(DeviceID, 'far_detection', Level)
-                        UpdateDevice(DeviceID, Unit, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'far_detection', Level)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
 
                 if dev_type == 'evcharger':
                     if searchCode('switch', function):
                         if Command == 'Off':
-                            SendCommandCloud(DeviceID, 'switch', False)
-                            UpdateDevice(DeviceID, Unit, False, 0, 0)
+                            SendCommandTuya(DeviceID, 'switch', False)
+                            UpdateDomoticz(DeviceID, Unit, False, 0, 0)
                         elif Command == 'On':
-                            SendCommandCloud(DeviceID, 'switch', True)
-                            UpdateDevice(DeviceID, Unit, True, 1, 0)
+                            SendCommandTuya(DeviceID, 'switch', True)
+                            UpdateDomoticz(DeviceID, Unit, True, 1, 0)
 
                 if dev_type == 'infrared_ac':
                     if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'PowerOff', 'PowerOff')
-                        UpdateDevice(DeviceID, 1, False, 0, 0)
+                        SendCommandTuya(DeviceID, 'PowerOff', 'PowerOff')
+                        UpdateDomoticz(DeviceID, 1, False, 0, 0)
                     elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, 'PowerOn', 'PowerOn')
-                        UpdateDevice(DeviceID, 1, True, 1, 0)
+                        SendCommandTuya(DeviceID, 'PowerOn', 'PowerOn')
+                        UpdateDomoticz(DeviceID, 1, True, 1, 0)
                     elif Command == 'Set Level' and Unit  == 2:
-                        SendCommandCloud(DeviceID, 'T', Level)
-                        UpdateDevice(DeviceID, 2, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'T', Level)
+                        UpdateDomoticz(DeviceID, 2, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'M', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, 3, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'M', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, 3, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 4:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                        SendCommandCloud(DeviceID, 'F', mode[int(Level / 10)])
-                        UpdateDevice(DeviceID, 4, Level, 1, 0)
+                        SendCommandTuya(DeviceID, 'F', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, 4, Level, 1, 0)
 
         except Exception as e:
             DomoticzEx.Error(f"onCommand ERROR: {str(e)}")
@@ -1918,6 +1946,14 @@ def onHandleThread(startup, local):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Unknown Light Device)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
                         # elif not (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)):
                         #     deleteDevice(dev_id,1)
+
+                    if dev_type in ('light', 'fanlight', 'pirlight') and searchCode('led_number_set', StatusProperties):
+                        led_count = StatusDeviceTuya('led_number_set')
+                        for i in range(1, led_count + 1):
+                            unit_number = 10 + i
+                            if createDevice(dev_id, unit_number):
+                                DomoticzEx.Log(f'Create device LED {i} of {led_count}')
+                                DomoticzEx.Unit(Name=f"{dev['name']} LED {i}", DeviceID=dev_id, Unit=unit_number, Type=241, Subtype=1, Switchtype=7, Used=1).Create()
 
                     if dev_type == 'dimmer':
                         if  createDevice(dev_id, 1) and searchCode('switch_led_1', FunctionProperties) and not searchCode('switch_led_2', FunctionProperties):
@@ -3886,6 +3922,36 @@ def onHandleThread(startup, local):
                                 if str(mode.index(str(currentmode)) * 10) != str(Devices[dev_id].Units[4].sValue):
                                     UpdateDomoticz(dev_id, 4, int(mode.index(str(currentmode)) * 10), 1, 0)
 
+                        if searchCode('draw_tool', StatusProperties):
+                            led_count = StatusDeviceTuya('led_number_set')
+                            draw_tool_data = StatusDeviceTuya('draw_tool')
+                            if draw_tool_data:
+                                led_statuses = decode_draw_tool_status(draw_tool_data, led_count)
+                                for led_index in range(1, led_count + 1):
+                                    unit_number = 10 + led_index
+                                    led_info = led_statuses.get(led_index, {})
+                                    if not led_info:
+                                        continue
+                                    is_on = led_info.get('on', False)
+                                    brightness = led_info.get('brightness', 0)
+                                    color = led_info.get('color', {'r': 255, 'g': 255, 'b': 255})
+                                    current_device = Devices[dev_id].Units[unit_number]
+                                    current_nvalue = current_device.nValue
+                                    current_svalue = current_device.sValue
+                                    if current_device.Color:
+                                        current_color = ast.literal_eval(current_device.Color)
+                                    else:
+                                        current_color = {}
+                                    expected_nvalue = 1 if (is_on and brightness > 0) else 0
+                                    if current_nvalue != expected_nvalue:
+                                        UpdateDomoticz(dev_id, unit_number, brightness if is_on else 0, expected_nvalue, 0)
+                                    if is_on and color:
+                                        color_dict = {'b': color['b'], 'cw': 0, 'g': color['g'], 'm': 3, 'r': color['r'], 't': 0, 'ww': 0}
+                                        if current_color != color_dict:
+                                            UpdateDomoticz(dev_id, unit_number, color_dict, expected_nvalue, 0)
+                                    if current_nvalue == 1 and str(current_svalue) != str(brightness):
+                                        UpdateDomoticz(dev_id, unit_number, brightness, 1, 0)
+
                         if dev_type == 'cover':
                             if searchCode('position', StatusProperties) or searchCode('percent_control', StatusProperties):
                                 if searchCode('position', StatusProperties):
@@ -4736,6 +4802,161 @@ def SendCommandTuya(ID, CommandName, Status):
 
     DomoticzEx.Log(f"[CLOUD] Command sent to Tuya: {dev_name}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
 
+def get_draw_tool_max_value(DeviceID):
+    try:
+        bright_value = StatusDeviceTuya('bright_value')
+        if bright_value and int(bright_value) == 1000:
+            return 1000
+        result_data = StatusDeviceTuya('draw_tool')
+        if result_data and decode_draw_tool_status(result_data, 1):
+            return 1000
+        return 255
+    except Exception:
+        return 255
+
+def send_draw_tool_command(DeviceID, led_index, r, g, b, brightness, max_value):
+    encoded_command = encode_draw_tool_command(led_index, r, g, b, brightness, max_value=max_value)
+    if send_draw_tool_command_local(DeviceID, encoded_command):
+        return True
+    try:
+        if not testdata:
+            tuya.sendcommand(DeviceID, {'commands': [{'code': 'draw_tool', 'value': encoded_command}]}, 'iot-03/devices/')
+            DomoticzEx.Log(f'[CLOUD] draw_tool command sent to Tuya: {DeviceID}')
+        return True
+    except Exception as e:
+        DomoticzEx.Error(f'[CLOUD FAILED] draw_tool {DeviceID}: {e}')
+        return False
+
+def send_draw_tool_command_local(DeviceID, encoded_command):
+    try:
+        if DeviceID not in localtuya:
+            return False
+        device_ip = localtuya[DeviceID].get('ip')
+        device_key = getConfigItem(DeviceID, 'key')
+        if not device_ip or not device_key:
+            return False
+        device = tinytuya.OutletDevice(str(DeviceID), str(device_ip), str(device_key))
+        device_version = localtuya[DeviceID].get('version', '3.3')
+        if device_version:
+            device.set_version(float(device_version))
+        else:
+            device.set_version(3.3)
+        payload = device.generate_payload(tinytuya.CONTROL, {'20': True, '21': 'colour', '59': encoded_command})
+        device._send_receive(payload)
+        return True
+    except Exception as e:
+        DomoticzEx.Debug(f'Local draw_tool send failed for {DeviceID}: {e}')
+        return False
+
+def encode_draw_tool_command(led_index, r, g, b, brightness, max_value):
+    try:
+        r = max(0, min(255, r))
+        g = max(0, min(255, g))
+        b = max(0, min(255, b))
+        if max_value == 1000:
+            brightness = max(0, min(1000, brightness))
+            brightness_hex = format(int(brightness * 0.064), '02x')
+        else:
+            brightness = max(0, min(255, brightness))
+            brightness_hex = format(int(brightness * 0.64), '02x')
+        color_hex = f"{r:02x}{g:02x}{b:02x}{brightness_hex}"
+        hex_string = f"010201{color_hex}008100{led_index:02x}"
+        byte_data = bytes.fromhex(hex_string)
+        return base64.b64encode(byte_data).decode('utf-8')
+    except Exception as e:
+        DomoticzEx.Debug(f'Error encoding draw_tool: {e}')
+        return 'AQIBAAAAAGQAgQAD'
+
+def decode_draw_tool_status(base64_data, expected_led_count):
+    result = {}
+    try:
+        byte_data = base64.b64decode(base64_data)
+        hex_data = byte_data.hex()
+        DomoticzEx.Debug(f'Draw_tool hex data: {hex_data}')
+        if hex_data.startswith('0101'):
+            r = int(hex_data[4:6], 16)
+            g = int(hex_data[6:8], 16)
+            b = int(hex_data[8:10], 16)
+            brightness = int(hex_data[10:12], 16)
+            for i in range(1, expected_led_count + 1):
+                result[i] = {
+                    'on': brightness > 0,
+                    'brightness': int(brightness / 0.64) if brightness > 0 else 0,
+                    'color': {'r': r, 'g': g, 'b': b},
+                }
+            return result
+        elif hex_data.startswith('0102'):
+            led_index = int(hex_data[4:6], 16)
+            r = int(hex_data[8:10], 16)
+            g = int(hex_data[10:12], 16)
+            b = int(hex_data[12:14], 16)
+            brightness = int(hex_data[14:16], 16)
+            if len(hex_data) > 16:
+                flags = hex_data[16:]
+            else:
+                flags = ''
+            result[led_index] = {
+                'on': brightness > 0,
+                'brightness': int(brightness / 0.64) if brightness > 0 else 0,
+                'color': {'r': r, 'g': g, 'b': b},
+                'flags': flags,
+            }
+            return result
+        elif len(hex_data) > 20:
+            offset = 0
+            while offset + 16 <= len(hex_data):
+                if hex_data[offset:offset + 4] == '0102':
+                    led_index = int(hex_data[offset + 4:offset + 6], 16)
+                    r = int(hex_data[offset + 8:offset + 10], 16)
+                    g = int(hex_data[offset + 10:offset + 12], 16)
+                    b = int(hex_data[offset + 12:offset + 14], 16)
+                    brightness = int(hex_data[offset + 14:offset + 16], 16)
+                    result[led_index] = {
+                        'on': brightness > 0,
+                        'brightness': int(brightness / 0.64) if brightness > 0 else 0,
+                        'color': {'r': r, 'g': g, 'b': b},
+                    }
+                    offset += 16
+                else:
+                    offset += 2
+            return result
+        return result
+    except Exception as e:
+        DomoticzEx.Debug(f'Error decoding draw_tool data: {e}')
+        return result
+
+def get_led_color(device_id, unit_number):
+    try:
+        if device_id in Devices and unit_number in Devices[device_id].Units:
+            s_value = Devices[device_id].Units[unit_number].sValue
+            if s_value and ',' in s_value:
+                parts = s_value.split(',')
+                if len(parts) >= 3:
+                    return {'r': int(parts[0]), 'g': int(parts[1]), 'b': int(parts[2])}
+        return {'r': 255, 'g': 255, 'b': 255}
+    except Exception as e:
+        DomoticzEx.Debug(f'Error getting LED color: {e}')
+        return {'r': 255, 'g': 255, 'b': 255}
+
+def normalize_battery_level(value):
+    try:
+        if value is None:
+            return 0
+        if isinstance(value, bool):
+            return int(value)
+        if isinstance(value, (int, float)):
+            return int(round(float(value)))
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if not cleaned:
+                return 0
+            if cleaned.endswith('%'):
+                cleaned = cleaned[:-1]
+            return int(round(float(cleaned)))
+        return 0
+    except (TypeError, ValueError):
+        return 0
+
 def pct_to_brightness(device_functions, actual_function_name, pct):
     if device_functions and actual_function_name:
         for item in device_functions:
@@ -4965,7 +5186,7 @@ def deleteDevice(ID, Unit):
     else:
         DomoticzEx.Debug(f"Device with ID {ID} not found. Cannot delete.")
 
-def updateDevice():
+def UpdateDomoticz():
     templates = [
         {'name_suffix': ' (dehumidify)', 'unit': 2, 'dtype': 244, 'subtype': 62, 'switchtype': 18, 'image': 11},
         {'name_suffix': ' (dehumidify)', 'unit': 2, 'dtype': 242, 'subtype': 1, 'image': 11},
