@@ -19,18 +19,31 @@ The Tuya Cloud is primarily used for **initial device discovery, DPS mapping and
 - On/Off control, dimming, color temperature and device-specific features
 - Cached cloud status to reduce API usage
 - Configurable **API polling interval** and **IP scan interval**
+- **Realtime push updates** via Tuya Pulsar (optional, requires `tuya-connector-python`)
+  - Automatic fall-back to polling when Pulsar is not available
+  - Pulsar updates are automatically skipped for locally reachable devices to prioritize LAN communication
 
 ---
 
 ## Installation / Updating
 
-This plugin uses the **TinyTuya** project.  
+This plugin uses the **TinyTuya** project.
 A **Tuya IoT Cloud Platform account** is required for initial setup.
 
 Cloud setup instructions:
 
 - https://github.com/jasonacox/tinytuya (step 3)
 - PDF: https://github.com/jasonacox/tinytuya/files/12836816/Tuya.IoT.API.Setup.v2.pdf
+
+### Optional: Realtime Push Updates
+
+For **realtime device status updates** via Tuya Pulsar (push notifications instead of polling):
+
+```bash
+pip3 install tuya-connector-python #--break-system-packages # if needed
+```
+
+This is optional - the plugin will automatically fall back to regular polling if this package is not installed.
 
 > For best compatibility, set your devices to **“DP instruction”**
 > in the device settings on https://iot.tuya.com
@@ -50,7 +63,7 @@ git pull
 Restart Domoticz.
 
 Alternative and better is to make use of Python Virtual Environment, install the modules in that environment and add the definition for the PYTHONPATH environment variable in the script which automatically starts Domoticz.
-See for instructions (written for the Zigbee4Domoticz but could be used for any plugin): https://zigbeefordomoticz.github.io/wiki/en-eng/HowTo_PythonVirtualEnv.html 
+See for instructions (written for the Zigbee4Domoticz but could be used for any plugin): https://zigbeefordomoticz.github.io/wiki/en-eng/HowTo_PythonVirtualEnv.html
 
 ## Installation Domoticz Docker
 
@@ -100,7 +113,7 @@ This way:
 
 - Scanning works (`--host` is enabled)
 - Web ports are still configurable via environment variables
-- Full guide ready for Markdrop formatting  
+- Full guide ready for Markdrop formatting
 
 If you want, I can **also add a TinyTUYA plugin verification step** inside Domoticz so you know the plugin is loaded correctly. Do you want me to do that?
 
@@ -113,7 +126,7 @@ In the Domoticz hardware configuration, enter:
 - **Access Secret / Client Secret**
 - **Search Device ID**
   - Used only to discover all devices
-  - Found in Tuya IoT Platform:  
+  - Found in Tuya IoT Platform:
     Cloud → Project → Devices → select any device
 
 ### Important settings
