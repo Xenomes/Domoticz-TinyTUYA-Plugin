@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.4.3</h2><br/>
+        <h2>TinyTUYA Plugin version 2.4.4</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -916,6 +916,13 @@ class BasePlugin:
                         elif Command == 'On' and Unit == 1:
                             SendCommandCloud(DeviceID, 'switch', True)
                             UpdateDevice(DeviceID, 1, 0, 1, 0)
+                    if searchCode('arming_switch', function):
+                        if Command == 'Off' and Unit == 5:
+                            SendCommandCloud(DeviceID, 'arming_switch', False)
+                            UpdateDevice(DeviceID, 5, 10, 0, 0)
+                        elif Command == 'On' and Unit == 5:
+                            SendCommandCloud(DeviceID, 'arming_switch', True)
+                            UpdateDevice(DeviceID, 5, 0, 1, 0)
 
                 if dev_type == 'dehumidifier':
                     if Command == 'Off' and Unit == 1:
@@ -1189,9 +1196,9 @@ def onHandleThread(startup):
                         # Initialize Tinytuya Cloud with error handling
                         try:
                             tuya = tinytuya.Cloud(
-                                apiRegion=Parameters['Mode1'], 
-                                apiKey=Parameters['Username'], 
-                                apiSecret=Parameters['Password'], 
+                                apiRegion=Parameters['Mode1'],
+                                apiKey=Parameters['Username'],
+                                apiSecret=Parameters['Password'],
                                 apiDeviceID=Parameters['Mode2']
                             )
                         except Exception as init_error:
@@ -1202,7 +1209,7 @@ def onHandleThread(startup):
                                 raise Exception(f"Missing API credentials. Please check your Tuya API Key, Secret, and Region configuration.")
                             else:
                                 raise Exception(f"Failed to initialize Tuya Cloud API: {error_msg}")
-                        
+
                         tuya.use_old_device_list = True
                         tuya.new_sign_algorithm = True
                         Error = tuya.error
@@ -1211,10 +1218,10 @@ def onHandleThread(startup):
                         if Error is not None:
                             error_msg = str(Error.get('Payload', str(Error)))
                             error_code = str(Error.get('Err', 'Unknown'))
-                            
+
                             Domoticz.Error(f"Tuya Cloud Initialization Error - Code: {error_code}")
                             Domoticz.Error(f"Error Details: {error_msg}")
-                            
+
                             if error_code == '911' or 'Unable to Get Cloud Token' in str(Error):
                                 if 'clientId is invalid' in error_msg:
                                     raise Exception("Tuya API Error: Client ID (API Key) is invalid. Please verify your API Key in the Tuya IoT platform.")
@@ -1228,28 +1235,28 @@ def onHandleThread(startup):
                                 raise Exception("Tuya API Error: Permission denied. Your API account may not have access or subscription may have expired.")
                             else:
                                 raise Exception(f"Tuya API Error ({error_code}): {error_msg}")
-                    
+
                     # Get devices list with retry logic
                     if 'devs' not in globals():
                         devs = []
                         max_retries = 4
                         retry_delay = 2  # seconds
-                        
+
                         for i in range(max_retries):
                             try:
                                 Domoticz.Debug(f"Attempting to fetch devices list from Tuya Cloud (attempt {i+1}/{max_retries})...")
                                 devs = tuya.getdevices()
-                                
+
                                 # Check if response contains error
                                 if isinstance(devs, dict):
                                     if 'Error' in devs or 'Err' in devs:
                                         error_msg = devs.get('Error', 'Unknown error')
                                         error_code = devs.get('Err', 'No error code')
                                         error_payload = devs.get('Payload', 'No payload')
-                                        
+
                                         Domoticz.Error(f"Tuya getdevices() API Error - Code: {error_code}")
                                         Domoticz.Error(f"Error: {error_msg}, Payload: {error_payload}")
-                                        
+
                                         if i < max_retries - 1:  # Not last attempt
                                             if error_code == '1009' or 'system busy' in str(error_msg).lower():
                                                 Domoticz.Log(f"Tuya API system busy, retrying in {retry_delay} seconds...")
@@ -1259,7 +1266,7 @@ def onHandleThread(startup):
                                                 raise Exception("Tuya API Permission Denied: Your account may not have access to list devices or API subscription expired.")
                                         else:
                                             raise Exception(f"Failed to get devices after {max_retries} attempts: {error_msg}")
-                                
+
                                 # Check if we got a valid list
                                 if isinstance(devs, list) and len(devs) > 0:
                                     Domoticz.Debug(f"Successfully retrieved {len(devs)} devices from Tuya Cloud")
@@ -1271,11 +1278,11 @@ def onHandleThread(startup):
                                     Domoticz.Log(f"Unexpected response format from getdevices(): {type(devs)}")
                                     if i < max_retries - 1:
                                         time.sleep(retry_delay)
-                                    
+
                             except Exception as e:
                                 error_msg = str(e)
                                 Domoticz.Error(f"Exception during getdevices() attempt {i+1}: {error_msg}")
-                                
+
                                 if i < max_retries - 1:
                                     # Don't retry on authentication errors
                                     if any(keyword in error_msg.lower() for keyword in ['auth', 'token', 'credential', 'permission', 'subscription']):
@@ -1288,51 +1295,51 @@ def onHandleThread(startup):
                                         raise Exception(f"Network error connecting to Tuya Cloud after {max_retries} attempts.")
                                     else:
                                         raise Exception(f"Failed to retrieve devices from Tuya Cloud: {error_msg}")
-                        
+
                         # Check if we got any devices
                         if not isinstance(devs, list):
                             raise Exception(f"Invalid response type from Tuya API: {type(devs)}")
-                        
+
                         if len(devs) == 0 and i >= max_retries - 1:
                             Domoticz.Log("Warning: No devices found in Tuya Cloud account.")
                             # Don't raise exception here, just log warning - account might have no devices
-                        
+
                         # Store token for debugging
                         try:
                             token = tuya.token
                             Domoticz.Debug(f"Tuya Cloud Token: {token[:20]}..." if token else "No token available")
                         except:
                             token = None
-                        
+
                         # Get properties and status for each device
                         properties = {}
                         result = {}
-                        
+
                         for dev in devs:
                             dev_id = dev.get('id', 'Unknown')
                             dev_name = dev.get('name', 'Unnamed Device')
-                            
+
                             try:
                                 Domoticz.Debug(f"Fetching properties for device: {dev_name} (ID: {dev_id})")
-                                
+
                                 # Get device properties
                                 props_response = tuya.getproperties(dev_id)
-                                
+
                                 # Check for errors in properties response
                                 if isinstance(props_response, dict):
                                     if 'Error' in props_response or 'Err' in props_response:
                                         error_msg = props_response.get('Error', 'Unknown error')
                                         error_code = props_response.get('Err', 'No error code')
-                                        
+
                                         Domoticz.Error(f"Error getting properties for {dev_name}: {error_msg} (Code: {error_code})")
-                                        
+
                                         if error_code == '1004' or 'devId invalid' in str(error_msg).lower():
                                             Domoticz.Error(f"Device ID {dev_id} may be invalid or device was removed.")
                                             continue  # Skip this device but continue with others
                                         elif error_code == '1106' or 'permission deny' in str(error_msg).lower():
                                             Domoticz.Error(f"No permission to access properties for device {dev_name}")
                                             continue
-                                    
+
                                     if 'result' in props_response:
                                         properties[dev_id] = props_response['result']
                                     else:
@@ -1341,45 +1348,45 @@ def onHandleThread(startup):
                                 else:
                                     Domoticz.Error(f"Unexpected properties response type for {dev_name}: {type(props_response)}")
                                     properties[dev_id] = {}
-                                
+
                                 # Ensure functions and status arrays exist
                                 if dev_id in properties:
                                     if 'functions' not in properties[dev_id]:
                                         properties[dev_id]['functions'] = []
                                     if 'status' not in properties[dev_id]:
                                         properties[dev_id]['status'] = []
-                                
+
                                 # Get device status
                                 Domoticz.Debug(f"Fetching status for device: {dev_name}")
                                 status_response = tuya.getstatus(dev_id)
-                                
+
                                 # Check for errors in status response
                                 if isinstance(status_response, dict):
                                     if 'Error' in status_response or 'Err' in status_response:
                                         error_msg = status_response.get('Error', 'Unknown error')
                                         error_code = status_response.get('Err', 'No error code')
-                                        
+
                                         Domoticz.Error(f"Error getting status for {dev_name}: {error_msg} (Code: {error_code})")
-                                        
+
                                         if error_code == '2406' or 'offline' in str(error_msg).lower():
                                             Domoticz.Log(f"Device {dev_name} is currently offline")
                                         elif error_code == '1004':
                                             Domoticz.Error(f"Device {dev_name} may have been removed from account")
-                                    
+
                                     result[dev_id] = status_response
                                 else:
                                     Domoticz.Error(f"Unexpected status response type for {dev_name}: {type(status_response)}")
                                     result[dev_id] = {}
-                                
+
                             except Exception as dev_error:
                                 Domoticz.Error(f"Error processing device {dev_name} (ID: {dev_id}): {str(dev_error)}")
                                 Domoticz.Debug(f"Traceback for device error: {traceback.format_exc()}")
-                                
+
                                 # Continue with other devices even if one fails
                                 continue
-                        
+
                         Domoticz.Log(f"Successfully initialized {len(properties)} devices from Tuya Cloud")
-                                
+
                 except Exception as global_error:
                     error_msg = str(global_error)
                     Domoticz.Error(f"Fatal error during Tuya initialization: {error_msg}")
@@ -2647,6 +2654,12 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (unlock ble)', DeviceID=dev['id'], Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
                     if createDevice(dev['id'], 4) and searchCode('unlock_card', StatusProperties):
                         Domoticz.Unit(Name=dev['name'] + ' (unlock card)', DeviceID=dev['id'], Unit=4, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                    if createDevice(dev['id'], 5) and searchCode('arming_switch', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Arm)', DeviceID=dev['id'], Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                    if createDevice(dev['id'], 6) and searchCode('doorbell', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Doorbell)', DeviceID=dev['id'], Unit=6, Type=244, Subtype=73, Switchtype=11, Image=15, Used=1).Create()
+                    if createDevice(dev['id'], 7) and searchCode('unlock_request', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Unlock Req)', DeviceID=dev['id'], Unit=7, Type=241, Subtype=3, Switchtype=7, Image=9, Used=1).Create()
 
                 if dev_type == 'dehumidifier':
                     if createDevice(dev['id'], 1) and searchCode('switch', FunctionProperties):
@@ -4618,6 +4631,16 @@ def onHandleThread(startup):
                         if searchCode('unlock_card', ResultValue):
                             currentstatus = StatusDeviceTuya('unlock_card')
                             UpdateDevice(dev['id'], 4, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('arming_switch', ResultValue):
+                            currentstatus = StatusDeviceTuya('arming_switch')
+                            UpdateDevice(dev['id'], 5, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('doorbell', ResultValue):
+                            currentstatus = StatusDeviceTuya('doorbell')
+                            UpdateDevice(dev['id'], 6, bool(currentstatus), int(bool(currentstatus)), 0)
+                        if searchCode('unlock_request', ResultValue):
+                            currentvalue = StatusDeviceTuya('unlock_request')
+                            if str(currentvalue) != str(Devices[dev['id']].Units[7].sValue):
+                                UpdateDevice(dev['id'], 7, currentvalue, 1, 0)
                         battery_device()
 
                     if dev_type == 'dehumidifier':
@@ -4686,7 +4709,7 @@ def onHandleThread(startup):
                             UpdateDevice(dev['id'], 11, bool(currentstatus), int(bool(currentstatus)), 0)
                         if searchCode('filter_life', ResultValue):
                             currentcurrent = StatusDeviceTuya('filter_life')
-                            UpdateDevice(dev['id'], 12, str(currentcurrent), 0, 0)                       
+                            UpdateDevice(dev['id'], 12, str(currentcurrent), 0, 0)
                         if searchCode('runtime_total_reset', ResultValue):
                             currentstatus = StatusDeviceTuya('runtime_total_reset')
                             UpdateDevice(dev['id'], 13, bool(currentstatus), int(bool(currentstatus)), 0)
