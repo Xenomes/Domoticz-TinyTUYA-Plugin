@@ -3155,8 +3155,9 @@ def onHandleThread(startup):
                             if searchCode('residual_electricity', ResultValue):
                                 currentbattery = StatusDeviceTuya('residual_electricity')
                             for unit in Devices[dev['id']].Units:
-                                if str(currentbattery) != str(Devices[dev['id']].Units[unit].BatteryLevel):
-                                    Devices[dev['id']].Units[unit].BatteryLevel = currentbattery
+                                currentbattery_int = int(round(currentbattery))
+                                if currentbattery_int != Devices[dev['id']].Units[unit].BatteryLevel:
+                                    Devices[dev['id']].Units[unit].BatteryLevel = currentbattery_int
                                     Devices[dev['id']].Units[unit].Update()
                         return
                     # status Domoticz
