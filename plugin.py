@@ -791,26 +791,37 @@ class BasePlugin:
                         UpdateDevice(DeviceID, 1, Level, 1, 0)
 
                 if dev_type == 'irrigation':
-                    if searchCode('switch_1', function):
-                        switch = 'switch_1'
-                    else:
-                        switch = 'switch'
-                    if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, switch, False)
-                        UpdateDevice(DeviceID, 1, False, 0, 0)
-                    elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, switch, True)
-                        UpdateDevice(DeviceID, 1, True, 1, 0)
-                    if Command == 'Off' and Unit == 3:
+                    multizone = searchCode('switch_2', function) or searchCode('switch_2', status)
+                    if multizone and Unit >= 1 and Unit <= 4:
+                        # Multi-zone controller: units 1-4 are zones switch_1 ... switch_4
+                        switch = 'switch_' + str(Unit)
+                        if Command == 'Off':
+                            SendCommandCloud(DeviceID, switch, False)
+                            UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        elif Command == 'On':
+                            SendCommandCloud(DeviceID, switch, True)
+                            UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    elif Unit == 1:
+                        if searchCode('switch_1', function):
+                            switch = 'switch_1'
+                        else:
+                            switch = 'switch'
+                        if Command == 'Off':
+                            SendCommandCloud(DeviceID, switch, False)
+                            UpdateDevice(DeviceID, 1, False, 0, 0)
+                        elif Command == 'On':
+                            SendCommandCloud(DeviceID, switch, True)
+                            UpdateDevice(DeviceID, 1, True, 1, 0)
+                    if Command == 'Off' and Unit == 3 and not multizone:
                         SendCommandCloud(DeviceID, 'areaone', False)
                         UpdateDevice(DeviceID, 3, False, 0, 0)
-                    elif Command == 'On' and Unit == 3:
+                    elif Command == 'On' and Unit == 3 and not multizone:
                         SendCommandCloud(DeviceID, 'areaone', True)
                         UpdateDevice(DeviceID, 3, True, 1, 0)
-                    if Command == 'Off' and Unit == 4:
+                    if Command == 'Off' and Unit == 4 and not multizone:
                         SendCommandCloud(DeviceID, 'areatwo', False)
                         UpdateDevice(DeviceID, 4, False, 0, 0)
-                    elif Command == 'On' and Unit == 4:
+                    elif Command == 'On' and Unit == 4 and not multizone:
                         SendCommandCloud(DeviceID, 'areatwo', True)
                         UpdateDevice(DeviceID, 4, True, 1, 0)
                     if Command == 'Off' and Unit == 5:
@@ -2536,8 +2547,17 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
 
                 if dev_type == 'irrigation':
-                    if createDevice(dev['id'], 1) and (searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties)):
+                    multizone = searchCode('switch_2', FunctionProperties) or searchCode('switch_2', StatusProperties)
+                    if multizone:
+                        # Multi-zone controller: units 1-4 are zones switch_1 ... switch_4
+                        for unit in range(1, 5):
+                            if createDevice(dev['id'], unit) and (searchCode('switch_' + str(unit), FunctionProperties) or searchCode('switch_' + str(unit), StatusProperties)):
+                                Domoticz.Unit(Name=dev['name'] + ' (Zone ' + str(unit) + ')', DeviceID=dev['id'], Unit=unit, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                    elif createDevice(dev['id'], 1) and (searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties)):
                         Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                    # Unit 5 belongs to areathree on area-based controllers
+                    if createDevice(dev['id'], 5) and (searchCode('battery_percentage', StatusProperties) or searchCode('battery_percentage', FunctionProperties)) and not searchCode('areathree', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Battery)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=6, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('work_state', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'work_state':
@@ -4480,13 +4500,23 @@ def onHandleThread(startup):
                         battery_device()
 
                     if dev_type == 'irrigation':
-                        if searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties):
+                        multizone = searchCode('switch_2', FunctionProperties) or searchCode('switch_2', StatusProperties)
+                        if multizone:
+                            # Multi-zone controller: units 1-4 follow switch_1 ... switch_4
+                            for unit in range(1, 5):
+                                if searchCode('switch_' + str(unit), ResultValue):
+                                    currentstatus = StatusDeviceTuya('switch_' + str(unit))
+                                    UpdateDevice(dev['id'], unit, bool(currentstatus), int(bool(currentstatus)), 0)
+                        elif searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties):
                             if searchCode('switch_1', FunctionProperties):
                                 currentstatus = StatusDeviceTuya('switch_1')
                             else:
                                 currentstatus = StatusDeviceTuya('switch')
                             UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        if searchCode('work_state', ResultValue):
+                        # Unit 5 belongs to areathree on area-based controllers
+                        if searchCode('battery_percentage', ResultValue) and not searchCode('areathree', FunctionProperties):
+                            UpdateDevice(dev['id'], 5, int(StatusDeviceTuya('battery_percentage')), 0, 0)
+                        if searchCode('work_state', ResultValue) and not multizone:
                             currentmode = StatusDeviceTuya('work_state')
                             for item in StatusProperties:
                                 if item['code'] == 'work_state':
