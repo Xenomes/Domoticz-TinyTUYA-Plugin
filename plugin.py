@@ -2555,9 +2555,6 @@ def onHandleThread(startup):
                                 Domoticz.Unit(Name=dev['name'] + ' (Zone ' + str(unit) + ')', DeviceID=dev['id'], Unit=unit, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
                     elif createDevice(dev['id'], 1) and (searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties)):
                         Domoticz.Unit(Name=dev['name'] + ' (Power)', DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
-                    # Unit 5 belongs to areathree on area-based controllers
-                    if createDevice(dev['id'], 5) and (searchCode('battery_percentage', StatusProperties) or searchCode('battery_percentage', FunctionProperties)) and not searchCode('areathree', StatusProperties):
-                        Domoticz.Unit(Name=dev['name'] + ' (Battery)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=6, Used=1).Create()
                     if createDevice(dev['id'], 2) and searchCode('work_state', StatusProperties):
                         for item in StatusProperties:
                             if item['code'] == 'work_state':
@@ -4513,9 +4510,6 @@ def onHandleThread(startup):
                             else:
                                 currentstatus = StatusDeviceTuya('switch')
                             UpdateDevice(dev['id'], 1, bool(currentstatus), int(bool(currentstatus)), 0)
-                        # Unit 5 belongs to areathree on area-based controllers
-                        if searchCode('battery_percentage', ResultValue) and not searchCode('areathree', FunctionProperties):
-                            UpdateDevice(dev['id'], 5, int(StatusDeviceTuya('battery_percentage')), 0, 0)
                         if searchCode('work_state', ResultValue) and not multizone:
                             currentmode = StatusDeviceTuya('work_state')
                             for item in StatusProperties:
