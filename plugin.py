@@ -2076,6 +2076,10 @@ def onHandleThread(startup):
                         Domoticz.Unit(Name=dev['name'] + ' (Percent)', DeviceID=dev['id'], Unit=71, Type=243, Subtype=6, Switchtype=0, Image=11, Used=1).Create()
                     if createDevice(dev['id'], 72) and (searchCode('liquid_depth', StatusProperties)):
                         Domoticz.Unit(Name=dev['name'] + ' (Depth)', DeviceID=dev['id'], Unit=72, Type=243, Subtype=27, Switchtype=0, Image=11, Used=1).Create()
+                    if createDevice(dev['id'], 81) and searchCode('atmospheric_pressture', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Pressure)', DeviceID=dev['id'], Unit=81, Type=243, Subtype=26, Used=1).Create()
+                    if createDevice(dev['id'], 82) and searchCode('rain_24h', StatusProperties):
+                        Domoticz.Unit(Name=dev['name'] + ' (Rain)', DeviceID=dev['id'], Unit=82, Type=85, Subtype=1, Used=1).Create()
 
                     # if createDevice(dev['id'], 47) and searchCode('alarm_switch', FunctionProperties):
                     #     Domoticz.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev['id'], Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -3894,6 +3898,22 @@ def onHandleThread(startup):
                             currenttemp = StatusDeviceTuya(code_name)
                             if str(currenttemp) != str(Devices[dev['id']].Units[44].sValue):
                                 UpdateDevice(dev['id'], 44, currenttemp, 0, 0)
+                        if searchCode('atmospheric_pressture', ResultValue):
+                            # Barometer: hPa;forecast, 5 = unknown (qxj stations report no forecast)
+                            UpdateDevice(dev['id'], 81, str(StatusDeviceTuya('atmospheric_pressture')) + ';5', 0, 0)
+                        if searchCode('rain_24h', ResultValue) and checkDevice(dev['id'], 82):
+                            # Rain: rate in 0.01 mm/h and a counter that must only grow. rain_24h is the rain since
+                            # midnight, so the counter gains what it gained since the last reading; a drop means the
+                            # station reset it (midnight or reboot) and all of it is new
+                            today = StatusDeviceTuya('rain_24h')
+                            previous = getConfigItem(dev['id'] + ':rain', 'rain_24h') or 0
+                            counter = Devices[dev['id']].Units[82].sValue.split(';')
+                            total = float(counter[1]) if len(counter) > 1 and counter[1] else 0.0
+                            total = round(total + (today - previous if today >= previous else today), 1)
+                            rate = int(round(StatusDeviceTuya('rain_rate') * 100)) if searchCode('rain_rate', ResultValue) else 0
+                            if today != previous:
+                                setConfigItem(dev['id'] + ':rain', {'rain_24h': today})
+                            UpdateDevice(dev['id'], 82, f'{rate};{total}', 0, 0)
                         if searchCode('cook_temperature', ResultValue):
                             currenttemp_set = StatusDeviceTuya('cook_temperature')
                             if str(currenttemp_set) != str(Devices[dev['id']].Units[45].sValue):
