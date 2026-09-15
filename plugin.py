@@ -4005,9 +4005,6 @@ def onHandleThread(startup, local, target_dev_id=None):
                                     DomoticzEx.Unit(Name=dev['name'] + ' (Zone ' + str(unit) + ')', DeviceID=dev['id'], Unit=unit, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
                         elif createDevice(dev['id'], 1) and (searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties)):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
-                        # Unit 5 belongs to areathree on area-based controllers
-                        if createDevice(dev['id'], 5) and (searchCode('battery_percentage', StatusProperties) or searchCode('battery_percentage', FunctionProperties)) and not searchCode('areathree', StatusProperties):
-                            DomoticzEx.Unit(Name=dev['name'] + ' (Battery)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=6, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('work_state', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'work_state':
@@ -5366,9 +5363,6 @@ def onHandleThread(startup, local, target_dev_id=None):
                                 update_bool_device('areafour', 6)
                                 update_bool_device('areafive', 7)
                                 update_bool_device('areasix', 8)
-                            else:
-                                # Update battery for multi-zone controllers (unit 5)
-                                update_value_device('battery_percentage', 5)
                             battery_device()
 
                         if dev_type == 'wswitch':
