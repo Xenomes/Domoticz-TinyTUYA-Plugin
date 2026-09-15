@@ -135,3 +135,4 @@
 | 3.0.0 | Release of hybrid version |
 | 3.0.9 | Merge Master branch changes (2.4.0-2.4.5) into Hybrid |
 | 3.0.10 | Add refresh button functionality (Mode5) from PR #211 |
+| 3.0.11 | Add weather station barometer/rain units (PR #210) and multi-zone irrigation support (PR #209) |

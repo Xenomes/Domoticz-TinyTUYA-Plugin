@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.10" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.11" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.10</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.11</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -2065,38 +2065,49 @@ class BasePlugin:
                         UpdateDevice(DeviceID, 1, Level, 1, 0)
 
                 if dev_type == 'irrigation':
-                    if searchCode('switch_1', function):
-                        switch = 'switch_1'
-                    else:
-                        switch = 'switch'
-                    if Command == 'Off' and Unit == 1:
-                        SendCommandCloud(DeviceID, switch, False)
-                        UpdateDevice(DeviceID, 1, False, 0, 0)
-                    elif Command == 'On' and Unit == 1:
-                        SendCommandCloud(DeviceID, switch, True)
-                        UpdateDevice(DeviceID, 1, True, 1, 0)
-                    if Command == 'Off' and Unit == 3:
+                    multizone = searchCode('switch_2', function) or searchCode('switch_2', status)
+                    if multizone and Unit >= 1 and Unit <= 4:
+                        # Multi-zone controller: units 1-4 are zones switch_1 ... switch_4
+                        switch = 'switch_' + str(Unit)
+                        if Command == 'Off':
+                            SendCommandCloud(DeviceID, switch, False)
+                            UpdateDevice(DeviceID, Unit, False, 0, 0)
+                        elif Command == 'On':
+                            SendCommandCloud(DeviceID, switch, True)
+                            UpdateDevice(DeviceID, Unit, True, 1, 0)
+                    elif Unit == 1:
+                        if searchCode('switch_1', function):
+                            switch = 'switch_1'
+                        else:
+                            switch = 'switch'
+                        if Command == 'Off':
+                            SendCommandCloud(DeviceID, switch, False)
+                            UpdateDevice(DeviceID, 1, False, 0, 0)
+                        elif Command == 'On':
+                            SendCommandCloud(DeviceID, switch, True)
+                            UpdateDevice(DeviceID, 1, True, 1, 0)
+                    if Command == 'Off' and Unit == 3 and not multizone:
                         SendCommandCloud(DeviceID, 'areaone', False)
                         UpdateDevice(DeviceID, 3, False, 0, 0)
-                    elif Command == 'On' and Unit == 3:
+                    elif Command == 'On' and Unit == 3 and not multizone:
                         SendCommandCloud(DeviceID, 'areaone', True)
                         UpdateDevice(DeviceID, 3, True, 1, 0)
-                    if Command == 'Off' and Unit == 4:
+                    if Command == 'Off' and Unit == 4 and not multizone:
                         SendCommandCloud(DeviceID, 'areatwo', False)
                         UpdateDevice(DeviceID, 4, False, 0, 0)
-                    elif Command == 'On' and Unit == 4:
+                    elif Command == 'On' and Unit == 4 and not multizone:
                         SendCommandCloud(DeviceID, 'areatwo', True)
                         UpdateDevice(DeviceID, 4, True, 1, 0)
-                    if Command == 'Off' and Unit == 5:
+                    if Command == 'Off' and Unit == 5 and not multizone:
                         SendCommandCloud(DeviceID, 'areathree', False)
                         UpdateDevice(DeviceID, 5, False, 0, 0)
-                    elif Command == 'On' and Unit == 5:
+                    elif Command == 'On' and Unit == 5 and not multizone:
                         SendCommandCloud(DeviceID, 'areathree', True)
                         UpdateDevice(DeviceID, 5, True, 1, 0)
-                    if Command == 'Off' and Unit == 6:
+                    if Command == 'Off' and Unit == 6 and not multizone:
                         SendCommandCloud(DeviceID, 'areafour', False)
                         UpdateDevice(DeviceID, 6, False, 0, 0)
-                    elif Command == 'On' and Unit == 6:
+                    elif Command == 'On' and Unit == 6 and not multizone:
                         SendCommandCloud(DeviceID, 'areafour', True)
                         UpdateDevice(DeviceID, 6, True, 1, 0)
                     if Command == 'Off' and Unit == 7:
@@ -3524,6 +3535,10 @@ def onHandleThread(startup, local, target_dev_id=None):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Percent)", DeviceID=dev['id'], Unit=73, Type=243, Subtype=6, Switchtype=0, Image=11, Used=1).Create()
                         if createDevice(dev['id'], 74) and (searchCode('liquid_depth', StatusProperties)):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Depth)", DeviceID=dev['id'], Unit=74, Type=243, Subtype=27, Switchtype=0, Image=11, Used=1).Create()
+                    if createDevice(dev['id'], 75) and searchCode('atmospheric_pressture', StatusProperties):
+                        DomoticzEx.Unit(Name=dev['name'] + ' (Pressure)', DeviceID=dev['id'], Unit=75, Type=243, Subtype=26, Used=1).Create()
+                    if createDevice(dev['id'], 76) and searchCode('rain_24h', StatusProperties):
+                        DomoticzEx.Unit(Name=dev['name'] + ' (Rain)', DeviceID=dev['id'], Unit=76, Type=85, Subtype=1, Used=1).Create()
 
                         if dev_type in ('smartir') and dev_id not in str(Devices):
                             DomoticzEx.Log(f"Infrared device: {dev['name']}")
@@ -3982,8 +3997,17 @@ def onHandleThread(startup, local, target_dev_id=None):
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
 
                     if dev_type == 'irrigation':
-                        if createDevice(dev_id, 1) and (searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties)):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                        multizone = searchCode('switch_2', FunctionProperties) or searchCode('switch_2', StatusProperties)
+                        if multizone:
+                            # Multi-zone controller: units 1-4 are zones switch_1 ... switch_4
+                            for unit in range(1, 5):
+                                if createDevice(dev['id'], unit) and (searchCode('switch_' + str(unit), FunctionProperties) or searchCode('switch_' + str(unit), StatusProperties)):
+                                    DomoticzEx.Unit(Name=dev['name'] + ' (Zone ' + str(unit) + ')', DeviceID=dev['id'], Unit=unit, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                        elif createDevice(dev['id'], 1) and (searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties)):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=22, Used=1).Create()
+                        # Unit 5 belongs to areathree on area-based controllers
+                        if createDevice(dev['id'], 5) and (searchCode('battery_percentage', StatusProperties) or searchCode('battery_percentage', FunctionProperties)) and not searchCode('areathree', StatusProperties):
+                            DomoticzEx.Unit(Name=dev['name'] + ' (Battery)', DeviceID=dev['id'], Unit=5, Type=243, Subtype=6, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('work_state', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'work_state':
@@ -5145,6 +5169,24 @@ def onHandleThread(startup, local, target_dev_id=None):
                             update_value_device('liquid_depth', 74)
                             battery_device()
 
+                        # Weather station support (barometer and rain)
+                        if searchCode('atmospheric_pressture', ResultValue):
+                            # Barometer: hPa;forecast, 5 = unknown (qxj stations report no forecast)
+                            UpdateDevice(dev['id'], 75, str(StatusDeviceTuya('atmospheric_pressture')) + ';5', 0, 0)
+                        if searchCode('rain_24h', ResultValue) and checkDevice(dev['id'], 76):
+                            # Rain: rate in 0.01 mm/h and a counter that must only grow. rain_24h is the rain since
+                            # midnight, so the counter gains what it gained since the last reading; a drop means the
+                            # station reset it (midnight or reboot) and all of it is new
+                            today = StatusDeviceTuya('rain_24h')
+                            previous = getConfigItem(dev['id'] + ':rain', 'rain_24h') or 0
+                            counter = Devices[dev['id']].Units[76].sValue.split(';')
+                            total = float(counter[1]) if len(counter) > 1 and counter[1] else 0.0
+                            total = round(total + (today - previous if today >= previous else today), 1)
+                            rate = int(round(StatusDeviceTuya('rain_rate') * 100)) if searchCode('rain_rate', ResultValue) else 0
+                            if today != previous:
+                                setConfigItem(dev['id'] + ':rain', {'rain_24h': today})
+                            UpdateDevice(dev['id'], 76, f'{rate};{total}', 0, 0)
+
                         if dev_type == 'doorbell':
                             update_bool_device('doorbell_active', 1, '')
                             update_bool_device('floodlight_switch', 2)
@@ -5304,17 +5346,29 @@ def onHandleThread(startup, local, target_dev_id=None):
                             battery_device()
 
                         if dev_type == 'irrigation':
-                            if update_bool_device('switch', 1):
-                                pass
-                            elif update_bool_device('switch_1', 1):
-                                pass
+                            multizone = searchCode('switch_2', ResultValue)
+                            if multizone:
+                                # Multi-zone controller: update zones 1-4 with switch_1..switch_4
+                                for unit in range(1, 5):
+                                    update_bool_device(f'switch_{unit}', unit)
+                            else:
+                                # Single zone controller
+                                if update_bool_device('switch', 1):
+                                    pass
+                                elif update_bool_device('switch_1', 1):
+                                    pass
                             update_select_device('work_state', 2)
-                            update_bool_device('areaone', 3)
-                            update_bool_device('areatwo', 4)
-                            update_bool_device('areathree', 5)
-                            update_bool_device('areafour', 6)
-                            update_bool_device('areafive', 7)
-                            update_bool_device('areasix', 8)
+                            if not multizone:
+                                # Only update area controls for non-multi-zone devices
+                                update_bool_device('areaone', 3)
+                                update_bool_device('areatwo', 4)
+                                update_bool_device('areathree', 5)
+                                update_bool_device('areafour', 6)
+                                update_bool_device('areafive', 7)
+                                update_bool_device('areasix', 8)
+                            else:
+                                # Update battery for multi-zone controllers (unit 5)
+                                update_value_device('battery_percentage', 5)
                             battery_device()
 
                         if dev_type == 'wswitch':
