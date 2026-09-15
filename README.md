@@ -155,6 +155,18 @@ After initial setup, the plugin minimizes cloud usage and prefers local LAN cont
 
 Devices will be created automatically after discovery.
 
+## Refresh button (optional)
+
+To stay within the API quota the polling interval is usually long, so a change made on the device itself or in the Tuya app shows up in Domoticz only at the next poll. For the device IDs entered in **Refresh button for device IDs** (comma separated) the plugin adds a push button "*device name* (Refresh)". Pressing it reads just that device from the cloud (2 API calls) and updates its units right away; the regular polling interval is not affected. With the field left empty nothing changes.
+
+The button is meant to be pressed by something outside the plugin, for example:
+* a dzVents script: ```domoticz.devices('Irrigation controller (Refresh)').switchOn()```
+* the JSON API: ```http://<domoticz>:8080/json.htm?type=command&param=switchlight&idx=<idx of the button>&switchcmd=On```
+
+The buttons are created when the plugin starts, so press Update on the Hardware page after changing the field; "Accept new Hardware Devices" must be enabled in the Domoticz settings at that moment.
+
+[examples/refresh-button](examples/refresh-button) shows how to press the button whenever an OpenWrt router sees the device talk to the Tuya cloud: an nftables counter, a small script on the router and a dzVents script.
+
 ---
 
 ## Test Devices

@@ -125,4 +125,10 @@
 | 2.3.7 | Modification for Sensor detected as Switch #193 |
 | 2.3.8 | Add EPT ultrasonic sensor 3m #194 |
 | 2.3.9 | Add Siren function to Camera #195 |
+| 2.4.0 | Add Add CKM-01 device #196 |
+| 2.4.1 | Fix color (de)coding #199 |
+| 2.4.2 | Fix issue with 'tdq' catagory devices #201 |
+| 2.4.2a | Update some small code #206 |
+| 2.4.3 | Added smartlock |
+| 2.4.4 | Add all pull request from Kofec |
 | 3.0.0 | Release of hybrid version |
