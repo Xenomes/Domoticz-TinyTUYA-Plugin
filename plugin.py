@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.8</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.9</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.

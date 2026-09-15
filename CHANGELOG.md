@@ -131,4 +131,6 @@
 | 2.4.2a | Update some small code #206 |
 | 2.4.3 | Added smartlock |
 | 2.4.4 | Add all pull request from Kofec |
+| 2.4.5 | Add refresh button functionality and bug fixes |
 | 3.0.0 | Release of hybrid version |
+| 3.0.9 | Merge Master branch changes (2.4.0-2.4.5) into Hybrid |
