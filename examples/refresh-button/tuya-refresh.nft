@@ -1,0 +1,17 @@
+# Count the packets of one Tuya device that mean "something happened".
+# Copy to /etc/nftables.d/ on an OpenWrt router with firewall4 (22.03 or
+# newer); fw4 includes it into its table "inet fw4". See README.md.
+#
+# 192.168.1.50 - the device (give it a static DHCP lease)
+# 8883         - its MQTT/TLS connection to the Tuya cloud
+# 120          - the smallest packet that is not a keep-alive; measure it
+#                for your device, see README.md
+
+counter tuya_refresh {
+}
+
+chain tuya_refresh_watch {
+  type filter hook forward priority filter - 10; policy accept;
+  ip saddr 192.168.1.50 tcp dport 8883 meta length >= 120 counter name "tuya_refresh"
+  ip daddr 192.168.1.50 tcp sport 8883 meta length >= 120 counter name "tuya_refresh"
+}

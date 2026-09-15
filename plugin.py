@@ -23,6 +23,7 @@
         <li>Enter your Region, Access ID/Client ID, Access Secret/Client Secret, and a Search deviceID from your Tuya IOT Account. Synchronizing time: Tuya has changed the total number of pulses an account can make. Very old accounts can use a 1-minute interval, while others are advised to use a 15-minute interval. Keep the 'Data Timeout' setting disabled.</li>
         <li>A deviceID can be found in your Tuya IOT account. Go to Cloud => your project => Devices => Select one of your device IDs. (This ID is used to detect all the other devices.)</li>
         <li>Complete the initial setup of your devices using the app, and this plugin will automatically detect and use the same settings to find and add the devices into Domoticz.<br/></li>
+        <li>Refresh button: device IDs listed in "Refresh button for device IDs" (comma separated) get an extra push button that reads just that device from the cloud right away, without waiting for the polling interval - e.g. for a dzVents script triggered when the device is seen talking to the cloud.</li>
         <li>Set the API polling interval in order not to exhaust your calls allocation before the end of the billing period.</li>
         </ul>
         If your subscription to the cloud development plan has expired, you can extend it &nbsp; <a href="https://iot.tuya.com/cloud/products/apply-extension">HERE</a><br/>
@@ -47,6 +48,7 @@
                 <option label="30 minutes" value="1800" />
             </options>
         </param>
+        <param field="Mode5" label="Refresh button for device IDs" width="300px" default="" />
         <param field="Mode6" label="Debug" width="150px">
             <options>
                 <option label="None" value="0"  default="true" />
@@ -102,6 +104,7 @@ class BasePlugin:
             Domoticz.Heartbeat(10)
 
         onHandleThread(True)
+        CreateRefreshUnits()
 
     def onStop(self):
         try:
@@ -126,6 +129,12 @@ class BasePlugin:
                        str(Command) + "', Level: " +
                        str(Level) + "', Color: " +
                        str(Color))
+
+        # Push button from Mode5: read this one device from the cloud now
+        if Unit == REFRESH_UNIT:
+            if Command == 'On':
+                RefreshDevice(DeviceID)
+            return
 
         # device for the Domoticz
         dev = Devices[DeviceID].Units[Unit]
@@ -5481,3 +5490,36 @@ def setConfigItem(Key=None, Value=None):
 
 def version(ver):
     return tuple(map(int, (ver.split("."))))
+
+# Refresh button (Mode5): a push button on each listed device that reads just that device from the
+# cloud on demand, e.g. from a dzVents script when the router sees the device talk to the cloud
+REFRESH_UNIT = 200
+
+def CreateRefreshUnits():
+    wanted = [dev_id.strip() for dev_id in (Parameters.get('Mode5') or '').split(',') if dev_id.strip()]
+    if not wanted or 'devs' not in globals():
+        return
+    for dev in devs:
+        if dev['id'] in wanted and dev['id'] in Devices and createDevice(dev['id'], REFRESH_UNIT):
+            Domoticz.Unit(Name=dev['name'] + ' (Refresh)', DeviceID=dev['id'], Unit=REFRESH_UNIT, Type=244, Subtype=73, Switchtype=9, Used=1).Create()
+
+def RefreshDevice(DeviceID):
+    # The normal update path for one device only: 2 API calls instead of 2 per device, and the
+    # regular polling clock (last_update) stays where it was
+    global devs, last_update
+    if globals().get('Error') is not None:
+        Domoticz.Error(Error['Payload'])
+        return
+    if globals().get('tuya') is None or 'devs' not in globals():
+        Domoticz.Error('Refresh: Tuya Cloud is not initialised yet')
+        return
+    one = [dev for dev in devs if dev['id'] == DeviceID]
+    if not one:
+        Domoticz.Error('Refresh: device ' + str(DeviceID) + ' is not in the Tuya device list')
+        return
+    all_devs, polled = devs, last_update
+    devs = one
+    try:
+        onHandleThread(False)
+    finally:
+        devs, last_update = all_devs, polled

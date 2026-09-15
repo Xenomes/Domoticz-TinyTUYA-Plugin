@@ -85,6 +85,18 @@ The initial setup of your devices should be done with the app and this plugin wi
 
 In the web UI, navigate to the Hardware page. In the hardware dropdown there will be an entry called "TinyTUYA" configure and add the hardware there.
 
+## Refresh button (optional)
+
+To stay within the API quota the polling interval is usually long, so a change made on the device itself or in the Tuya app shows up in Domoticz only at the next poll. For the device IDs entered in **Refresh button for device IDs** (comma separated) the plugin adds a push button "*device name* (Refresh)". Pressing it reads just that device from the cloud (2 API calls) and updates its units right away; the regular polling interval is not affected. With the field left empty nothing changes.
+
+The button is meant to be pressed by something outside the plugin, for example:
+* a dzVents script: ```domoticz.devices('Irrigation controller (Refresh)').switchOn()```
+* the JSON API: ```http://<domoticz>:8080/json.htm?type=command&param=switchlight&idx=<idx of the button>&switchcmd=On```
+
+The buttons are created when the plugin starts, so press Update on the Hardware page after changing the field; "Accept new Hardware Devices" must be enabled in the Domoticz settings at that moment.
+
+[examples/refresh-button](examples/refresh-button) shows how to press the button whenever an OpenWrt router sees the device talk to the Tuya cloud: an nftables counter, a small script on the router and a dzVents script.
+
 ## Test device
 
 I had only a RGBWW light to fully test the script, if there is a fuction missing in the plugin you can provide the json data for you device by edit and running the debug_discovery.py in the tools directory and posted in issues on Github.
