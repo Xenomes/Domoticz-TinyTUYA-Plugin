@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.10" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.9</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.10</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -62,6 +62,9 @@
                 Keep the <b>Data Timeout</b> option disabled.
             </li>
             <li>
+                Refresh button: device IDs listed in "Refresh button for device IDs" (comma separated) get an extra push button that reads just that device from the cloud right away, without waiting for the polling interval - e.g. for a dzVents script triggered when the device is seen talking to the cloud.
+            </li>
+            <li>
                 After setup, the plugin minimizes cloud usage and prefers local LAN communication.
             </li>
         </ul>
@@ -104,6 +107,7 @@
                 <option label="Static (no rescan)" value="0"/>
             </options>
         </param>
+        <param field="Mode5" label="Refresh button for device IDs" width="300px" default="" />
         <param field="Mode6" label="Debug" width="150px">
             <options>
                 <option label="None" value="0"  default="true" />
@@ -957,6 +961,7 @@ class BasePlugin:
             fulllocal = False
         # DomoticzEx.Heartbeat(2)
         onHandleThread(True, False)
+        CreateRefreshUnits()
 
         # Start realtime push updates (falls back to poll-only if the
         # tuya-connector-python package isn't installed, or if it's not
@@ -1005,6 +1010,12 @@ class BasePlugin:
         DomoticzEx.Debug(f"nValue: {dev.nValue}")
         DomoticzEx.Debug(f"sValue: {dev.sValue} Type {type(dev.sValue)}")
         DomoticzEx.Debug(f"LastLevel: {dev.LastLevel}")
+
+        # Push button from Mode5: read this one device from the cloud now
+        if Unit == REFRESH_UNIT:
+            if Command == 'On':
+                RefreshDevice(DeviceID)
+            return
 
         try:
             if Error is not None:
@@ -6200,6 +6211,39 @@ def setConfigItem(Key=None, Value=None):
     except Exception as inst:
         DomoticzEx.Error(f"DomoticzEx.Configuration operation failed: {inst}")
     return Config
+
+# Refresh button (Mode5): a push button on each listed device that reads just that device from the
+# cloud on demand, e.g. from a dzVents script when the router sees the device talk to the cloud
+REFRESH_UNIT = 200
+
+def CreateRefreshUnits():
+    wanted = [dev_id.strip() for dev_id in (Parameters.get('Mode5') or '').split(',') if dev_id.strip()]
+    if not wanted or 'devs' not in globals():
+        return
+    for dev in devs:
+        if dev['id'] in wanted and dev['id'] in Devices and createDevice(dev['id'], REFRESH_UNIT):
+            DomoticzEx.Unit(Name=dev['name'] + ' (Refresh)', DeviceID=dev['id'], Unit=REFRESH_UNIT, Type=244, Subtype=73, Switchtype=9, Used=1).Create()
+
+def RefreshDevice(DeviceID):
+    # The normal update path for one device only: 2 API calls instead of 2 per device, and the
+    # regular polling clock (last_update) stays where it was
+    global devs, last_update
+    if globals().get('Error') is not None:
+        DomoticzEx.Error(Error['Payload'])
+        return
+    if globals().get('tuya') is None or 'devs' not in globals():
+        DomoticzEx.Error('Refresh: Tuya Cloud is not initialised yet')
+        return
+    one = [dev for dev in devs if dev['id'] == DeviceID]
+    if not one:
+        DomoticzEx.Error('Refresh: device ' + str(DeviceID) + ' is not in the Tuya device list')
+        return
+    all_devs, polled = devs, last_update
+    devs = one
+    try:
+        onHandleThread(False)
+    finally:
+        devs, last_update = all_devs, polled
 
 def version(ver):
     return tuple(map(int, (ver.split('.'))))
