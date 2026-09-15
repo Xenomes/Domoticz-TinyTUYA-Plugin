@@ -95,6 +95,8 @@ The button is meant to be pressed by something outside the plugin, for example:
 
 The buttons are created when the plugin starts, so press Update on the Hardware page after changing the field; "Accept new Hardware Devices" must be enabled in the Domoticz settings at that moment.
 
+[examples/refresh-button](examples/refresh-button) shows how to press the button whenever an OpenWrt router sees the device talk to the Tuya cloud: an nftables counter, a small script on the router and a dzVents script.
+
 ## Test device
 
 I had only a RGBWW light to fully test the script, if there is a fuction missing in the plugin you can provide the json data for you device by edit and running the debug_discovery.py in the tools directory and posted in issues on Github.
