@@ -129,3 +129,5 @@
 | 2.4.1 | Fix color (de)coding #199 |
 | 2.4.2 | Fix issue with 'tdq' catagory devices #201 |
 | 2.4.2a | Update some small code #206 |
+| 2.4.3 | Added smartlock |
+| 2.4.4 | Add all pull request from Kofec |
