@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.11" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.13" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.11</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.13</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -2416,6 +2416,108 @@ def onHeartbeat():
     global _plugin
     _plugin.onHeartbeat()
 
+def _log_local_scan_results(localtuya, devs, label, elapsed=None, scan_error=None):
+    """Log a clear, actionable overview of a local (UDP broadcast) IP scan:
+    which devices were found locally (with IP + protocol version), which
+    known WiFi devices were NOT found (with likely reasons), and which
+    devices are correctly skipped because they are Zigbee (never reachable
+    via a local Tuya UDP scan -- they go through a Zigbee gateway instead).
+
+    This replaces the old behaviour of only logging the devices that WERE
+    found, which gave no information at all about why a device ended up
+    being controlled via cloud fallback instead of locally.
+
+    'scan_error' is passed in when the scan itself raised an exception, so
+    this function can still log a useful per-device breakdown (everything
+    will show as "not found") plus a diagnosis of the scan failure itself.
+    """
+    duration_str = f" in {elapsed:.1f}s" if elapsed is not None else ""
+
+    if scan_error is not None:
+        err_text = str(scan_error)
+        err_type = type(scan_error).__name__
+        hint = None
+        if isinstance(scan_error, PermissionError) or 'permission' in err_text.lower():
+            hint = "the process does not have permission to open a UDP broadcast/listen socket (try running Domoticz with sufficient network privileges, or check SELinux/AppArmor restrictions)"
+        elif isinstance(scan_error, OSError) and ('address already in use' in err_text.lower() or 'errno 98' in err_text.lower()):
+            hint = "UDP port 6666/6667/6668 is already in use by another process on this host (another TinyTUYA/Tuya tool running at the same time?)"
+        elif isinstance(scan_error, OSError):
+            hint = "a network/socket error occurred -- check that this host has a working network interface and that UDP broadcast is not blocked by the OS firewall"
+        elif isinstance(scan_error, TimeoutError) or 'timed out' in err_text.lower() or 'timeout' in err_text.lower():
+            hint = "the scan timed out without any response -- check that this host is on the same subnet/VLAN as the Tuya devices, since UDP broadcast does not cross routers/VLANs, and that UDP ports 6666/6667/6668 are not blocked by a firewall"
+        DomoticzEx.Error(f"{label} failed{duration_str}: [{err_type}] {err_text}")
+        if hint:
+            DomoticzEx.Error(f"{label}: likely cause -- {hint}")
+        DomoticzEx.Error(f"{label}: falling back to Tuya Cloud control for all devices until the next scan succeeds.")
+        localtuya = localtuya or {}
+
+    found_count = len(localtuya)
+
+    found_entries = []
+    not_found_entries = []
+    zigbee_skipped = []
+
+    matched_ids = set()
+    for dev in devs:
+        dev_id = dev.get('id')
+        dev_name = dev.get('name', 'Unknown')
+        connect_type = dev.get('connect_type', 'wifi')
+        protocol = dev.get('protocol', 'wifi')
+        is_zigbee = 'zigbee' in str(connect_type).lower() or 'zigbee' in str(protocol).lower()
+
+        if is_zigbee:
+            zigbee_skipped.append(f"{dev_name} ({dev_id})")
+            continue
+
+        dev_info = localtuya.get(dev_id)
+        if dev_info:
+            matched_ids.add(dev_id)
+            ip = dev_info.get('ip', 'unknown IP')
+            version = dev_info.get('version', 'unknown')
+            found_entries.append(f"{dev_name} ({dev_id}) at {ip} [protocol v{version}]")
+        else:
+            not_found_entries.append(f"{dev_name} ({dev_id})")
+
+    # Devices the scan found on the network but that don't match any known
+    # ID for this Tuya account/hardware instance -- without this, the
+    # top-line "found N device(s)" count (based on the raw scan result)
+    # would not add up with the itemized list below it (which only covers
+    # devices linked to this account), which is confusing.
+    unmatched_entries = []
+    for dev_id, dev_info in localtuya.items():
+        if dev_id not in matched_ids:
+            ip = dev_info.get('ip', 'unknown IP')
+            version = dev_info.get('version', 'unknown')
+            unmatched_entries.append(f"{dev_id} at {ip} [protocol v{version}]")
+
+    if unmatched_entries:
+        DomoticzEx.Log(f"{label} completed{duration_str}: found {found_count} device(s) on the local network ({len(found_entries)} linked to this account, {len(unmatched_entries)} not linked to this account)")
+    else:
+        DomoticzEx.Log(f"{label} completed{duration_str}: found {found_count} device(s) on the local network")
+
+    if found_entries:
+        for entry in found_entries:
+            DomoticzEx.Log(f"  - OK, found locally: {entry}")
+
+    if unmatched_entries:
+        DomoticzEx.Log(f"{label}: {len(unmatched_entries)} device(s) found locally that are not linked to this Tuya account/hardware instance (e.g. belong to another Tuya account, or their ID changed after a re-pair/reset):")
+        for entry in unmatched_entries:
+            DomoticzEx.Log(f"  - UNLINKED: {entry}")
+
+    if not_found_entries:
+        DomoticzEx.Log(f"{label}: {len(not_found_entries)} WiFi device(s) known to the Tuya account were NOT found by the local scan (will use Tuya Cloud instead):")
+        for entry in not_found_entries:
+            DomoticzEx.Log(f"  - NOT FOUND: {entry}")
+        DomoticzEx.Log(f"{label}: a device is typically not found when it is powered off/offline, when it sits on a different subnet/VLAN than this Domoticz host (UDP broadcast does not cross routers), when 'Local network control' is disabled for it in the Tuya app, or when a firewall blocks UDP ports 6666/6667/6668. This is expected for devices that are simply offline right now.")
+
+    if zigbee_skipped:
+        DomoticzEx.Debug(f"{label}: {len(zigbee_skipped)} Zigbee device(s) correctly skipped (not reachable via local Tuya UDP scan): {', '.join(zigbee_skipped)}")
+
+    if found_count == 0 and not_found_entries and not found_entries:
+        DomoticzEx.Error(f"{label}: zero devices found on the local network at all. If this keeps happening for every scan, it usually points to a network-level problem rather than devices being offline: UDP ports 6666/6667/6668 blocked by a firewall on this host, Domoticz running in a Docker/VM network namespace that does not receive broadcast traffic, or this host being on a different subnet/VLAN than the Tuya devices.")
+
+
+
 def onHandleThread(startup, local, target_dev_id=None):
     global tuya, devs, properties, dps_map, result, product_id, Error
     global last_update, last_ip_scan, localtuya, testdata
@@ -2639,30 +2741,26 @@ def onHandleThread(startup, local, target_dev_id=None):
                         DomoticzEx.Error(f"!! Warning Status data is missing for {dev.get('name', 'Unknown')} ({dev_id}) !!")
             # Initial local scan
             if not testdata and not fulllocal:
+                scan_start = time.time()
                 try:
                     DomoticzEx.Log('Initial Tuya IP scan, Please wait...')
                     localtuya = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
                     last_ip_scan = time.time()
-                    DomoticzEx.Log(f'Local IP scan completed: found {len(localtuya)} device(s) on local network')
-                    for dev_id, dev_info in localtuya.items():
-                        dev_name = next((d.get('name', 'Unknown') for d in devs if d.get('id') == dev_id), 'Unknown (not linked to this account)')
-                        DomoticzEx.Log(f"  - Local device: {dev_name} ({dev_id}) at {dev_info.get('ip', 'unknown IP')}")
+                    _log_local_scan_results(localtuya, devs, 'Initial Tuya IP scan', elapsed=time.time() - scan_start)
                 except Exception as e:
-                    DomoticzEx.Error(f"Local IP scan failed: {e}")
                     localtuya = {}
+                    _log_local_scan_results(localtuya, devs, 'Initial Tuya IP scan', elapsed=time.time() - scan_start, scan_error=e)
 
         # Periodic IP scan
         if (not startup and not testdata and ip_scan_interval > 0 and time.time() - last_ip_scan > ip_scan_interval) and not fulllocal :
+            scan_start = time.time()
             try:
                 DomoticzEx.Log('Periodic Tuya IP scan, Please wait...')
                 localtuya = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
                 last_ip_scan = time.time()
-                DomoticzEx.Log(f'Periodic IP scan completed: found {len(localtuya)} device(s) on local network')
-                for dev_id, dev_info in localtuya.items():
-                    dev_name = next((d.get('name', 'Unknown') for d in devs if d.get('id') == dev_id), 'Unknown (not linked to this account)')
-                    DomoticzEx.Log(f"  - Local device: {dev_name} ({dev_id}) at {dev_info.get('ip', 'unknown IP')}")
+                _log_local_scan_results(localtuya, devs, 'Periodic Tuya IP scan', elapsed=time.time() - scan_start)
             except Exception as e:
-                DomoticzEx.Error(f"Periodic IP scan failed: {e}")
+                _log_local_scan_results(localtuya, devs, 'Periodic Tuya IP scan', elapsed=time.time() - scan_start, scan_error=e)
 
         # Proactive ping loop for battery WiFi devices to wake them up
         if local and not testdata and not fulllocal:
