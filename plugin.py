@@ -3,11 +3,11 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA (Cloud)" author="Xenomes" version="2.4.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum: <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441</a><br/>
         <br/>
-        <h2>TinyTUYA Plugin version 2.4.4</h2><br/>
+        <h2>TinyTUYA Plugin version 2.4.5</h2><br/>
         The plugin make use of IoT Cloud Platform account for setup up see https://github.com/jasonacox/tinytuya step 3 or see PDF https://github.com/jasonacox/tinytuya/files/8145832/Tuya.IoT.API.Setup.pdf
         <h3>Features</h3>
         <ul style="list-style-type:square">
@@ -1445,7 +1445,7 @@ def onHandleThread(startup):
         for dev in devs:
             run += 1
             try:
-                Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'],  dev['product_id'], properties.get(dev['id'], {}).get('functions'))))
+                Domoticz.Debug( 'Device name=' + str(dev['name']) + ' id=' + str(dev['id']) + ' category=' + str(DeviceType(dev['category'],  dev['product_id'], properties.get(dev['id'], {}).get('functions'), dev.get('name'))))
                 last_update = time.time()
                 if testData == True:
                     online = True
@@ -1453,7 +1453,7 @@ def onHandleThread(startup):
                     online = tuya.getconnectstatus(dev['id'])
                 # Set last update
                 FunctionProperties = properties[dev['id']]['functions']
-                dev_type = DeviceType(properties[dev['id']]['category'], dev['product_id'], properties[dev['id']].get('functions'))
+                dev_type = DeviceType(properties[dev['id']]['category'], dev['product_id'], properties[dev['id']].get('functions'), dev.get('name'))
                 StatusProperties = properties[dev['id']]['status']
 
                 if testData == True:
@@ -3429,11 +3429,11 @@ def onHandleThread(startup):
                         if searchCode('status', StatusProperties):
                             currentstatus = StatusDeviceTuya('status')
                             if currentstatus == '1':
-                                UpdateDevice(dev['id'], 1, 'Open', 1, 0)
+                                UpdateDevice(dev['id'], 1, 'Open', 0, 0)
                             elif currentstatus == '2':
-                                UpdateDevice(dev['id'], 1, 'Close', 0, 0)
+                                UpdateDevice(dev['id'], 1, 'Close', 1, 0)
                             elif currentstatus == '3':
-                                UpdateDevice(dev['id'], 1, 'Stop', 0, 0)
+                                UpdateDevice(dev['id'], 1, 'Stop', 1, 0)
                         if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', FunctionProperties):
                             if searchCode('position_2', StatusProperties):
                                 currentposition = StatusDeviceTuya('position_2')
@@ -5085,7 +5085,7 @@ def DumpConfigToLog():
     return
 
 # Select device type from category
-def DeviceType(category, product_id=None, device_functions=None):
+def DeviceType(category, product_id=None, device_functions=None, product_name=None):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
     if product_id == 'chfpey4klfcp1ipl':
@@ -5112,6 +5112,15 @@ def DeviceType(category, product_id=None, device_functions=None):
         # If function codes indicate sensors - use exact word matching or longer patterns
         elif any(any(k in c for k in ('temp_', 'temperature', 'humidity', 'pir', 'smoke', 'water_leak', 'leak', 'co_', 'voc', 'pm25', 'distance')) for c in codes):
             result = 'sensor'
+
+    # Special handling for category 'qt' which can be either smokedetector or curtain switch
+    if category in {'qt','ywbj'}:
+        # If product_name indicates it's a curtain switch, treat as cover
+        if product_name and 'curtain' in str(product_name).lower():
+            result = 'cover'
+            Domoticz.Debug(f"Category 'qt' with product_name '{product_name}' detected as curtain switch (cover)")
+        else:
+            result = 'smokedetector'
     elif category in {'kg', 'cz', 'pc', 'znjdq', 'szjqr', 'aqcz'}:
         result = 'switch'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj', 'tyd'}:
@@ -5148,7 +5157,7 @@ def DeviceType(category, product_id=None, device_functions=None):
         result = 'doorcontact'
     elif category in {'gyd'}:
         result = 'pirlight'
-    elif category in {'qt','ywbj'}:
+    elif category in {'ywbj'}:
         result = 'smokedetector'
     elif category in {'ckmkzq'}:
         result = 'garagedooropener'
