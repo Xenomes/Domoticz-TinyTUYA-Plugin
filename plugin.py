@@ -840,7 +840,8 @@ def _log_realtime_capable_devices():
             dev_id = dev.get('id')
             tuya_ids.add(dev_id)
             category = properties.get(dev_id, {}).get('category')
-            dev_type = DeviceType(category) if category else None
+            dev_name = dev.get('name', 'Unknown')
+            dev_type = DeviceType(category, None, dev_name) if category else None
             status_props = properties.get(dev_id, {}).get('status', [])
 
             if dev_type == 'doorcontact':
@@ -2831,8 +2832,8 @@ def onHandleThread(startup, local, target_dev_id=None):
             ResultValue        = result.get(dev['id'], [])
             product_id         = getConfigItem(dev['id'], 'product_id') or ''
             category           = properties.get(dev['id'], {}).get('category', 'unknown')
-            dev_type           = DeviceType(category, product_id)
             dev_name           = dev.get('name', 'Unknown Device')
+            dev_type           = DeviceType(category, product_id, dev_name)
             dev_id             = dev.get('id', 'Unknown ID')
             online             = False
             now = time.time()
@@ -3104,6 +3105,8 @@ def onHandleThread(startup, local, target_dev_id=None):
                         DomoticzEx.Log('Create device Cover')
                         if searchCode('position', StatusProperties) or searchCode('percent_control', FunctionProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Switch 1)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
+                        elif searchCode('control', FunctionProperties) or searchCode('mach_operate', FunctionProperties) or searchCode('status', FunctionProperties):
+                            DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=14, Used=1).Create()
                         else:
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=14, Used=1).Create()
                         if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', FunctionProperties):
@@ -5037,6 +5040,14 @@ def onHandleThread(startup, local, target_dev_id=None):
                                     UpdateDomoticz(dev_id, 1, 'Close', 1, 0)
                                 elif currentstatus == 'stop':
                                     UpdateDomoticz(dev_id, 1, 'Stop', 1, 0)
+                            elif searchCode('status', StatusProperties):
+                                currentstatus = StatusDeviceTuya('status')
+                                if currentstatus == '1':
+                                    UpdateDomoticz(dev_id, 1, 'Open', 0, 0)
+                                elif currentstatus == '2':
+                                    UpdateDomoticz(dev_id, 1, 'Close', 1, 0)
+                                elif currentstatus == '3':
+                                    UpdateDomoticz(dev_id, 1, 'Stop', 1, 0)
                             if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', StatusProperties):
                                 if searchCode('position_2', StatusProperties):
                                     currentposition = StatusDeviceTuya('position_2')
@@ -5624,7 +5635,7 @@ def DumpConfigToLog():
     return
 
 # Select device type from category
-def DeviceType(category, product_id=None):
+def DeviceType(category, product_id=None, product_name=None):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
     if product_id in {'uoa3mayicscacseb', 'igtakqsfhbr7qsp7'}:
@@ -5637,6 +5648,15 @@ def DeviceType(category, product_id=None):
         resultdev = 'switch'
     elif category in {'tdq'}:
         resultdev = 'switch/sensor'
+
+    # Special handling for category 'qt' which can be either smokedetector or curtain switch
+    if category in {'qt'}:
+        # If product_name indicates it's a curtain switch, treat as cover
+        if product_name and 'curtain' in str(product_name).lower():
+            resultdev = 'cover'
+            DomoticzEx.Debug(f"Category 'qt' with product_name '{product_name}' detected as curtain switch (cover)")
+        else:
+            resultdev = 'smokedetector'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj', 'tyd'}:
         resultdev = 'light'
     elif category in {'tgq', 'tgkg'}:
@@ -5671,7 +5691,7 @@ def DeviceType(category, product_id=None):
         resultdev = 'doorcontact'
     elif category in {'gyd'}:
         resultdev = 'pirlight'
-    elif category in {'qt','ywbj'}:
+    elif category in {'ywbj'}:
         resultdev = 'smokedetector'
     elif category in {'ckmkzq'}:
         resultdev = 'garagedooropener'
