@@ -20,13 +20,6 @@ The Tuya Cloud is primarily used for **initial device discovery, DPS mapping and
 > - **Network requirements**: Devices must be on the same network for optimal local control
 > - **Device re-creation**: Some devices may need to be recreated if they were incorrectly classified in version 2.*
 >
-> **Important changes from version 2.*:**
-> - Curtain switches (category 'qt') are now correctly detected instead of being misclassified as smoke detectors
-> - Enhanced device type detection using product_name instead of device name
-> - Realtime push updates via Tuya Pulsar (optional)
-> - Improved IP scan logging and diagnostics
-> - Better handling of multi-unit devices
->
 > **Recommendation**: After updating, verify all devices are working correctly. Some devices may need to be recreated if they show unexpected behavior.
 
 ---
