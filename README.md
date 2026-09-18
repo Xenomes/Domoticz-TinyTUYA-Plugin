@@ -8,6 +8,27 @@ fallback to the **Tuya IoT Cloud** when local communication is not available.
 
 The Tuya Cloud is primarily used for **initial device discovery, DPS mapping and configuration**.
 
+> **⚠️ IMPORTANT WARNING - Version 3.0+ Update**
+>
+> This is version **3.0+** (Hybrid version) which is a **major update** from version 2.* (Cloud version).
+> Devices may behave differently after updating:
+>
+> - **Architecture change**: Version 3.* uses hybrid local/cloud control instead of cloud-only
+> - **Device detection**: Device type detection has been improved and may reclassify some devices
+> - **Local control**: Devices will now try to communicate locally first, falling back to cloud if unavailable
+> - **Performance**: Response times are generally faster due to local communication
+> - **Network requirements**: Devices must be on the same network for optimal local control
+> - **Device re-creation**: Some devices may need to be recreated if they were incorrectly classified in version 2.*
+>
+> **Important changes from version 2.*:**
+> - Curtain switches (category 'qt') are now correctly detected instead of being misclassified as smoke detectors
+> - Enhanced device type detection using product_name instead of device name
+> - Realtime push updates via Tuya Pulsar (optional)
+> - Improved IP scan logging and diagnostics
+> - Better handling of multi-unit devices
+>
+> **Recommendation**: After updating, verify all devices are working correctly. Some devices may need to be recreated if they show unexpected behavior.
+
 ---
 
 ## Features
