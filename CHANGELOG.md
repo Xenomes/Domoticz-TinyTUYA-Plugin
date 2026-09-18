@@ -2,6 +2,8 @@
 
 | Version | Information|
 | ----- | ---------- |
+| 2.4.6 | Bug fix: curtain switch detection now uses product_name instead of device name for category 'qt' devices (Issue #208) |
+| 2.4.5 | Add curtain switch support for category 'qt' devices (Issue #208) |
 | 1.0.0 | Initial upload version |
 | 1.0.1 | Change heart beat to reduce API calls |
 | 1.1.0 | Add Heater (Power, read and set temperature) |
