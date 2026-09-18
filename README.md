@@ -8,7 +8,7 @@ fallback to the **Tuya IoT Cloud** when local communication is not available.
 
 The Tuya Cloud is primarily used for **initial device discovery, DPS mapping and configuration**.
 
-> **⚠️ IMPORTANT WARNING - Version 3.0+ Update**
+> ## **⚠️ IMPORTANT WARNING - Version 3.0+ Update**
 >
 > This is version **3.0+** (Hybrid version) which is a **major update** from version 2.* (Cloud version).
 > Devices may behave differently after updating:
@@ -21,7 +21,20 @@ The Tuya Cloud is primarily used for **initial device discovery, DPS mapping and
 > - **Device re-creation**: Some devices may need to be recreated if they were incorrectly classified in version 2.*
 >
 > **Recommendation**: After updating, verify all devices are working correctly. Some devices may need to be recreated if they show unexpected behavior.
-
+>
+> ### Update fails? (git pull error)
+>
+> If `git pull` gives an error (for example about local changes, divergent branches,
+> or a dirty working tree), you can force your local copy to match the latest
+> version from GitHub.
+>
+> Run these commands in the plugin folder:
+>
+> ```bash
+> cd ~/domoticz/plugins/Domoticz-TinyTUYA-Plugin
+> git fetch
+> git reset --hard origin/master
+> ```
 ---
 
 ## Features
