@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.13" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.14" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.13</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.14/h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -292,7 +292,8 @@ def _pulsar_on_message(msg):
     # through the slower, verified fallback path below.
     try:
         category = properties.get(dev_id, {}).get('category')
-        dev_type = DeviceType(category) if category else None
+        product_name = properties.get(dev_id, {}).get('product_name')
+        dev_type = DeviceType(category, None, product_name) if category else None
     except Exception:
         dev_type = None
 
@@ -840,8 +841,8 @@ def _log_realtime_capable_devices():
             dev_id = dev.get('id')
             tuya_ids.add(dev_id)
             category = properties.get(dev_id, {}).get('category')
-            dev_name = dev.get('name', 'Unknown')
-            dev_type = DeviceType(category, None, dev_name) if category else None
+            dev_product_name = dev.get('product_name', 'Unknown')
+            dev_type = DeviceType(category, None, dev_product_name) if category else None
             status_props = properties.get(dev_id, {}).get('status', [])
 
             if dev_type == 'doorcontact':
@@ -2462,6 +2463,7 @@ def _log_local_scan_results(localtuya, devs, label, elapsed=None, scan_error=Non
     for dev in devs:
         dev_id = dev.get('id')
         dev_name = dev.get('name', 'Unknown')
+        dev_product_name = dev.get('product_name', 'Unknown')
         connect_type = dev.get('connect_type', 'wifi')
         protocol = dev.get('protocol', 'wifi')
         is_zigbee = 'zigbee' in str(connect_type).lower() or 'zigbee' in str(protocol).lower()
@@ -2833,7 +2835,8 @@ def onHandleThread(startup, local, target_dev_id=None):
             product_id         = getConfigItem(dev['id'], 'product_id') or ''
             category           = properties.get(dev['id'], {}).get('category', 'unknown')
             dev_name           = dev.get('name', 'Unknown Device')
-            dev_type           = DeviceType(category, product_id, dev_name)
+            dev_product_name   = dev.get('product_name', 'Unknown Device')
+            dev_type           = DeviceType(category, product_id, dev_product_name)
             dev_id             = dev.get('id', 'Unknown ID')
             online             = False
             now = time.time()
