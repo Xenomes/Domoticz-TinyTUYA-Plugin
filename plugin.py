@@ -67,6 +67,11 @@
             <li>
                 After setup, the plugin minimizes cloud usage and prefers local LAN communication.
             </li>
+            <li>
+                Local connection: a device found on the LAN keeps one connection open with its local key.
+                Values it pushes by itself arrive without waiting for a poll, and the plugin no longer sets
+                up a socket per device per cycle. Domoticz must be in the same network segment as the devices.
+            </li>
         </ul>
 
         If your Tuya Cloud development subscription has expired, you can extend it
@@ -935,6 +940,144 @@ except ImportError:
     print('No tinytuya module installed')
     sys.exit(1)
 print(f"Tinytuya version: {tinytuya.version}")
+
+# --- Local connection (LAN) -------------------------------------------------
+# A device that answers on the LAN keeps one connection open with its local key. The values it reports -
+# both the replies to a status query and the pushes it sends by itself when something changes - are
+# collected by that connection and read on the next cycle, so no socket is set up per device per cycle
+# and a change on the device shows up in Domoticz without waiting for a poll.
+# LOCAL_BEAT: heartbeat that keeps the connection open - devices drop it ~30 s after the last packet from
+# the client (their own pushes do not count) and a beat can come up to LOCAL_TIMEOUT late, so 20 s leaves
+# a margin. LOCAL_REFRESH: how often the full status is read again over the same connection.
+# LOCAL_RETRY: pause before reconnecting after a connection is lost.
+LOCAL_BEAT = 20
+LOCAL_TIMEOUT = 5
+LOCAL_REFRESH = 300
+LOCAL_RETRY = 60
+local_listeners = {}
+local_state = {}
+
+
+class LocalListener(threading.Thread):
+    # Keeps one LAN connection to a device and collects the DPs it reports. Runs outside the plugin
+    # thread and touches neither the Domoticz API nor the cloud client: onHandleThread only reads
+    # values() from it.
+    def __init__(self, dev_id, key):
+        threading.Thread.__init__(self, name='TinyTuyaLocal-' + dev_id, daemon=True)
+        self.dev_id = dev_id
+        self.key = key
+        self.dps = {}
+        self.connected = False
+        self.error = None
+        self.stopping = threading.Event()
+
+    def values(self):
+        # A copy, so the plugin thread never reads the dict while the connection is writing to it
+        return dict(self.dps)
+
+    def run(self):
+        while not self.stopping.is_set():
+            endpoint = localtuya.get(self.dev_id) or {}
+            if endpoint.get('ip'):
+                self.listen(endpoint)
+            self.stopping.wait(LOCAL_RETRY)
+
+    def listen(self, endpoint):
+        device = None
+        # Every connection starts empty: whatever the device pushed while it was down is lost, so a value
+        # from an earlier connection may be outdated and only what arrives on the live one counts
+        self.dps = {}
+        try:
+            device = tinytuya.Device(self.dev_id, endpoint['ip'], self.key,
+                                     version=float(endpoint.get('version') or 3.3),
+                                     persist=True, connection_timeout=3,
+                                     connection_retry_limit=1, connection_retry_delay=1)
+            device.set_socketTimeout(LOCAL_TIMEOUT)
+            reply = device.status()
+            next_status = time.time() + LOCAL_REFRESH
+            next_beat = time.time() + LOCAL_BEAT
+            while not self.stopping.is_set():
+                if isinstance(reply, dict) and 'Err' in reply:
+                    self.error = str(reply.get('Error'))
+                    return
+                if isinstance(reply, dict) and isinstance(reply.get('dps'), dict):
+                    self.dps.update({str(dp): value for dp, value in reply['dps'].items()})
+                    self.connected, self.error = True, None
+                now = time.time()
+                if now >= next_status:
+                    next_status = now + LOCAL_REFRESH
+                    reply = device.status()
+                elif now >= next_beat:
+                    next_beat = now + LOCAL_BEAT
+                    reply = device.heartbeat(nowait=True)
+                else:
+                    reply = device.receive()
+        except Exception as e:
+            self.error = str(e)
+        finally:
+            self.connected = False
+            if device is not None:
+                device.close()
+
+
+def start_local_listeners():
+    # One listener per device the IP scan found and whose local key is known. A device that only answers
+    # later is picked up after the next scan, and a listener follows its device to a new IP by itself.
+    for dev in devs:
+        dev_id = dev.get('id')
+        if not dev_id or not dev.get('key') or not (localtuya.get(dev_id) or {}).get('ip'):
+            continue
+        if dev_id not in local_listeners:
+            local_listeners[dev_id] = LocalListener(dev_id, dev['key'])
+            local_listeners[dev_id].start()
+        listener = local_listeners[dev_id]
+        if listener.connected != local_state.get(dev_id):
+            local_state[dev_id] = listener.connected
+            if listener.connected:
+                DomoticzEx.Log(f"Local connection to {dev.get('name', dev_id)} established")
+            else:
+                DomoticzEx.Log(f"Local connection to {dev.get('name', dev_id)} lost: {listener.error}")
+
+
+def stop_local_listeners():
+    # Domoticz cannot unload the plugin while these threads are still running
+    for listener in local_listeners.values():
+        listener.stopping.set()
+    for listener in list(local_listeners.values()):
+        if listener.is_alive():
+            listener.join(30)
+    local_listeners.clear()
+    local_state.clear()
+
+
+def MergeLocalDps(dev_id, dps, ResultValue):
+    # Lay the DPs a device reported over the LAN on top of the status the plugin holds for it, in the
+    # same shape the cloud returns, and keep it as the device's current result
+    if dev_id not in dps_map:
+        return ResultValue
+    if isinstance(ResultValue, str):
+        try:
+            ResultValue = json.loads(ResultValue)
+        except json.JSONDecodeError:
+            ResultValue = []
+    if not isinstance(ResultValue, list):
+        ResultValue = []
+    for dp_id, value in dps.items():
+        code = dps_map[dev_id]['by_id'].get(int(dp_id))
+        if not code:
+            if dp_id not in dps_map[dev_id]['by_id']:
+                dps_map[dev_id]['by_id'][int(dp_id)] = 'None'
+                dps_map[dev_id]['by_code']['None'] = int(dp_id)
+            continue
+        for item in ResultValue:
+            if isinstance(item, dict) and item.get('code') == code:
+                item['value'] = value
+                break
+        else:
+            ResultValue.append({'code': code, 'value': value})
+    result[dev_id] = ResultValue
+    return list(ResultValue)
+
 class BasePlugin:
     def __init__(self):
         self.enabled = True
@@ -982,6 +1125,7 @@ class BasePlugin:
         DomoticzEx.Log('onStop called')
 
         stop_pulsar_listener()
+        stop_local_listeners()
 
         # Give background threads time to exit cleanly
         time.sleep(0.5)
@@ -2426,11 +2570,19 @@ def onHandleThread(startup, local, target_dev_id=None):
             except Exception as e:
                 _log_local_scan_results(localtuya, devs, 'Periodic Tuya IP scan', elapsed=time.time() - scan_start, scan_error=e)
 
+        # Keep a LAN connection open to every device the scan found
+        if local and not testdata and not fulllocal:
+            start_local_listeners()
+
         # Proactive ping loop for battery WiFi devices to wake them up
         if local and not testdata and not fulllocal:
             for dev in devs:
                 dev_id = dev.get('id')
                 if not dev_id:
+                    continue
+
+                # A device with an open connection is awake and reporting, nothing to wake up
+                if dev_id in local_listeners and local_listeners[dev_id].connected:
                     continue
 
                 # Check if WiFi device and has battery
@@ -2520,7 +2672,14 @@ def onHandleThread(startup, local, target_dev_id=None):
                     online = True
                 elif local:
                     DomoticzEx.Debug(f"Attempting local connection to device {dev['name']} id {dev['id']}")
-                    if dev_id in localtuya and localtuya[dev_id].get('ip', '') != '':
+                    listener = local_listeners.get(dev_id)
+                    if listener is not None and listener.connected:
+                        # The open connection already holds what the device reported, pushes included:
+                        # no socket to set up and nothing to ask for
+                        DomoticzEx.Debug(f"Local connection to device {dev['name']} id {dev['id']} is open, using what it reported")
+                        ResultValue = MergeLocalDps(dev_id, listener.values(), ResultValue)
+                        online = True
+                    elif dev_id in localtuya and localtuya[dev_id].get('ip', '') != '':
                         DomoticzEx.Debug(f"Local connection to device {dev['name']} id {dev['id']} using IP {localtuya[dev_id].get('ip', 'unknown')} and version {localtuya[dev_id].get('version', 'unknown')}")
                         d = tinytuya.Device(dev_id, localtuya[dev_id].get('ip'), dev['key'], version=localtuya.get(dev_id, {}).get('version', '3.3'))
                         d.socketRetryLimit = 1
@@ -2543,47 +2702,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                             else:
                                 online = True
                             if 'dps' in status:
-                                for dp_id, value in status['dps'].items():
-                                    code = dps_map[dev_id]['by_id'].get(int(dp_id))
-
-                                    if not code:
-                                        if dp_id not in dps_map[dev_id]['by_id']:
-                                            # DomoticzEx.Debug(f"[LOCAL] Ignoring unknown dp_id {dp_id}")
-                                            dps_map[dev_id]['by_id'][int(dp_id)] = 'None'
-                                            dps_map[dev_id]['by_code']['None'] = int(dp_id)
-                                            continue
-
-                                    if isinstance(ResultValue, str):
-                                        try:
-                                            ResultValue = json.loads(ResultValue)
-                                        except json.JSONDecodeError:
-                                            # DomoticzEx.Error("[LOCAL] ResultValue invalid JSON, resetting")
-                                            ResultValue = []
-
-                                    if not isinstance(ResultValue, list):
-                                        # DomoticzEx.Error(f"[LOCAL] ResultValue unexpected type: {type(ResultValue)}")
-                                        ResultValue = []
-
-                                    # Search existing code
-                                    item_found = False
-
-                                    for item in ResultValue:
-                                        if not isinstance(item, dict):
-                                            continue
-
-                                        if item.get('code') == code:
-                                            item['value'] = value
-                                            item_found = True
-                                            break
-
-                                    if not item_found:
-                                        ResultValue.append({
-                                            "code": code,
-                                            "value": value
-                                        })
-
-                                    result[dev_id] = ResultValue
-                                ResultValue = list(result.get(dev_id, []))
+                                ResultValue = MergeLocalDps(dev_id, status['dps'], ResultValue)
 
                         else:
                             DomoticzEx.Debug(f"[LOCAL] No DPS detected for device {dev['name']} id {dev['name']}, skipping local status fetch")
