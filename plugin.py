@@ -2275,10 +2275,15 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                         dps_map[dev_id] = {'by_code': {}, 'by_id': {}}
                         schema = tuya.getdps(dev_id)
-                        if schema['success']:
-                            for f in schema['result'].get('status', []):
-                                dps_map[dev_id]['by_code'][f['code']] = f['dp_id']
-                                dps_map[dev_id]['by_id'][f['dp_id']] = f['code']
+                        if schema.get('success'):
+                            for f in schema.get('result', {}).get('status', []):
+                                code = f.get('code')
+                                dp_id = f.get('dp_id')
+                                if code is None or dp_id is None:
+                                    DomoticzEx.Debug(f"Skipping DPS entry without code/dp_id for {dev_name} ({dev_id}): {f}")
+                                    continue
+                                dps_map[dev_id]['by_code'][code] = dp_id
+                                dps_map[dev_id]['by_id'][dp_id] = code
                         DomoticzEx.Debug(f"Fetched properties for {dev_name} ({dev_id}): {len(properties.get(dev_id, {}).get('functions', []))} functions, {len(properties.get(dev_id, {}).get('status', []))} status items")
                     except Exception as e:
                         DomoticzEx.Error(f"Failed to fetch properties for {dev_name} ({dev_id}): {e}")
