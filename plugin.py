@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.2</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.3</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -2273,14 +2273,14 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                         result[dev_id] = tuya.getstatus(dev_id).get('result', {})
 
-                        dps_map[dev_id] = {'by_code': {}, 'by_id': {}}
+                        dps_map.setdefault(dev_id, {'by_code': {}, 'by_id': {}})
                         schema = tuya.getdps(dev_id)
-                        if schema.get('success'):
-                            for f in schema.get('result', {}).get('status', []):
+                        if isinstance(schema, dict) and schema.get('success'):
+                            result_obj = schema.get('result') or {}
+                            for f in (result_obj.get('status') or []):
                                 code = f.get('code')
                                 dp_id = f.get('dp_id')
                                 if code is None or dp_id is None:
-                                    DomoticzEx.Debug(f"Skipping DPS entry without code/dp_id for {dev_name} ({dev_id}): {f}")
                                     continue
                                 dps_map[dev_id]['by_code'][code] = dp_id
                                 dps_map[dev_id]['by_id'][dp_id] = code
@@ -2353,7 +2353,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                     dev['status'] = schema_list
 
                     # DPS map (offline replacement for tuya.getdps)
-                    dps_map[dev_id] = {'by_code': {}, 'by_id': {}}
+                    dps_map.setdefault(dev_id, {'by_code': {}, 'by_id': {}})
                     for dp_id, item in dev.get('mapping', {}).items():
                         dp_id = int(dp_id)
                         code = item['code']
@@ -2587,7 +2587,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                     DomoticzEx.Debug(f"Cloud connection to device {dev['name']} id {dev['id']} synctime {now - cloud_status_time.get(dev_id, 0)}")
                     try:
                         cloud = tuya.getstatus(dev_id)
-                        ResultValue = cloud.get('result', [])
+                        ResultValue = cloud.get('result') or []
                         online = True
                         cloud_status_time[dev_id] = now
                     except:

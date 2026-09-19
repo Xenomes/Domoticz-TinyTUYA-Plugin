@@ -70,6 +70,36 @@ def prompt_for_credentials(existing=None):
 
 
 # -------------------------
+# Helpers
+# -------------------------
+
+def safe_json(obj):
+    """JSON-serialiseerbaar maken, nooit crashen."""
+    try:
+        return json.dumps(obj, indent=2, default=str)
+    except Exception:
+        return json.dumps(str(obj), indent=2)
+
+
+def write_block(fh, title, data):
+    fh.write(f"\n{title}\n")
+    fh.write(safe_json(data))
+    fh.write("\n")
+
+
+def is_sub_device(d):
+    """IR-devices, hubs en andere sub-devices hebben geen eigen WiFi radio."""
+    if d.get("sub") is True:
+        return True
+    if d.get("category") in ("infrared_ac", "infrared_tv", "wnykq"):
+        return True
+    # Geen MAC en geen sn => vrijwel zeker sub-device / virtueel
+    if not d.get("mac") and not d.get("sn"):
+        return True
+    return False
+
+
+# -------------------------
 # Load credentials
 # -------------------------
 
@@ -87,15 +117,19 @@ APISECRET = creds["apiSecret"]
 DEVICEID = creds["apiDeviceID"]
 
 # -------------------------
-# Tunables (pas aan indien nodig)
+# Tunables
 # -------------------------
 SLEEP_BETWEEN_CALLS = 0.3     # pauze tussen cloud API-calls binnen één device
 SLEEP_BETWEEN_DEVICES = 1.0   # pauze tussen devices (rate limiting)
-LOCAL_SCAN_RETRIES = 3        # NOOIT None gebruiken, anders hangt het script
+LOCAL_SCAN_RETRIES = 3        # nooit None gebruiken
 
 # -------------------------
 # Connect to Tuya Cloud
 # -------------------------
+
+cloud = None
+devices = []
+local_devices = {}
 
 try:
     cloud = tinytuya.Cloud(
@@ -109,15 +143,12 @@ try:
 
     if cloud.error:
         raise Exception(cloud.error)
-
     if not cloud.token:
         raise Exception("Invalid credentials")
 
     # -------------------------
     # Get devices
     # -------------------------
-
-    devices = []
     while not devices:
         devices = cloud.getdevices()
         if not devices:
@@ -125,7 +156,7 @@ try:
             time.sleep(10)
 
     # -------------------------
-    # Local scan (FIX: maxretry begrensd, verbose uit)
+    # Local scan
     # -------------------------
     print("Scanning local network for Tuya devices…")
     try:
@@ -133,72 +164,101 @@ try:
             verbose=False,
             maxretry=LOCAL_SCAN_RETRIES,
             byID=True,
-        )
+        ) or {}
     except Exception as e:
         print(f"Local scan failed: {e}")
         local_devices = {}
 
     print(f"Local devices found: {len(local_devices)}")
 
-    # Sanitize keys — verwijder echte keys uit de cloud-lijst
+    # Sanitize: verplaats echte keys naar local_devices, verwijder uit cloud-lijst
     for d in devices:
-        if d["id"] in local_devices:
-            local_devices[d["id"]]["key"] = d.get("key")
+        did = d.get("id")
+        if did and did in local_devices:
+            local_devices[did]["key"] = d.get("key")
         d["key"] = "Deleted"
 
-    # -------------------------
-    # Write everything to dump.json
-    # -------------------------
+except Exception as err:
+    print(f"Fatal error during setup: {err}")
+    sys.exit(1)
 
-    with open("dump.json", "w") as f:
+# -------------------------
+# Write dump.json — altijd, ook bij fouten per device
+# -------------------------
 
-        def write_block(title, data):
-            f.write(f"\n{title}\n")
-            f.write(json.dumps(data, indent=2))
-            f.write("\n")
+with open("dump.json", "w") as f:
 
-        print("List of devices:")
-        print(json.dumps(devices, indent=2))
-        write_block("List of devices:", devices)
+    print("List of devices:")
+    print(safe_json(devices))
+    write_block(f, "List of devices:", devices)
 
-        for d in devices:
-            device_id = d["id"]
+    for d in devices:
+        device_id = d.get("id")
+        name = d.get("name", "?")
 
-            # FIX 2: per-device try/except, zodat één fout niet alles stopt
+        if not device_id:
+            write_block(f, "Device without id:", d)
+            continue
+
+        try:
+            # -------- Cloud properties --------
+            props = None
             try:
                 props = cloud.getproperties(device_id)
-                time.sleep(SLEEP_BETWEEN_CALLS)   # FIX 3
+            except Exception as e:
+                props = {"error": str(e)}
+            time.sleep(SLEEP_BETWEEN_CALLS)
 
+            print(f"\nProperties of device {device_id} ({name})")
+            print(safe_json(props))
+            write_block(f, f"Properties of device {device_id}:", props)
+
+            # -------- Cloud status --------
+            status_cloud = None
+            try:
                 status_cloud = cloud.getstatus(device_id)
-                time.sleep(SLEEP_BETWEEN_CALLS)   # FIX 3
+            except Exception as e:
+                status_cloud = {"error": str(e)}
+            time.sleep(SLEEP_BETWEEN_CALLS)
 
-                print(f"\nProperties of device {device_id}")
-                print(json.dumps(props, indent=2))
-                write_block(f"Properties of device {device_id}:", props)
+            print(f"\nStatus of device {device_id} ({name})")
+            print(safe_json(status_cloud))
+            write_block(f, f"Status of device {device_id}:", status_cloud)
 
-                print(f"\nStatus of device {device_id}")
-                print(json.dumps(status_cloud, indent=2))
-                write_block(f"Status of device {device_id}:", status_cloud)
-
-                # -------------------------
-                # DPS map
-                # -------------------------
-                dps_map = {"by_code": {}, "by_id": {}}
+            # -------- DPS map (defensief) --------
+            dps_map = {"by_code": {}, "by_id": {}}
+            try:
                 schema = cloud.getdps(device_id)
-                time.sleep(SLEEP_BETWEEN_CALLS)   # FIX 3
+            except Exception as e:
+                schema = {"error": str(e)}
+            time.sleep(SLEEP_BETWEEN_CALLS)
 
-                if schema and schema.get("success"):
-                    for s in schema["result"].get("status", []):
-                        dps_map["by_code"][s["code"]] = s["dp_id"]
-                        dps_map["by_id"][s["dp_id"]] = s["code"]
+            if isinstance(schema, dict) and schema.get("success"):
+                result = schema.get("result") or {}
+                status_list = result.get("status") or []
+                for s in status_list:
+                    code = s.get("code")
+                    dp_id = s.get("dp_id")
+                    if code is None or dp_id is None:
+                        continue
+                    dps_map["by_code"][code] = dp_id
+                    dps_map["by_id"][dp_id] = code
 
-                    print(f"\nDPS map of device {device_id}")
-                    print(json.dumps(dps_map, indent=2))
-                    write_block(f"DPS map of device {device_id}:", dps_map)
+            if dps_map["by_code"]:
+                print(f"\nDPS map of device {device_id} ({name})")
+                print(safe_json(dps_map))
+                write_block(f, f"DPS map of device {device_id}:", dps_map)
+            else:
+                msg = "No DPS schema returned (IR/sub-device or empty result)."
+                print(f"\n{msg} [{device_id}]")
+                write_block(f, f"DPS map of device {device_id}:", msg)
 
-                # -------------------------
-                # Local device status — FIX 4
-                # -------------------------
+            # -------- Local status --------
+            if is_sub_device(d):
+                msg = "Sub-device / IR (no WiFi radio). No local status possible."
+                print(f"\n{msg} [{device_id}]")
+                write_block(f, f"No local status of device {device_id},", msg)
+            else:
                 ld = local_devices.get(device_id)
                 if ld and ld.get("ip"):
                     try:
@@ -208,38 +268,30 @@ try:
                             str(ld.get("key", "0000000000000000")),
                             version=ld.get("version", 3.3),
                         )
+                        # bulbs / devices met meerdere passes
                         dev.detect_available_dps()
-                        dev.detect_available_dps()  # bulbs need two passes
+                        dev.detect_available_dps()
 
                         local_status = dev.status()
 
-                        print(f"\nLocal status of device {device_id}")
-                        print(json.dumps(local_status, indent=2))
-                        write_block(f"Local status of device {device_id}:", local_status)
+                        print(f"\nLocal status of device {device_id} ({name})")
+                        print(safe_json(local_status))
+                        write_block(f, f"Local status of device {device_id}:", local_status)
 
                     except Exception as e:
                         print(f"\nLocal status failed for {device_id}: {e}")
-                        write_block(f"Local status error for device {device_id}:", str(e))
-
+                        write_block(f, f"Local status error for device {device_id}:", str(e))
                 else:
-                    print(f"\nNo local status of device {device_id}, possibly no WiFi device found.")
-                    write_block(
-                        f"No local status of device {device_id},",
-                        "No data, possibly no Wifi device found.",
-                    )
+                    msg = "No data, possibly no Wifi device found."
+                    print(f"\nNo local status of device {device_id}, {msg}")
+                    write_block(f, f"No local status of device {device_id},", msg)
 
-            except Exception as e:
-                # FIX 2: log de fout, ga door naar het volgende device
-                print(f"\n[SKIP] device {device_id} failed: {e}")
-                write_block(f"Error for device {device_id}:", str(e))
+        except Exception as e:
+            # Vangt alles per device, zodat de rest doorgaat
+            print(f"\n[SKIP] device {device_id} ({name}) failed: {e}")
+            write_block(f, f"Error for device {device_id}:", str(e))
 
-            finally:
-                # FIX 3: altijd even pauzeren tussen devices, ook bij een fout
-                time.sleep(SLEEP_BETWEEN_DEVICES)
+        finally:
+            time.sleep(SLEEP_BETWEEN_DEVICES)
 
-    print("\n\ndump.json is created!")
-
-except Exception as err:
-    print(
-        f"debug_discovery: {err} line {sys.exc_info()[-1].tb_lineno}"
-    )
+print("\n\ndump.json is created!")

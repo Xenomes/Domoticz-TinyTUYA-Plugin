@@ -138,3 +138,4 @@
 | 3.0.0 | Release of hybrid version |
 | 3.0.1 | Fix for category detection of 'tdq' |
 | 3.0.2 | Fix infrared device support and command handling bugs |
+| 3.0.3 | fix: prevent IR/sub-devices from crashing the whole poll run |
