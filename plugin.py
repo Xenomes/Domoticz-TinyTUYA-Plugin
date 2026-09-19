@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.3</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.4</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -2284,6 +2284,13 @@ def onHandleThread(startup, local, target_dev_id=None):
                                     continue
                                 dps_map[dev_id]['by_code'][code] = dp_id
                                 dps_map[dev_id]['by_id'][dp_id] = code
+                        # The device model names the DPs getdps leaves out, so a local status no longer
+                        # arrives with dp_ids the plugin has to drop as unknown
+                        for dp_id, code in DeviceModelMapping(dev_id).items():
+                            if dp_id not in dps_map[dev_id]['by_id']:
+                                DomoticzEx.Debug(f"Device model adds dp_id {dp_id} = {code} for {dev_name} ({dev_id})")
+                                dps_map[dev_id]['by_id'][dp_id] = code
+                                dps_map[dev_id]['by_code'].setdefault(code, dp_id)
                         DomoticzEx.Debug(f"Fetched properties for {dev_name} ({dev_id}): {len(properties.get(dev_id, {}).get('functions', []))} functions, {len(properties.get(dev_id, {}).get('status', []))} status items")
                     except Exception as e:
                         DomoticzEx.Error(f"Failed to fetch properties for {dev_name} ({dev_id}): {e}")
@@ -5291,6 +5298,24 @@ def DumpConfigToLog():
             DomoticzEx.Debug(f"--->Unit sValue:   '{Unit.sValue}'")
             DomoticzEx.Debug(f"--->Unit LastLevel: {Unit.LastLevel}")
     return
+
+def DeviceModelMapping(dev_id):
+    # DP id -> code from the device model. getdps() only returns the DPs of the
+    # standard instruction set, while a device can send others over the LAN: a
+    # qxj weather station, for example, reports its wind direction on a DP that
+    # getdps() does not list, so a local status update cannot name that value.
+    mapping = {}
+    try:
+        reply = tuya.cloudrequest('/v2.0/cloud/thing/%s/model' % dev_id)
+        model = json.loads(reply['result']['model'])
+        mapping = {
+            int(p['abilityId']): p['code']
+            for service in model.get('services', [])
+            for p in service.get('properties', [])
+        }
+    except Exception as e:
+        DomoticzEx.Debug(f"No device model for {dev_id}: {e}")
+    return mapping
 
 # Select device type from category
 def DeviceType(category, product_id=None, product_name=None):
