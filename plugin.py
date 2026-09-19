@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.5</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.6</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -2671,14 +2671,12 @@ def onHandleThread(startup, local, target_dev_id=None):
                         t = rData['t']
                     online = True
                 elif local:
-                    DomoticzEx.Debug(f"Attempting local connection to device {dev['name']} id {dev['id']}")
                     listener = local_listeners.get(dev_id)
                     if listener is not None and listener.connected:
-                        # The open connection already holds what the device reported, pushes included:
-                        # no socket to set up and nothing to ask for
                         DomoticzEx.Debug(f"Local connection to device {dev['name']} id {dev['id']} is open, using what it reported")
                         ResultValue = MergeLocalDps(dev_id, listener.values(), ResultValue)
                         online = True
+
                     elif dev_id in localtuya and localtuya[dev_id].get('ip', '') != '':
                         DomoticzEx.Debug(f"Local connection to device {dev['name']} id {dev['id']} using IP {localtuya[dev_id].get('ip', 'unknown')} and version {localtuya[dev_id].get('version', 'unknown')}")
                         d = tinytuya.Device(dev_id, localtuya[dev_id].get('ip'), dev['key'], version=localtuya.get(dev_id, {}).get('version', '3.3'))
@@ -2686,7 +2684,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         d.socketRetryDelay = 1
 
                         d.detect_available_dps()
-                        adps = d.detect_available_dps() # Two times for detection bulb devices
+                        adps = d.detect_available_dps()  # Two times for detection bulb devices
                         if adps:
                             status = d.status()
                             online = True
@@ -2703,9 +2701,21 @@ def onHandleThread(startup, local, target_dev_id=None):
                                 online = True
                             if 'dps' in status:
                                 ResultValue = MergeLocalDps(dev_id, status['dps'], ResultValue)
-
                         else:
-                            DomoticzEx.Debug(f"[LOCAL] No DPS detected for device {dev['name']} id {dev['name']}, skipping local status fetch")
+                            DomoticzEx.Debug(f"[LOCAL] No DPS detected for device {dev['name']} id {dev['id']}, skipping local status fetch")
+                            online = False
+
+                    else:
+                        # Geen lokale optie: val terug op de cloud, anders blijft het device
+                        # onterecht op TimedOut=1 staan (was het gedrag vóór deze tak)
+                        DomoticzEx.Debug(f"No local connection possible for {dev['name']} id {dev['id']}, falling back to cloud")
+                        try:
+                            cloud = tuya.getstatus(dev_id)
+                            ResultValue = cloud.get('result') or []
+                            online = True
+                            cloud_status_time[dev_id] = now
+                        except Exception as e:
+                            DomoticzEx.Debug(f"Cloud fallback failed for {dev['name']} id {dev['id']}: {e}")
                             online = False
 
                 elif ((not local and not startup) or (not fulllocal)):
