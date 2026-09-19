@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.0</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.1</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -5641,6 +5641,8 @@ def DumpConfigToLog():
 def DeviceType(category, product_id=None, product_name=None):
     'convert category to device type'
     'https://github.com/tuya/tuya-home-assistant/wiki/Supported-Device-Category'
+    resultdev = 'unknown'  # Initialize with default value
+
     if product_id in {'uoa3mayicscacseb', 'igtakqsfhbr7qsp7'}:
         resultdev = 'cover'
     elif product_id in {'chfpey4klfcp1ipl'}:
@@ -5651,9 +5653,8 @@ def DeviceType(category, product_id=None, product_name=None):
         resultdev = 'switch'
     elif category in {'tdq'}:
         resultdev = 'switch/sensor'
-
     # Special handling for category 'qt' which can be either smokedetector or curtain switch
-    if category in {'qt'}:
+    elif category in {'qt'}:
         # If product_name indicates it's a curtain switch, treat as cover
         if product_name and 'curtain' in str(product_name).lower():
             resultdev = 'cover'
@@ -5730,8 +5731,8 @@ def DeviceType(category, product_id=None, product_name=None):
         resultdev = 'infrared_ac'
     elif 'infrared_' in category: # keep it last
         resultdev = 'infrared'
-    else:
-        resultdev = 'unknown'
+
+    DomoticzEx.Debug(resultdev)
     return resultdev
 
 def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
