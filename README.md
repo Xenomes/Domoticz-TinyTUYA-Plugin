@@ -136,14 +136,6 @@ docker compose up -d
 ```
 * Monitor the install this can take some time. ```docker logs -f --tail 0 domoticz```
 
-This way:
-
-- Scanning works (`--host` is enabled)
-- Web ports are still configurable via environment variables
-- Full guide ready for Markdrop formatting
-
-If you want, I can **also add a TinyTUYA plugin verification step** inside Domoticz so you know the plugin is loaded correctly. Do you want me to do that?
-
 ## Configuration
 
 In the Domoticz hardware configuration, enter:
