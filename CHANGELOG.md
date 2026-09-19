@@ -140,3 +140,4 @@
 | 3.0.2 | Fix infrared device support and command handling bugs |
 | 3.0.3 | fix: prevent IR/sub-devices from crashing the whole poll run |
 | 3.0.4 | DPS mapping robustness: skip schema entries without dp_id, add DeviceModelMapping fallback for DPs missing from getdps() |
+| 3.0.5 | Add missing DeviceModelMapping() helper (fix NameError during cloud-init for all devices) |

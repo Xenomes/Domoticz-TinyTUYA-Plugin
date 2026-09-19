@@ -99,6 +99,35 @@ def is_sub_device(d):
     return False
 
 
+def device_model_mapping(cloud, dev_id):
+    """DP id -> code uit het device model, als aanvulling op cloud.getdps().
+
+    getdps() geeft alleen de standaard instruction set terug. Sommige
+    apparaten sturen via LAN extra DPs die daar niet in staan (bijv. het
+    qxj weerstation voor windrichting), waardoor een lokale status-update
+    die waarde niet kan benoemen.
+
+    Retourneert een lege dict als het model niet beschikbaar is, zodat
+    de rest van de dump gewoon doorloopt.
+    """
+    mapping = {}
+    try:
+        reply = cloud.cloudrequest(f"/v2.0/cloud/thing/{dev_id}/model")
+        model_raw = reply.get("result", {}).get("model")
+        if not model_raw:
+            return mapping
+        model = json.loads(model_raw)
+        mapping = {
+            int(p["abilityId"]): p["code"]
+            for service in model.get("services", [])
+            for p in service.get("properties", [])
+            if "abilityId" in p and "code" in p
+        }
+    except Exception as e:
+        print(f"No device model for {dev_id}: {e}")
+    return mapping
+
+
 # -------------------------
 # Load credentials
 # -------------------------
@@ -243,6 +272,19 @@ with open("dump.json", "w") as f:
                         continue
                     dps_map["by_code"][code] = dp_id
                     dps_map["by_id"][dp_id] = code
+
+            # -------- Device model (aanvulling op getdps) --------
+            model_map = device_model_mapping(cloud, device_id)
+            if model_map:
+                print(f"\nDevice model of device {device_id} ({name})")
+                print(safe_json(model_map))
+                write_block(f, f"Device model of device {device_id}:", model_map)
+
+                # Vul de DPS-map aan met alles wat nog niet bekend was
+                for dp_id, code in model_map.items():
+                    if dp_id not in dps_map["by_id"]:
+                        dps_map["by_id"][dp_id] = code
+                        dps_map["by_code"].setdefault(code, dp_id)
 
             if dps_map["by_code"]:
                 print(f"\nDPS map of device {device_id} ({name})")
