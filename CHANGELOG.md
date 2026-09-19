@@ -136,3 +136,5 @@
 | 3.0.0-rc.2 | Add refresh button functionality (Mode5) from PR #211 |
 | 3.0.0-rc.3 | Weather station barometer/rain units (PR #210) and multi-zone irrigation support (PR #209) |
 | 3.0.0 | Release of hybrid version |
+| 3.0.1 | Fix for category detection of 'tdq' |
+| 3.0.2 | Fix infrared device support and command handling bugs |

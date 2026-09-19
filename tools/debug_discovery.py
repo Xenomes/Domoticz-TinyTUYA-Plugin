@@ -86,7 +86,12 @@ APIKEY = creds["apiKey"]
 APISECRET = creds["apiSecret"]
 DEVICEID = creds["apiDeviceID"]
 
-local_status = []
+# -------------------------
+# Tunables (pas aan indien nodig)
+# -------------------------
+SLEEP_BETWEEN_CALLS = 0.3     # pauze tussen cloud API-calls binnen één device
+SLEEP_BETWEEN_DEVICES = 1.0   # pauze tussen devices (rate limiting)
+LOCAL_SCAN_RETRIES = 3        # NOOIT None gebruiken, anders hangt het script
 
 # -------------------------
 # Connect to Tuya Cloud
@@ -113,16 +118,29 @@ try:
     # -------------------------
 
     devices = []
-    local_devices = []
     while not devices:
         devices = cloud.getdevices()
         if not devices:
             print("No devices returned, retrying in 10s…")
             time.sleep(10)
 
-    local_devices = tinytuya.deviceScan(verbose=True, maxretry=None, byID=True)
+    # -------------------------
+    # Local scan (FIX: maxretry begrensd, verbose uit)
+    # -------------------------
+    print("Scanning local network for Tuya devices…")
+    try:
+        local_devices = tinytuya.deviceScan(
+            verbose=False,
+            maxretry=LOCAL_SCAN_RETRIES,
+            byID=True,
+        )
+    except Exception as e:
+        print(f"Local scan failed: {e}")
+        local_devices = {}
 
-    # Sanitize keys
+    print(f"Local devices found: {len(local_devices)}")
+
+    # Sanitize keys — verwijder echte keys uit de cloud-lijst
     for d in devices:
         if d["id"] in local_devices:
             local_devices[d["id"]]["key"] = d.get("key")
@@ -146,50 +164,78 @@ try:
         for d in devices:
             device_id = d["id"]
 
-            props = cloud.getproperties(device_id)
-            status_cloud = cloud.getstatus(device_id)
+            # FIX 2: per-device try/except, zodat één fout niet alles stopt
+            try:
+                props = cloud.getproperties(device_id)
+                time.sleep(SLEEP_BETWEEN_CALLS)   # FIX 3
 
-            print(f"\nProperties of device {device_id}")
-            print(json.dumps(props, indent=2))
-            write_block(f"Properties of device {device_id}:", props)
+                status_cloud = cloud.getstatus(device_id)
+                time.sleep(SLEEP_BETWEEN_CALLS)   # FIX 3
 
-            print(f"\nStatus of device {device_id}")
-            print(json.dumps(status_cloud, indent=2))
-            write_block(f"Status of device {device_id}:", status_cloud)
+                print(f"\nProperties of device {device_id}")
+                print(json.dumps(props, indent=2))
+                write_block(f"Properties of device {device_id}:", props)
 
-            # DPS map
-            dps_map = {"by_code": {}, "by_id": {}}
-            schema = cloud.getdps(device_id)
+                print(f"\nStatus of device {device_id}")
+                print(json.dumps(status_cloud, indent=2))
+                write_block(f"Status of device {device_id}:", status_cloud)
 
-            if schema.get("success"):
-                for s in schema["result"].get("status", []):
-                    dps_map["by_code"][s["code"]] = s["dp_id"]
-                    dps_map["by_id"][s["dp_id"]] = s["code"]
+                # -------------------------
+                # DPS map
+                # -------------------------
+                dps_map = {"by_code": {}, "by_id": {}}
+                schema = cloud.getdps(device_id)
+                time.sleep(SLEEP_BETWEEN_CALLS)   # FIX 3
 
-                print(f"\nDPS map of device {device_id}")
-                print(json.dumps(dps_map, indent=2))
-                write_block(f"DPS map of device {device_id}:", dps_map)
+                if schema and schema.get("success"):
+                    for s in schema["result"].get("status", []):
+                        dps_map["by_code"][s["code"]] = s["dp_id"]
+                        dps_map["by_id"][s["dp_id"]] = s["code"]
 
-            # Local device status
-            if device_id in local_devices:
-                dev = tinytuya.Device(
-                        str(device_id),
-                        str(local_devices.get(device_id).get("ip", "127.0.0.1")),
-                        str(local_devices.get(device_id).get("key", "0000000000000000")),
-                        version=local_devices.get(device_id).get("version", 3.3),
-                )
-                dev.detect_available_dps()  
-                dev.detect_available_dps()  # bulbs need two passes
+                    print(f"\nDPS map of device {device_id}")
+                    print(json.dumps(dps_map, indent=2))
+                    write_block(f"DPS map of device {device_id}:", dps_map)
 
-                local_status = dev.status()
+                # -------------------------
+                # Local device status — FIX 4
+                # -------------------------
+                ld = local_devices.get(device_id)
+                if ld and ld.get("ip"):
+                    try:
+                        dev = tinytuya.Device(
+                            str(device_id),
+                            str(ld.get("ip")),
+                            str(ld.get("key", "0000000000000000")),
+                            version=ld.get("version", 3.3),
+                        )
+                        dev.detect_available_dps()
+                        dev.detect_available_dps()  # bulbs need two passes
 
-                print(f"\nLocal status of device {device_id}")
-                print(json.dumps(local_status, indent=2))
-                write_block(f"Local status of device {device_id}:", local_status)
+                        local_status = dev.status()
 
-            else:
-                print(f"\nNo local status of device {device_id} possibly no Wifi device found.")
-                write_block(f"No local status of device {device_id},", "No data, possibly no Wifi device found.")
+                        print(f"\nLocal status of device {device_id}")
+                        print(json.dumps(local_status, indent=2))
+                        write_block(f"Local status of device {device_id}:", local_status)
+
+                    except Exception as e:
+                        print(f"\nLocal status failed for {device_id}: {e}")
+                        write_block(f"Local status error for device {device_id}:", str(e))
+
+                else:
+                    print(f"\nNo local status of device {device_id}, possibly no WiFi device found.")
+                    write_block(
+                        f"No local status of device {device_id},",
+                        "No data, possibly no Wifi device found.",
+                    )
+
+            except Exception as e:
+                # FIX 2: log de fout, ga door naar het volgende device
+                print(f"\n[SKIP] device {device_id} failed: {e}")
+                write_block(f"Error for device {device_id}:", str(e))
+
+            finally:
+                # FIX 3: altijd even pauzeren tussen devices, ook bij een fout
+                time.sleep(SLEEP_BETWEEN_DEVICES)
 
     print("\n\ndump.json is created!")
 
