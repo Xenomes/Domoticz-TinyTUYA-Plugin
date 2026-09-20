@@ -4829,10 +4829,10 @@ def onHandleThread(startup, local, target_dev_id=None):
                             elif searchCode('status', StatusProperties):
                                 currentstatus = StatusDeviceTuya('status')
                                 if currentstatus == '1':
-                                    UpdateDomoticz(dev_id, 1, 'Open', 0, 0)
-                                elif currentstatus == '3':
-                                    UpdateDomoticz(dev_id, 1, 'Close', 1, 0)
+                                    UpdateDomoticz(dev_id, 1, 'Open', 1, 0)
                                 elif currentstatus == '2':
+                                    UpdateDomoticz(dev_id, 1, 'Close', 0, 0)
+                                elif currentstatus == '3':
                                     UpdateDomoticz(dev_id, 1, 'Stop', 1, 0)
                             if searchCode('position_2', StatusProperties) or searchCode('percent_control_2', StatusProperties):
                                 if searchCode('position_2', StatusProperties):
