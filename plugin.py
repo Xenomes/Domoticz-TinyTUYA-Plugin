@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.8</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.9</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -576,7 +576,7 @@ def _pulsar_on_message(msg):
                 except Exception as e:
                     DomoticzEx.Debug(f"Pulsar: error processing alarm_lock for {_device_name(dev_id)}: {e}")
 
-            # Unlock methods (Unit 3 - switches)
+            # Unlock methods (Units 3-11 - switches) - maintain compatibility with existing units
             elif code == 'unlock_ble':
                 is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 3, bool(is_unlocked), int(is_unlocked), 0)
@@ -586,6 +586,41 @@ def _pulsar_on_message(msg):
                 is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 4, bool(is_unlocked), int(is_unlocked), 0)
                 DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_card) -> {is_unlocked}")
+
+            elif code == 'unlock_fingerprint':
+                is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
+                UpdateDomoticz(dev_id, 5, bool(is_unlocked), int(is_unlocked), 0)
+                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_fingerprint) -> {is_unlocked}")
+
+            elif code == 'unlock_password':
+                is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
+                UpdateDomoticz(dev_id, 6, bool(is_unlocked), int(is_unlocked), 0)
+                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_password) -> {is_unlocked}")
+
+            elif code == 'unlock_app':
+                is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
+                UpdateDomoticz(dev_id, 7, bool(is_unlocked), int(is_unlocked), 0)
+                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_app) -> {is_unlocked}")
+
+            elif code == 'unlock_key':
+                is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
+                UpdateDomoticz(dev_id, 8, bool(is_unlocked), int(is_unlocked), 0)
+                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_key) -> {is_unlocked}")
+
+            elif code == 'unlock_face':
+                is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
+                UpdateDomoticz(dev_id, 9, bool(is_unlocked), int(is_unlocked), 0)
+                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_face) -> {is_unlocked}")
+
+            elif code == 'unlock_hand':
+                is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
+                UpdateDomoticz(dev_id, 10, bool(is_unlocked), int(is_unlocked), 0)
+                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_hand) -> {is_unlocked}")
+
+            elif code == 'unlock_temporary':
+                is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
+                UpdateDomoticz(dev_id, 11, bool(is_unlocked), int(is_unlocked), 0)
+                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_temporary) -> {is_unlocked}")
 
             # Handle battery status
             elif code in battery_codes:
@@ -2284,6 +2319,7 @@ def _log_local_scan_results(localtuya, devs, label, elapsed=None, scan_error=Non
     for dev in devs:
         dev_id = dev.get('id')
         dev_name = dev.get('name', 'Unknown')
+        dev_product_name = dev.get('product_name', 'Unknown')
         connect_type = dev.get('connect_type', 'wifi')
         protocol = dev.get('protocol', 'wifi')
         is_zigbee = 'zigbee' in str(connect_type).lower() or 'zigbee' in str(protocol).lower()
@@ -4009,8 +4045,6 @@ def onHandleThread(startup, local, target_dev_id=None):
                         if createDevice(dev_id, 1) and (searchCode('lock_motor_state', StatusProperties) or searchCode('rtc_lock', StatusProperties)):
                             DomoticzEx.Log('Create device smart lock')
                             DomoticzEx.Unit(Name=f"{dev['name']} (State)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        # if createDevice(dev_id, 3):
-                        #     DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=19, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('alarm_lock', StatusProperties):
                             for item in StatusProperties:
                                 if item['code'] == 'alarm_lock':
@@ -4026,10 +4060,28 @@ def onHandleThread(startup, local, target_dev_id=None):
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                             DomoticzEx.Unit(Name=f"{dev['name']} (Status)", DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=13, Used=1).Create()
+                        # Unlock method switches - maintain existing unit numbers for compatibility
+                        # Unit 3: Keep for unlock_ble (existing compatibility)
                         if createDevice(dev_id, 3) and searchCode('unlock_ble', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (unlock ble)", DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (BLE)", DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        # Unit 4: Keep for unlock_card (existing compatibility)
                         if createDevice(dev_id, 4) and searchCode('unlock_card', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (unlock card)", DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Card)", DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        # Additional unlock methods for new smartlocks - start from Unit 5
+                        if createDevice(dev_id, 5) and searchCode('unlock_fingerprint', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Fingerprint)", DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        if createDevice(dev_id, 6) and searchCode('unlock_password', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Password)", DeviceID=dev_id, Unit=6, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        if createDevice(dev_id, 7) and searchCode('unlock_app', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (App)", DeviceID=dev_id, Unit=7, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        if createDevice(dev_id, 8) and searchCode('unlock_key', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Key)", DeviceID=dev_id, Unit=8, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        if createDevice(dev_id, 9) and searchCode('unlock_face', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Face)", DeviceID=dev_id, Unit=9, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        if createDevice(dev_id, 10) and searchCode('unlock_hand', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Hand)", DeviceID=dev_id, Unit=10, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        if createDevice(dev_id, 11) and searchCode('unlock_temporary', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Temporary)", DeviceID=dev_id, Unit=11, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                     if dev_type == 'dehumidifier':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
@@ -5331,8 +5383,16 @@ def onHandleThread(startup, local, target_dev_id=None):
                             elif update_bool_device('rtc_lock', 1):
                                 pass
                             update_select_device('alarm_lock', 2)
+                            # Update unlock method switches - maintain compatibility with existing units
                             update_bool_device('unlock_ble', 3)
                             update_bool_device('unlock_card', 4)
+                            update_bool_device('unlock_fingerprint', 5)
+                            update_bool_device('unlock_password', 6)
+                            update_bool_device('unlock_app', 7)
+                            update_bool_device('unlock_key', 8)
+                            update_bool_device('unlock_face', 9)
+                            update_bool_device('unlock_hand', 10)
+                            update_bool_device('unlock_temporary', 11)
                             battery_device()
 
                         if dev_type == 'dehumidifier':

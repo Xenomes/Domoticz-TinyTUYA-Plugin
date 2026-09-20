@@ -144,3 +144,4 @@
 | 3.0.6 | Cloud fallback for non-local devices in local poll path (fixes covers timing out after 3 minutes) |
 | 3.0.7 | Fix local status fetch for Tuya v3.4 devices |
 | 3.0.8 | Fix battery device detection, remove dead code (Arjan), drop bare excepts (PR #214 alternative) |
+| 3.0.9 | Add SmartLock unlock methods #205 |
