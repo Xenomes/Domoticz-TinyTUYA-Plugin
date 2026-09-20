@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.0</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.1</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -1384,40 +1384,48 @@ class BasePlugin:
                         DomoticzEx.Log(f"Multi-LED detected: LED {led_index}, command {Command}")
                         if Command == 'Off':
                             max_value = get_draw_tool_max_value(DeviceID)
-                            send_draw_tool_command(DeviceID, led_index, 0, 0, 0, 0, max_value)
+                            white_type = detect_white_channel_type(DeviceID)
+                            white = 0 if white_type == 'rgbw' else None
+                            send_draw_tool_command(DeviceID, led_index, 0, 0, 0, 0, max_value, white)
                             UpdateDomoticz(DeviceID, Unit, 0, 0, 0)
 
                         elif Command == 'On':
                             current_level = 100
                             huidige_kleur = get_led_color(DeviceID, Unit)
                             max_value = get_draw_tool_max_value(DeviceID)
+                            white_type = detect_white_channel_type(DeviceID)
+                            white = current_level if white_type == 'rgbw' else None
                             send_draw_tool_command(DeviceID, led_index,
                                                    huidige_kleur['r'],
                                                    huidige_kleur['g'],
                                                    huidige_kleur['b'],
-                                                   current_level, max_value)
+                                                   current_level, max_value, white)
                             UpdateDomoticz(DeviceID, Unit, current_level, 1, 0)
 
                         elif Command == 'Set Level':
                             huidige_kleur = get_led_color(DeviceID, Unit)
                             max_value = get_draw_tool_max_value(DeviceID)
+                            white_type = detect_white_channel_type(DeviceID)
+                            white = Level if white_type == 'rgbw' else None
                             send_draw_tool_command(DeviceID, led_index,
                                                    huidige_kleur['r'],
                                                    huidige_kleur['g'],
                                                    huidige_kleur['b'],
-                                                   Level, max_value)
+                                                   Level, max_value, white)
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
 
                         elif (Command == 'Set Color' or Command == 'Set Level') and len(Color) != 0:
                             max_value = get_draw_tool_max_value(DeviceID)
+                            white_type = detect_white_channel_type(DeviceID)
+                            white = Level if white_type == 'rgbw' else None
                             if Color['m'] == 2:
-                                send_draw_tool_command(DeviceID, led_index, 255, 255, 255, Level, max_value)
+                                send_draw_tool_command(DeviceID, led_index, 255, 255, 255, Level, max_value, white)
                             elif Color['m'] == 3:
                                 send_draw_tool_command(DeviceID, led_index,
                                                        int(Color['r']),
                                                        int(Color['g']),
                                                        int(Color['b']),
-                                                       Level, max_value)
+                                                       Level, max_value, white)
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                             if Color['m'] == 3:
                                 kleur_string = f"{int(Color['r'])},{int(Color['g'])},{int(Color['b'])}"
@@ -2877,6 +2885,8 @@ def onHandleThread(startup, local, target_dev_id=None):
                     # Multi-LED ondersteuning voor draw_tool (4Lights)
                     if searchCode('led_number_set', StatusProperties):
                         led_count = StatusDeviceTuya('led_number_set')
+                        white_type = detect_white_channel_type(dev_id)
+                        DomoticzEx.Log(f"Multi-LED: Detected {led_count} LEDs, type: {white_type}")
 
                         # Create or update devices for each LED
                         for i in range(1, led_count + 1):
@@ -2886,7 +2896,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                             # Check if device already exists
                             if createDevice(dev_id, unit_number):
                                 # Create new device for this LED
-                                DomoticzEx.Log(f'Create device LED {i} of {led_count}')
+                                DomoticzEx.Log(f'Create device LED {i} of {led_count}, type: {white_type}')
 
                                 # Use same type/subtype as main device
                                 if main_subtype == 73:  # On/Off type
@@ -2909,6 +2919,8 @@ def onHandleThread(startup, local, target_dev_id=None):
                                         Switchtype=7,
                                         Used=1
                                     ).Create()
+
+                        DomoticzEx.Log(f"Multi-LED: Created {led_count} LED devices starting from unit 11, type: {white_type}")
 
                     if dev_type == 'dimmer':
                         if  createDevice(dev_id, 1) and searchCode('switch_led_1', FunctionProperties) and not searchCode('switch_led_2', FunctionProperties):
@@ -6052,10 +6064,31 @@ def get_draw_tool_max_value(DeviceID):
     except Exception:
         return 255
 
+def detect_white_channel_type(DeviceID):
+    """Detect if device supports RGBW or RGBWW based on bright_value and function properties"""
+    try:
+        # Try to get bright_value from properties if available
+        dev_id = DeviceID
+        if dev_id in properties:
+            status_props = properties.get(dev_id, {}).get('status', [])
+            for item in status_props:
+                if item['code'] == 'bright_value':
+                    the_values = json.loads(item['values'])
+                    max_val = the_values.get('max', 255)
+                    if max_val >= 1000:
+                        return 'rgbw'  # max 1000 typically indicates RGBW/RGBWW support
+        return 'rgb'
+    except Exception:
+        return 'rgb'
 
-def send_draw_tool_command(DeviceID, led_index, r, g, b, brightness, max_value=255):
-    encoded_command = encode_draw_tool_command(led_index, r, g, b, brightness, max_value=max_value)
-    DomoticzEx.Log(f"Multi-LED: Attempting local send for LED {led_index}")
+
+def send_draw_tool_command(DeviceID, led_index, r, g, b, brightness, max_value=255, white=None):
+    white_type = detect_white_channel_type(DeviceID)
+    if white_type == 'rgbw' and white is None:
+        white = brightness  # Use same brightness for white channel in RGBW mode
+
+    encoded_command = encode_draw_tool_command(led_index, r, g, b, brightness, max_value=max_value, white=white)
+    DomoticzEx.Log(f"Multi-LED: Attempting local send for LED {led_index}, type: {white_type}")
     if send_draw_tool_command_local(DeviceID, encoded_command):
         DomoticzEx.Log(f"Multi-LED: Local send succeeded for LED {led_index}")
         return True
@@ -6092,7 +6125,11 @@ def send_draw_tool_command_local(DeviceID, encoded_command):
         return False
 
 
-def encode_draw_tool_command(led_index, r, g, b, brightness, max_value=255):
+def encode_draw_tool_command(led_index, r, g, b, brightness, max_value=255, white=None):
+    """
+    Encode draw_tool command for RGBIC linear lights
+    Supports RGB, RGBW, and RGBWW based on white parameter
+    """
     r = max(0, min(255, r))
     g = max(0, min(255, g))
     b = max(0, min(255, b))
@@ -6104,9 +6141,17 @@ def encode_draw_tool_command(led_index, r, g, b, brightness, max_value=255):
     sat = max(0, min(100, int(round(s / 10))))
     brightness_hex = format(brightness, '02x')
 
-    hex_string = f"010201{hue_hi:02x}{hue_lo:02x}{sat:02x}{brightness_hex}00008100{led_index:02x}"
+    # For RGBIC lights with white channel support
+    if white is not None:
+        white = max(0, min(255, white))
+        white_hex = format(white, '02x')
+        # RGBW format: 01 02 hue_hi hue_lo sat brightness white 00 81 00 spot
+        hex_string = f"010201{hue_hi:02x}{hue_lo:02x}{sat:02x}{brightness_hex}{white_hex}008100{led_index:02x}"
+    else:
+        # Standard RGB format
+        hex_string = f"010201{hue_hi:02x}{hue_lo:02x}{sat:02x}{brightness_hex}00008100{led_index:02x}"
 
-    DomoticzEx.Log(f"Draw Tool: LED {led_index}, RGB({r},{g},{b}), Brightness {brightness}, HSV({h},{s},{v}), Hex: {hex_string}")
+    DomoticzEx.Log(f"Draw Tool: LED {led_index}, RGB({r},{g},{b}), Brightness {brightness}, White {white}, HSV({h},{s},{v}), Hex: {hex_string}")
 
     try:
         byte_data = bytes.fromhex(hex_string)
