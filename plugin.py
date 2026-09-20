@@ -2687,28 +2687,12 @@ def onHandleThread(startup, local, target_dev_id=None):
                             online = True
                             ResultValue = MergeLocalDps(dev_id, status['dps'], ResultValue)
                         else:
-                            DomoticzEx.Debug(f"[LOCAL] No valid status for device {dev['name']} id {dev['id']}, falling back to cloud")
                             # val terug op cloud in plaats van online=False
-                            try:
-                                cloud = tuya.getstatus(dev_id)
-                                ResultValue = cloud.get('result') or []
-                                online = True
-                                cloud_status_time[dev_id] = now
-                            except Exception as e:
-                                DomoticzEx.Debug(f"Cloud fallback failed for {dev['name']} id {dev['id']}: {e}")
-                                online = False
+                            ResultValue, online = CloudFallback(dev, ResultValue, now, '[LOCAL] No valid status')
                     else:
                         # Geen lokale optie: val terug op de cloud, anders blijft het device
                         # onterecht op TimedOut=1 staan (was het gedrag vóór deze tak)
-                        DomoticzEx.Debug(f"No local connection possible for {dev['name']} id {dev['id']}, falling back to cloud")
-                        try:
-                            cloud = tuya.getstatus(dev_id)
-                            ResultValue = cloud.get('result') or []
-                            online = True
-                            cloud_status_time[dev_id] = now
-                        except Exception as e:
-                            DomoticzEx.Debug(f"Cloud fallback failed for {dev['name']} id {dev['id']}: {e}")
-                            online = False
+                        ResultValue, online = CloudFallback(dev, ResultValue, now, 'No local connection possible')
 
                 elif ((not local and not startup) or (not fulllocal)):
                     last_update = time.time()
@@ -5419,6 +5403,26 @@ def DumpConfigToLog():
             DomoticzEx.Debug(f"--->Unit sValue:   '{Unit.sValue}'")
             DomoticzEx.Debug(f"--->Unit LastLevel: {Unit.LastLevel}")
     return
+
+def CloudFallback(dev, ResultValue, now, reason):
+    # Read a device from the cloud when it cannot be read locally, but not more often than the API
+    # polling interval. The local pass runs on every heartbeat, so without this a device that has no
+    # local connection - no local key, not found by the scan, or one that just failed to answer -
+    # would be read from the cloud every few seconds, which is what the polling interval exists to
+    # avoid. In between the plugin keeps the values it already holds for that device; the device is
+    # still reported as online, so it does not flap into TimedOut between cloud reads.
+    dev_id = dev.get('id')
+    if now - cloud_status_time.get(dev_id, 0) < synctime:
+        DomoticzEx.Debug(f"{reason} for device {dev['name']} id {dev_id}, last cloud status is still within the polling interval")
+        return ResultValue, True
+    DomoticzEx.Debug(f"{reason} for device {dev['name']} id {dev_id}, falling back to cloud")
+    try:
+        cloud = tuya.getstatus(dev_id)
+        cloud_status_time[dev_id] = now
+        return (cloud.get('result') or []), True
+    except Exception as e:
+        DomoticzEx.Debug(f"Cloud fallback failed for {dev['name']} id {dev_id}: {e}")
+        return ResultValue, False
 
 def DeviceModelMapping(dev_id):
     # DP id -> code from the device model. getdps() only returns the DPs of the
