@@ -1456,7 +1456,7 @@ class BasePlugin:
                             SendCommandTuya(DeviceID, 'status', '1')
                         else:
                             SendCommandTuya(DeviceID, f"control{ext}", 'open')
-                        UpdateDomoticz(DeviceID, Unit, 'Open', 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, 'Open', 1, 0)
                     elif Command == 'Close':
                         if searchCode(f"mach_operate{ext}", function):
                             SendCommandTuya(DeviceID, f"mach_operate{ext}", 'ZZ')
@@ -1464,7 +1464,7 @@ class BasePlugin:
                             SendCommandTuya(DeviceID, 'status', '2')
                         else:
                             SendCommandTuya(DeviceID, f"control{ext}", 'close')
-                        UpdateDomoticz(DeviceID, Unit, 'Close', 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, 'Close', 0, 0)
                     elif Command == 'Stop':
                         if searchCode(f"mach_operate{ext}", function):
                             SendCommandTuya(DeviceID, f"mach_operate{ext}", 'STOP')
@@ -1479,7 +1479,7 @@ class BasePlugin:
                         elif searchCode(f"position{ext}", function):
                             control = f"position{ext}"
                         SendCommandTuya(DeviceID, control, Level)
-                        UpdateDomoticz(DeviceID, 1, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
 
                 elif dev_type == 'smartheatpump' :
                     if searchCode('switch', function):
