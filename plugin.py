@@ -936,10 +936,12 @@ except ImportError:
     import fakeDomoticz as DomoticzEx
 try:
     import tinytuya
-except ImportError:
-    print('No tinytuya module installed')
-    sys.exit(1)
-print(f"Tinytuya version: {tinytuya.version}")
+except ImportError as e:
+    # DomoticzEx is hier mogelijk nog niet beschikbaar, dus voorzichtig zijn
+    raise ImportError(
+        "TinyTUYA plugin: 'tinytuya' module niet gevonden. "
+        "Installeer met: pip3 install tinytuya"
+    ) from e
 
 # --- Local connection (LAN) -------------------------------------------------
 # A device that answers on the LAN keeps one connection open with its local key. The values it reports -
@@ -1077,6 +1079,32 @@ def MergeLocalDps(dev_id, dps, ResultValue):
             ResultValue.append({'code': code, 'value': value})
     result[dev_id] = ResultValue
     return list(ResultValue)
+
+def CloudFallback(dev_id, dev_name, now):
+    # Held result for this device, or an empty list if we have nothing yet
+    held = result.get(dev_id)
+    if not isinstance(held, list):
+        held = []
+
+    last = cloud_status_time.get(dev_id, 0)
+    if now - last < synctime:
+        # Not due yet: keep what we have and stay online
+        DomoticzEx.Debug(
+            f"Cloud fallback skipped for {dev_name} id {dev_id}: "
+            f"{int(now - last)}s since last cloud read, interval is {synctime}s"
+        )
+        return held, True
+
+    try:
+        cloud = tuya.getstatus(dev_id)
+        ResultValue = cloud.get('result') or []
+        cloud_status_time[dev_id] = now
+        return ResultValue, True
+    except Exception as e:
+        DomoticzEx.Debug(f"Cloud fallback failed for {dev_name} id {dev_id}: {e}")
+        # Failed call does not move the timestamp, so the next heartbeat
+        # will try again. Keep held values so the device is not wiped.
+        return held, False
 
 class BasePlugin:
     def __init__(self):
@@ -1248,7 +1276,7 @@ class BasePlugin:
                                 if values.get('v', {}).get('max', 255) == 1000:
                                     colour_data_v2 = True
                                     break
-                            except:
+                            except Exception:
                                 pass
                         if item['code'] in ('bright_value', 'bright_value_1', 'bright_value_2'):
                             try:
@@ -1256,7 +1284,7 @@ class BasePlugin:
                                 if values.get('max', 0) >= 1000:
                                     colour_data_v2 = True
                                     break
-                            except:
+                            except Exception:
                                 pass
 
                     if Command == 'Off':
@@ -1296,7 +1324,7 @@ class BasePlugin:
                                     try:
                                         vals = json.loads(it.get('values', '{}'))
                                         bright_max = max(bright_max, int(vals.get('max', 0)))
-                                    except:
+                                    except Exception:
                                         pass
 
                             use_v1000 = colour_data_v2 or bright_max >= 1000
@@ -1392,7 +1420,7 @@ class BasePlugin:
                                     if values.get('v', {}).get('max', 255) == 1000:
                                         colour_data_v2_local = True
                                         break
-                                except:
+                                except Exception:
                                     pass
 
                         # determine bright max
@@ -1402,7 +1430,7 @@ class BasePlugin:
                                 try:
                                     vals = json.loads(it.get('values', '{}'))
                                     bright_max = max(bright_max, int(vals.get('max', 0)))
-                                except:
+                                except Exception:
                                     pass
 
                         use_v1000 = colour_data_v2_local or bright_max >= 1000
@@ -2256,7 +2284,6 @@ def _log_local_scan_results(localtuya, devs, label, elapsed=None, scan_error=Non
     for dev in devs:
         dev_id = dev.get('id')
         dev_name = dev.get('name', 'Unknown')
-        dev_product_name = dev.get('product_name', 'Unknown')
         connect_type = dev.get('connect_type', 'wifi')
         protocol = dev.get('protocol', 'wifi')
         is_zigbee = 'zigbee' in str(connect_type).lower() or 'zigbee' in str(protocol).lower()
@@ -2477,7 +2504,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         raw_values = item.get('values', {})
 
                         if isinstance(raw_values, str):
-                            # values is al JSON-string → eerst normaliseren
+                            # values is already JSON-string → normalize first
                             try:
                                 raw_values = json.loads(raw_values)
                             except json.JSONDecodeError:
@@ -2688,27 +2715,22 @@ def onHandleThread(startup, local, target_dev_id=None):
                             ResultValue = MergeLocalDps(dev_id, status['dps'], ResultValue)
                         else:
                             DomoticzEx.Debug(f"[LOCAL] No valid status for device {dev['name']} id {dev['id']}, falling back to cloud")
-                            # val terug op cloud in plaats van online=False
-                            try:
-                                cloud = tuya.getstatus(dev_id)
-                                ResultValue = cloud.get('result') or []
-                                online = True
-                                cloud_status_time[dev_id] = now
-                            except Exception as e:
-                                DomoticzEx.Debug(f"Cloud fallback failed for {dev['name']} id {dev['id']}: {e}")
-                                online = False
+                            # Fall back to cloud instead of online=False. This is
+                            # specifically for protocol 3.4 devices to show correct
+                            # online/offline status. Rate-limited by CloudFallback()
+                            # so a device with no local connection is not read on
+                            # every heartbeat.
+                            ResultValue, online = CloudFallback(dev_id, dev['name'], now)
+
                     else:
-                        # Geen lokale optie: val terug op de cloud, anders blijft het device
-                        # onterecht op TimedOut=1 staan (was het gedrag vóór deze tak)
+                        # No local option: fall back to cloud, otherwise the device
+                        # will incorrectly stay on TimedOut=1 (was the behavior
+                        # before this branch). This is specifically for protocol
+                        # 3.4 devices to show correct online/offline status.
+                        # Rate-limited by CloudFallback() so a device with no
+                        # local connection is not read on every heartbeat.
                         DomoticzEx.Debug(f"No local connection possible for {dev['name']} id {dev['id']}, falling back to cloud")
-                        try:
-                            cloud = tuya.getstatus(dev_id)
-                            ResultValue = cloud.get('result') or []
-                            online = True
-                            cloud_status_time[dev_id] = now
-                        except Exception as e:
-                            DomoticzEx.Debug(f"Cloud fallback failed for {dev['name']} id {dev['id']}: {e}")
-                            online = False
+                        ResultValue, online = CloudFallback(dev_id, dev['name'], now)
 
                 elif ((not local and not startup) or (not fulllocal)):
                     last_update = time.time()
@@ -2718,7 +2740,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         ResultValue = cloud.get('result') or []
                         online = True
                         cloud_status_time[dev_id] = now
-                    except:
+                    except Exception:
                         online = False
                 else:
                     DomoticzEx.Debug(f"Skipping status fetch for device {dev['name']} id {dev['id']} in full local mode")
@@ -4261,7 +4283,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         if createDevice(dev_id, 3) and (searchCode('temperature', StatusProperties)):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Temperature)", DeviceID=dev_id, Unit=3, Type=80, Subtype=5, Used=0).Create()
                         if createDevice(dev_id, 4) and (searchCode('cook_temperature', StatusProperties)):
-                            # options={'ValueStep':'0.5', ' ValueMin':'-200', 'ValueMax':'200', 'ValueUnit':'°C'}
+                            # options={'ValueStep':'0.5', 'ValueMin':'-200', 'ValueMax':'200', 'ValueUnit':'°C'}
                             for item in StatusProperties:
                                 temp = 'cook_temperature'
                                 if item['code'] == temp:
@@ -4479,7 +4501,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                             UpdateDomoticz(dev_id, 1, '', 0, 0)
                         elif not online and Devices[dev_id].TimedOut == 0:
                             UpdateDomoticz(dev_id, 1, False, 0, 1)
-                    except:
+                    except Exception:
                         DomoticzEx.Log(f"Device {dev_name} offline")
                 else:
                     # Battery devices never timeout
@@ -4572,7 +4594,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                             # Calculate the new value
                             try:
                                 new_value = mode.index(str(currentmode)) * 10
-                            except:
+                            except Exception:
                                 mode.append(currentmode)
                                 Devices[dev_id].Units[unit].Options={'LevelNames': '|'.join(mode)}
                                 setConfigItem(f"{dev_id}-{unit}", {'mode': mode})
@@ -4666,7 +4688,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         try:
                             sValue = Devices[dev_id].Units[1].sValue
                             nValue = Devices[dev_id].Units[1].nValue
-                        except:
+                        except Exception:
                             pass
 
                         if dev_type in ('switch', 'switch/sensor'):
@@ -5634,7 +5656,7 @@ def SendCommandTuya(ID, CommandName, Status):
         # prepare some values for immediate logging
         try:
             dp_id_preview = dps_map[ID]['by_code'].get(actual_function_name)
-        except Exception:
+        except:
             dp_id_preview = None
 
         # start background thread to avoid blocking Domoticz main loop
@@ -5770,7 +5792,7 @@ def set_scale(device_functions, actual_function_name, raw):
         elif resultscale < min:
             resultscale = int(min)
             DomoticzEx.Log('Value lower then minium device')
-    except:
+    except Exception:
         resultscale = str(raw)
     return resultscale
 
@@ -5807,7 +5829,7 @@ def get_scale(device_functions, actual_function_name, raw):
             resultscale = float(raw / 10)
         if unit == 'm':
             resultscale = float(resultscale * 100)
-    except:
+    except Exception:
         resultscale = raw
         DomoticzEx.Debug(f"Scale device:{actual_function_name} Value: {resultscale}")
     return resultscale
@@ -6018,7 +6040,7 @@ def checkDevice(Id, Unit):
     try:
         Devices[Id].Units[Unit]
         return True
-    except:
+    except Exception:
         return False
 
 def searchCode(Item, Function):
@@ -6031,7 +6053,7 @@ def searchValue(Item, Function):
     if not ActualItem:
         return 0
 
-    # JSON-string → object
+    # JSON-string to object
     if isinstance(Function, str):
         try:
             Function = json.loads(Function)
@@ -6048,7 +6070,7 @@ def searchCodeActualFunction(Item, Function):
     if not Function:
         return None
 
-    # JSON-string → object
+    # JSON-string to object
     if isinstance(Function, str):
         try:
             Function = json.loads(Function)
