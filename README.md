@@ -208,12 +208,6 @@ https://iot.tuya.com/cloud/products/apply-extension
 
 ---
 
-## Change Log
-
-| Version | Information |
-|--------|-------------|
-| 3.0.0  | Release of hybrid version |
-
 Support development:
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/xenomes)

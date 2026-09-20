@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.0.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.0.9</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.0</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -1509,6 +1509,40 @@ class BasePlugin:
                             mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                             SendCommandTuya(DeviceID, switch, mode[int(Level / 10)])
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
+
+                if dev_type == 'aromatherapy':
+                    if Command == 'On' and Unit == 1:
+                        if searchCode('Power', function):
+                            SendCommandTuya(DeviceID, 'Power', True)
+                            UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                    elif Command == 'Off' and Unit == 1:
+                        if searchCode('Power', function):
+                            SendCommandTuya(DeviceID, 'Power', False)
+                            UpdateDomoticz(DeviceID, Unit, False, 0, 1)
+                    elif Command == 'On' and Unit == 2:
+                        if searchCode('Light', function):
+                            SendCommandTuya(DeviceID, 'Light', True)
+                            UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                    elif Command == 'Off' and Unit == 2:
+                        if searchCode('Light', function):
+                            SendCommandTuya(DeviceID, 'Light', False)
+                            UpdateDomoticz(DeviceID, Unit, False, 0, 1)
+                    elif Command == 'Set Level' and Unit == 4:
+                        if searchCode('dp_mist_grade', function):
+                            switch = 'dp_mist_grade'
+                            mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                            SendCommandTuya(DeviceID, switch, mode[int(Level / 10)])
+                            UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit == 5:
+                        if searchCode('work_mode', function):
+                            switch = 'work_mode'
+                            mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                            SendCommandTuya(DeviceID, switch, mode[int(Level / 10)])
+                            UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
+                    elif Command == 'Set Color' and Unit == 6:
+                        if searchCode('colour_data', function):
+                            SendCommandTuya(DeviceID, 'colour_data', Colour)
+                            UpdateDomoticz(DeviceID, Unit, Colour, 1, 0)
 
                 if dev_type == ('cover'):
                     ext = '_' + str(Unit) if Unit > 1 else ''
@@ -4083,6 +4117,60 @@ def onHandleThread(startup, local, target_dev_id=None):
                         if createDevice(dev_id, 11) and searchCode('unlock_temporary', StatusProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Temporary)", DeviceID=dev_id, Unit=11, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
+                    if dev_type == 'aromatherapy':
+                        DomoticzEx.Log('Create device Aromatherapy')
+                        if createDevice(dev_id, 1) and searchCode('Power', FunctionProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']}", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev_id, 2) and searchCode('Light', FunctionProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Light)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev_id, 3) and searchCode('lightmode', FunctionProperties):
+                            for item in FunctionProperties:
+                                if item['code'] == 'lightmode':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values['label'])
+                                    else:
+                                        mode.extend(the_values['range'])
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Lightmode)", DeviceID=dev_id, Unit=3, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        if createDevice(dev_id, 4) and searchCode('dp_mist_grade', FunctionProperties):
+                            for item in FunctionProperties:
+                                if item['code'] == 'dp_mist_grade':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values['label'])
+                                    else:
+                                        mode.extend(the_values['range'])
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Mist grade)", DeviceID=dev_id, Unit=4, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        if createDevice(dev_id, 5) and searchCode('work_mode', FunctionProperties):
+                            for item in FunctionProperties:
+                                if item['code'] == 'work_mode':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values['label'])
+                                    else:
+                                        mode.extend(the_values['range'])
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Scene)", DeviceID=dev_id, Unit=5, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        if createDevice(dev_id, 6) and searchCode('colour_data', FunctionProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (RGB)", DeviceID=dev_id, Unit=6, Type=241, Subtype=4, Switchtype=7, Used=1).Create()
+
                     if dev_type == 'dehumidifier':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
                             DomoticzEx.Log('Create device Dehumidifier')
@@ -5307,6 +5395,22 @@ def onHandleThread(startup, local, target_dev_id=None):
                             update_selectnum_device('feed_report', 3)
                             update_bool_device('light', 5)
 
+                        if dev_type == 'aromatherapy':
+                            if update_bool_device('Power', 1):
+                                pass
+                            if update_bool_device('Light', 2):
+                                pass
+                            if update_select_device('lightmode', 3):
+                                pass
+                            if update_select_device('dp_mist_grade', 4):
+                                pass
+                            if update_select_device('work_mode', 5):
+                                pass
+                            if searchCode('colour_data', StatusProperties):
+                                currentcolor = StatusDeviceTuya('colour_data')
+                                if str(currentcolor) != str(Devices[dev_id].Units[6].sValue):
+                                    UpdateDomoticz(dev_id, 6, currentcolor, 1, 0)
+
                         if dev_type == 'waterleak':
                             update_bool_device('watersensor_state', 1, 'normal')
                             battery_device()
@@ -5544,8 +5648,10 @@ def DeviceType(category, product_id=None, product_name=None):
             DomoticzEx.Debug(f"Category 'qt' with product_name '{product_name}' detected as curtain switch (cover)")
         else:
             resultdev = 'smokedetector'
-    elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'jsq', 'tyndj', 'tyd'}:
+    elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'tyndj', 'tyd'}:
         resultdev = 'light'
+    elif category in {'jsq'}:
+        resultdev = 'aromatherapy'
     elif category in {'tgq', 'tgkg'}:
         resultdev = 'dimmer'
     elif category in {'cl', 'clkg', 'jdcljqr', 'mc'}:
