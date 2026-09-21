@@ -1534,7 +1534,23 @@ class BasePlugin:
                     elif Command == 'Off' and Unit == 2:
                         if searchCode('Light', function):
                             SendCommandTuya(DeviceID, 'Light', False)
-                            UpdateDomoticz(DeviceID, Unit, False, 0, 1)
+                            UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On' and Unit == 6:
+                        # Turn on RGB by switching to colour mode
+                        if searchCode('work_mode', function):
+                            SendCommandTuya(DeviceID, 'work_mode', 'colour')
+                            UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                    elif Command == 'Off' and Unit == 6:
+                        # Turn off RGB by switching to white mode
+                        if searchCode('work_mode', function):
+                            SendCommandTuya(DeviceID, 'work_mode', 'white')
+                            UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'Set Level' and Unit == 3:
+                        if searchCode('lightmode', function):
+                            switch = 'lightmode'
+                            mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                            SendCommandTuya(DeviceID, switch, mode[int(Level / 10)])
+                            UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Level' and Unit == 4:
                         if searchCode('dp_mist_grade', function):
                             switch = 'dp_mist_grade'
@@ -1549,8 +1565,20 @@ class BasePlugin:
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Color' and Unit == 6:
                         if searchCode('colour_data', function):
-                            SendCommandTuya(DeviceID, 'colour_data', Colour)
-                            UpdateDomoticz(DeviceID, Unit, Colour, 1, 0)
+                            # Parse Color data for Tuya format
+                            if len(Color) > 0 and 'm' in Color:
+                                if Color['m'] == 2:
+                                    # White
+                                    colour_data_value = {"h": 0, "s": 0, "v": Level}
+                                elif Color['m'] == 3:
+                                    # RGB
+                                    colour_data_value = {"h": int(Color['t'] * 360), "s": int(Color['s']), "v": Level}
+                                else:
+                                    colour_data_value = {"h": 0, "s": 0, "v": Level}
+                            else:
+                                colour_data_value = {"h": 0, "s": 0, "v": Level}
+                            SendCommandTuya(DeviceID, 'colour_data', colour_data_value)
+                            UpdateDomoticz(DeviceID, Unit, Color, 1, 0)
 
                 if dev_type == ('cover'):
                     ext = '_' + str(Unit) if Unit > 1 else ''
@@ -2124,6 +2152,26 @@ class BasePlugin:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'mode', mode[int(Level / 10)])
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
+                    elif Command == 'Set Level' and Unit == 5:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandTuya(DeviceID, 'work_mode', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
+                    elif Command == 'Set Color' and Unit == 6:
+                        if searchCode('colour_data', function):
+                            # Parse Color data for Tuya format
+                            if len(Color) > 0 and 'm' in Color:
+                                if Color['m'] == 2:
+                                    # White
+                                    colour_data_value = {"h": 0, "s": 0, "v": Level}
+                                elif Color['m'] == 3:
+                                    # RGB
+                                    colour_data_value = {"h": int(Color['t'] * 360), "s": int(Color['s']), "v": Level}
+                                else:
+                                    colour_data_value = {"h": 0, "s": 0, "v": Level}
+                            else:
+                                colour_data_value = {"h": 0, "s": 0, "v": Level}
+                            SendCommandTuya(DeviceID, 'colour_data', colour_data_value)
+                            UpdateDomoticz(DeviceID, Unit, Color, 1, 0)
                     if Command == 'Off' and Unit == 9:
                         SendCommandTuya(DeviceID, 'child_lock', False)
                         UpdateDomoticz(DeviceID, Unit, False, 0, 0)
@@ -5420,6 +5468,14 @@ def onHandleThread(startup, local, target_dev_id=None):
                                 pass
                             if searchCode('colour_data', StatusProperties):
                                 currentcolor = StatusDeviceTuya('colour_data')
+                                # Handle JSON string format from Tuya
+                                if isinstance(currentcolor, str) and currentcolor.startswith('{'):
+                                    try:
+                                        parsed_color = json.loads(currentcolor)
+                                        if isinstance(parsed_color, dict):
+                                            currentcolor = parsed_color
+                                    except Exception:
+                                        pass
                                 if str(currentcolor) != str(Devices[dev_id].Units[6].sValue):
                                     UpdateDomoticz(dev_id, 6, currentcolor, 1, 0)
 
@@ -5520,15 +5576,27 @@ def onHandleThread(startup, local, target_dev_id=None):
                             update_select_device('fan_speed_enum', 3)
                             update_select_device('mode', 4)
                             update_value_device('fault', 5)
-                            update_value_device('temp_indoor', 6)
-                            update_nvalue_device('humidity_indoor', 7)
-                            update_dualvalue_device('temp_indoor', 'humidity_indoor', 8)
-                            update_bool_device('child_lock', 9)
-                            update_bool_device('anion', 10)
-                            update_bool_device('filter_reset', 11)
-                            update_value_device('filter_life', 12)
-                            update_bool_device('runtime_total_reset', 13)
-                            update_value_device('type_of_equipment', 14)
+                            if searchCode('colour_data', StatusProperties):
+                                currentcolor = StatusDeviceTuya('colour_data')
+                                # Handle JSON string format from Tuya
+                                if isinstance(currentcolor, str) and currentcolor.startswith('{'):
+                                    try:
+                                        parsed_color = json.loads(currentcolor)
+                                        if isinstance(parsed_color, dict):
+                                            currentcolor = parsed_color
+                                    except Exception:
+                                        pass
+                                if str(currentcolor) != str(Devices[dev_id].Units[6].sValue):
+                                    UpdateDomoticz(dev_id, 6, currentcolor, 1, 0)
+                            update_value_device('temp_indoor', 7)
+                            update_nvalue_device('humidity_indoor', 8)
+                            update_dualvalue_device('temp_indoor', 'humidity_indoor', 9)
+                            update_bool_device('child_lock', 10)
+                            update_bool_device('anion', 11)
+                            update_bool_device('filter_reset', 12)
+                            update_value_device('filter_life', 13)
+                            update_bool_device('runtime_total_reset', 14)
+                            update_value_device('type_of_equipment', 15)
 
                         if dev_type == 'vacuum':
                             update_bool_device('power_go', 1)

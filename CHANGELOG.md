@@ -145,4 +145,5 @@
 | 3.0.7 | Fix local status fetch for Tuya v3.4 devices |
 | 3.0.8 | Fix battery device detection, remove dead code (Arjan), drop bare excepts (PR #214 alternative) |
 | 3.0.9 | Add SmartLock unlock methods #205 |
-| 3.1.0 | Add aromatherapy device #205 |
+| 3.1.0 | Add aromatherapy device #200 |
+| 3.1.1 | Add RGBW/RGBWW white channel support to draw_tool commands for RGBIC lights #200 |
