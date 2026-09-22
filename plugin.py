@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.2</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.3</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -3842,17 +3842,39 @@ def onHandleThread(startup, local, target_dev_id=None):
                     if dev_type == 'powermeter' and searchCode('phase_a', StatusProperties):
                         if createDevice(dev_id, 1):
                             DomoticzEx.Log('Create Powermeter')
-                            DomoticzEx.Unit(Name=f"{dev['name']} (A)", DeviceID=dev_id, Unit=1, Type=243, Subtype=23, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} A (A)", DeviceID=dev_id, Unit=1, Type=243, Subtype=23, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('phase_a', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (W)", DeviceID=dev_id, Unit=2, Type=248, Subtype=1, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} A (W)", DeviceID=dev_id, Unit=2, Type=248, Subtype=1, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('phase_a', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (V)", DeviceID=dev_id, Unit=3, Type=243, Subtype=8, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} A (V)", DeviceID=dev_id, Unit=3, Type=243, Subtype=8, Used=1).Create()
                         if createDevice(dev_id, 4) and searchCode('phase_a', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (kWh)", DeviceID=dev_id, Unit=4, Type=243, Subtype=29, Used=1).Create()
+                            DomoticzEx.Unit(Name=f"{dev['name']} A (kWh)", DeviceID=dev_id, Unit=4, Type=243, Subtype=29, Used=1).Create()
                         if  createDevice(dev_id, 5) and searchCode('switch', StatusProperties):
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 6) and searchCode('fault', StatusProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Fault)", DeviceID=dev_id, Unit=6, Type=243, Subtype=19, Image=13, Used=1).Create()
+
+                    if dev_type == 'powermeter' and searchCode('phase_b', StatusProperties):
+                        if createDevice(dev_id, 11):
+                            DomoticzEx.Log('Create Powermeter')
+                            DomoticzEx.Unit(Name=f"{dev['name']} B (A)", DeviceID=dev_id, Unit=11, Type=243, Subtype=23, Used=1).Create()
+                        if createDevice(dev_id, 12) and searchCode('phase_b', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} B (W)", DeviceID=dev_id, Unit=12, Type=248, Subtype=1, Used=1).Create()
+                        if createDevice(dev_id, 13) and searchCode('phase_b', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} B (V)", DeviceID=dev_id, Unit=13, Type=243, Subtype=8, Used=1).Create()
+                        if createDevice(dev_id, 14) and searchCode('phase_b', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} B (kWh)", DeviceID=dev_id, Unit=14, Type=243, Subtype=29, Used=1).Create()
+
+                    if dev_type == 'powermeter' and searchCode('phase_c', StatusProperties):
+                        if createDevice(dev_id, 21):
+                            DomoticzEx.Log('Create Powermeter')
+                            DomoticzEx.Unit(Name=f"{dev['name']} C (A)", DeviceID=dev_id, Unit=21, Type=243, Subtype=23, Used=1).Create()
+                        if createDevice(dev_id, 22) and searchCode('phase_c', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} C (W)", DeviceID=dev_id, Unit=22, Type=248, Subtype=1, Used=1).Create()
+                        if createDevice(dev_id, 23) and searchCode('phasSe_c', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} C (V)", DeviceID=dev_id, Unit=23, Type=243, Subtype=8, Used=1).Create()
+                        if createDevice(dev_id, 24) and searchCode('phase_c', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} C (kWh)", DeviceID=dev_id, Unit=24, Type=243, Subtype=29, Used=1).Create()
 
                     if dev_type == 'powermeter' and (searchCode('direction_a', StatusProperties) or searchCode('power_direction_a', StatusProperties)):
                         if createDevice(dev_id, 1) and (searchCode('voltage_a', StatusProperties) or searchCode('f_ac_v', StatusProperties)):
@@ -5381,6 +5403,44 @@ def onHandleThread(startup, local, target_dev_id=None):
                                 lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[4].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
                                 lastvalue = Devices[dev_id].Units[4].sValue if len(Devices[dev_id].Units[4].sValue) > 0 else '0;0'
                                 UpdateDomoticz(dev_id, 4, f"{currentpower};{float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))}", 0, 0, 1)
+                            if searchCode('phase_b', StatusProperties):
+                                base64_string = StatusDeviceTuya('phase_b')
+                                # Decode base64 string
+                                decoded_data = base64.b64decode(base64_string)
+                                # Extract voltage, current, and power data
+                                currentvoltage = int.from_bytes(decoded_data[:2], byteorder='big') * 0.1
+                                currentcurrent = int.from_bytes(decoded_data[2:5], byteorder='big') * 0.001
+                                currentpower = int.from_bytes(decoded_data[5:8], byteorder='big')
+                                leakagecurrent = StatusDeviceTuya('leakage_current')
+                                if product_id == 'ze8faryrxr0glqnn':
+                                    if str(int.from_bytes(decoded_data[2:5], byteorder='big'))[-1:] == '1':
+                                        currentcurrent = 0 - currentcurrent
+                                        currentpower = 0 - currentpower
+                                UpdateDomoticz(dev_id, 11, str(currentcurrent), 0, 0)
+                                UpdateDomoticz(dev_id, 12, str(currentpower), 0, 0)
+                                UpdateDomoticz(dev_id, 13, str(currentvoltage), 0, 0)
+                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[4].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                lastvalue = Devices[dev_id].Units[4].sValue if len(Devices[dev_id].Units[4].sValue) > 0 else '0;0'
+                                UpdateDomoticz(dev_id, 14, f"{currentpower};{float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))}", 0, 0, 1)
+                            if searchCode('phase_c', StatusProperties):
+                                base64_string = StatusDeviceTuya('phase_c')
+                                # Decode base64 string
+                                decoded_data = base64.b64decode(base64_string)
+                                # Extract voltage, current, and power data
+                                currentvoltage = int.from_bytes(decoded_data[:2], byteorder='big') * 0.1
+                                currentcurrent = int.from_bytes(decoded_data[2:5], byteorder='big') * 0.001
+                                currentpower = int.from_bytes(decoded_data[5:8], byteorder='big')
+                                leakagecurrent = StatusDeviceTuya('leakage_current')
+                                if product_id == 'ze8faryrxr0glqnn':
+                                    if str(int.from_bytes(decoded_data[2:5], byteorder='big'))[-1:] == '1':
+                                        currentcurrent = 0 - currentcurrent
+                                        currentpower = 0 - currentpower
+                                UpdateDomoticz(dev_id, 21, str(currentcurrent), 0, 0)
+                                UpdateDomoticz(dev_id, 22, str(currentpower), 0, 0)
+                                UpdateDomoticz(dev_id, 23, str(currentvoltage), 0, 0)
+                                lastupdate = (int(time.time()) - int(time.mktime(time.strptime(Devices[dev_id].Units[4].LastUpdate, '%Y-%m-%d %H:%M:%S'))))
+                                lastvalue = Devices[dev_id].Units[4].sValue if len(Devices[dev_id].Units[4].sValue) > 0 else '0;0'
+                                UpdateDomoticz(dev_id, 24, f"{currentpower};{float(lastvalue.split(';')[1]) + ((currentpower) * (lastupdate / 3600))}", 0, 0, 1)
                             update_bool_device('switch', 5)
                             update_text_device('fault', 6)
                             # 2 phase Meter with reverse
