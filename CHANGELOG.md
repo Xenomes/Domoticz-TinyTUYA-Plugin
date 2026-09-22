@@ -147,3 +147,4 @@
 | 3.0.9 | Add SmartLock unlock methods #205 |
 | 3.1.0 | Add aromatherapy device #200 |
 | 3.1.1 | Add RGBW/RGBWW white channel support to draw_tool commands for RGBIC lights #200 |
+| 3.1.2 | fix(local): fire-and-forget for Tuya 3.1 devices to avoid Err 901 cloud fallback (#216) |
