@@ -5930,7 +5930,16 @@ def SendCommandTuya(ID, CommandName, Status):
                 if hasattr(d, 'set_socketPersistent'):
                     d.set_socketPersistent(False)
 
-                result = d.set_status(actual_status, int(dp_id))
+                # Determine the protocol version of this specific device
+                device_version = float(localtuya[ID].get('version', '3.3'))
+
+                if device_version == 3.1:
+                    # 3.1 devices often close the connection before sending an acknowledgement
+                    d.set_status(actual_status, int(dp_id), nowait=True)
+                    result = {'dps': {str(dp_id): actual_status}}  # Simulate success for logging
+                else:
+                    # 3.3 and higher: normal wait-for-response mode
+                    result = d.set_status(actual_status, int(dp_id))
 
                 if not result or 'Error' in result or 'Err' in result:
                     raise Exception(result)
