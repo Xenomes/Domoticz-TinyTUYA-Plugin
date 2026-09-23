@@ -5973,12 +5973,17 @@ def SendCommandTuya(ID, CommandName, Status):
                     raise Exception(f"No dp_id for code {actual_function_name}")
 
                 device_key = getConfigItem(ID, 'key')
-                d = tinytuya.Device(
-                    ID,
-                    localtuya[ID]['ip'],
-                    device_key
-                )
-                d.set_version(float(localtuya[ID].get('version', '3.3')))
+                device_version = float(localtuya[ID].get('version', '3.3'))
+                is_cover = (dev_type == 'cover')
+
+                if is_cover:
+                    # Cover firmware only accepts the CoverDevice wire format; the
+                    # generic Device.set_status() is acknowledged and ignored
+                    d = tinytuya.CoverDevice(ID, localtuya[ID]['ip'], device_key)
+                else:
+                    d = tinytuya.Device(ID, localtuya[ID]['ip'], device_key)
+
+                d.set_version(device_version)
                 d.socketRetryLimit = 1
                 d.socketRetryDelay = 1
                 if hasattr(d, 'set_socketTimeout'):
@@ -5990,19 +5995,35 @@ def SendCommandTuya(ID, CommandName, Status):
                 if hasattr(d, 'set_socketPersistent'):
                     d.set_socketPersistent(False)
 
-                # Determine the protocol version of this specific device
-                device_version = float(localtuya[ID].get('version', '3.3'))
-
-                if device_version == 3.1:
-                    # 3.1 devices often close the connection before sending an acknowledgement
-                    d.set_status(actual_status, int(dp_id), nowait=True)
-                    result = {'dps': {str(dp_id): actual_status}}  # Simulate success for logging
+                if is_cover:
+                    # Route to the correct cover action. The plugin sends '1'/'2'/'3'
+                    # for open/close/stop on the status DP, and FZ/ZZ/STOP on mach_operate.
+                    if actual_function_name in ('status', 'control', 'mach_operate'):
+                        if actual_status in ('1', 'FZ', 'open', 1):
+                            d.open_cover()
+                        elif actual_status in ('2', 'ZZ', 'close', 2):
+                            d.close_cover()
+                        elif actual_status in ('3', 'STOP', 'stop', 3):
+                            d.stop_cover()
+                        else:
+                            d.set_status(actual_status, int(dp_id))
+                    else:
+                        # position / percent_control: leave as generic set_status
+                        if device_version == 3.1:
+                            d.set_status(actual_status, int(dp_id), nowait=True)
+                            result = {'dps': {str(dp_id): actual_status}}
+                        else:
+                            result = d.set_status(actual_status, int(dp_id))
                 else:
-                    # 3.3 and higher: normal wait-for-response mode
-                    result = d.set_status(actual_status, int(dp_id))
+                    if device_version == 3.1:
+                        d.set_status(actual_status, int(dp_id), nowait=True)
+                        result = {'dps': {str(dp_id): actual_status}}
+                    else:
+                        result = d.set_status(actual_status, int(dp_id))
 
-                if not result or 'Error' in result or 'Err' in result:
-                    raise Exception(result)
+                if not is_cover or actual_function_name not in ('status', 'control', 'mach_operate'):
+                    if not result or 'Error' in result or 'Err' in result:
+                        raise Exception(result)
 
                 DomoticzEx.Log(f"[LOCAL] Command sent: dp_id {dp_id} = {actual_status} ({dev_name})")
                 return
