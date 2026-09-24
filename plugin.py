@@ -5305,7 +5305,28 @@ def onHandleThread(startup, local, target_dev_id=None):
                             update_value_device('liquid_depth', 74)
                             battery_device()
 
-                        # Weather station support (barometer and rain)
+                        # Weather station support (wind, barometer and rain)
+                        if searchCode('Wing_direction', ResultValue) and searchCode('windspeed_avg', ResultValue):
+                            # The wind direction is not part of the standard instruction set: it has no
+                            # schema entry and a cloud status never carries it, it only arrives over the
+                            # LAN. Hence WeatherValue() instead of StatusDeviceTuya(), and hence the unit
+                            # is created here, with the first value, instead of in the startup block.
+                            # The chill field takes the feels-like temperature, which is what the station
+                            # display shows: qxj stations keep windchill_index at a stale value whenever
+                            # the index does not apply, at warm or calm weather.
+                            chill_code = 'feellike_temp' if searchCode('feellike_temp', ResultValue) else 'windchill_index'
+                            outdoor = searchCode('temp_current_external', ResultValue) and searchCode(chill_code, ResultValue)
+                            if createDevice(dev['id'], 77):
+                                DomoticzEx.Log('Create Wind device')
+                                DomoticzEx.Unit(Name=dev['name'] + ' (Wind)', DeviceID=dev['id'], Unit=77, Type=86, Subtype=4 if outdoor else 1, Used=1).Create()
+                            bearing, direction = WindDirection(WeatherValue('Wing_direction', ResultValue))
+                            if direction:
+                                # Domoticz wants 0.1 m/s, the station reports km/h
+                                speed = round(WeatherValue('windspeed_avg', ResultValue) / 0.36)
+                                gust = round(WeatherValue('windspeed_gust', ResultValue) / 0.36) if searchCode('windspeed_gust', ResultValue) else speed
+                                temp = WeatherValue('temp_current_external', ResultValue) if outdoor else 0
+                                chill = WeatherValue(chill_code, ResultValue) if outdoor else 0
+                                UpdateDomoticz(dev['id'], 77, f'{bearing or 0};{direction};{speed};{gust};{temp};{chill}', 0, 0)
                         if searchCode('atmospheric_pressture', ResultValue):
                             # Barometer: hPa;forecast, 5 = unknown (qxj stations report no forecast)
                             UpdateDomoticz(dev['id'], 75, str(StatusDeviceTuya('atmospheric_pressture')) + ';5', 0, 0)
@@ -5745,6 +5766,24 @@ def DumpConfigToLog():
             DomoticzEx.Debug(f"--->Unit sValue:   '{Unit.sValue}'")
             DomoticzEx.Debug(f"--->Unit LastLevel: {Unit.LastLevel}")
     return
+
+def WindDirection(raw):
+    # qxj stations send the wind direction base64-encoded: 9 bytes, of which 1-3 are the name of the
+    # direction ('NNW', 'C' for calm) and 5-6 the bearing in degrees, 0xFFFF when the station has none
+    try:
+        data = base64.b64decode(raw)
+    except (ValueError, TypeError):
+        return None, ''
+    if len(data) < 7:
+        return None, ''
+    bearing = int.from_bytes(data[5:7], 'big')
+    return (None if bearing == 0xFFFF else bearing), bytes(b for b in data[1:4] if b).decode('ascii', 'ignore')
+
+def WeatherValue(code, values):
+    # The scaled value when the cloud schema knows the DP, the raw one when it does not: a station can
+    # report DPs that are not part of its instruction set, and those have no schema entry to scale against
+    value = StatusDeviceTuya(code)
+    return searchValue(code, values) if value is None else value
 
 def DeviceModelMapping(dev_id):
     # DP id -> code from the device model. getdps() only returns the DPs of the
