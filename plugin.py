@@ -5974,15 +5974,12 @@ def SendCommandTuya(ID, CommandName, Status):
 
                 device_key = getConfigItem(ID, 'key')
                 device_version = float(localtuya[ID].get('version', '3.3'))
-                is_cover = (dev_type == 'cover')
-
+                device_category = getConfigItem(ID, 'category')
+                is_cover = (device_category == 'cover')
                 if is_cover:
-                    # Cover firmware only accepts the CoverDevice wire format; the
-                    # generic Device.set_status() is acknowledged and ignored
                     d = tinytuya.CoverDevice(ID, localtuya[ID]['ip'], device_key)
                 else:
                     d = tinytuya.Device(ID, localtuya[ID]['ip'], device_key)
-
                 d.set_version(device_version)
                 d.socketRetryLimit = 1
                 d.socketRetryDelay = 1
