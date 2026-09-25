@@ -1061,11 +1061,14 @@ class LocalListener(threading.Thread):
 
 
 def start_local_listeners():
-    # One listener per device the IP scan found and whose local key is known. A device that only answers
-    # later is picked up after the next scan, and a listener follows its device to a new IP by itself.
     for dev in devs:
         dev_id = dev.get('id')
         if not dev_id or not dev.get('key') or not (localtuya.get(dev_id) or {}).get('ip'):
+            continue
+        # Covers do not push updates, and a Tuya v3.1 cover only accepts one
+        # connection: holding a persistent listener on it would block the
+        # command socket, so the cover would silently ignore our commands.
+        if getConfigItem(dev_id, 'category') == 'cover':
             continue
         if dev_id not in local_listeners:
             local_listeners[dev_id] = LocalListener(dev_id, dev['key'])
@@ -6076,6 +6079,8 @@ def SendCommandTuya(ID, CommandName, Status):
                     d.socketTimeout = 3
                 if hasattr(d, 'set_socketPersistent'):
                     d.set_socketPersistent(False)
+
+                DomoticzEx.Log(actual_function_name)
 
                 if is_cover and actual_function_name == 'control':
                     # standard Tuya cover: control DP with open/close/stop strings
