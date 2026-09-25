@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.5</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.6</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -1059,16 +1059,27 @@ class LocalListener(threading.Thread):
             if device is not None:
                 device.close()
 
-
 def start_local_listeners():
+    # One listener per device the IP scan found and whose local key is known. A device that only answers
+    # later is picked up after the next scan, and a listener follows its device to a new IP by itself.
+    #
+    # Tuya protocol v3.1 devices only accept a single TCP connection: a persistent listener would hold
+    # the only available slot, so the short-lived socket that SendCommandTuya() opens for each command
+    # would be accepted at the TCP layer but have its payload silently dropped by the device. No error
+    # is raised, the device simply does not act. Hence v3.1 devices are polled through the same
+    # short-lived socket used for commands, and no persistent listener is started for them.
     for dev in devs:
         dev_id = dev.get('id')
         if not dev_id or not dev.get('key') or not (localtuya.get(dev_id) or {}).get('ip'):
             continue
-        # Covers do not push updates, and a Tuya v3.1 cover only accepts one
-        # connection: holding a persistent listener on it would block the
-        # command socket, so the cover would silently ignore our commands.
-        if getConfigItem(dev_id, 'category') == 'cover':
+        try:
+            version = float((localtuya.get(dev_id) or {}).get('version') or 3.3)
+        except (TypeError, ValueError):
+            version = 3.3
+        if version == 3.1:
+            if local_state.get(dev_id) is not False:
+                local_state[dev_id] = False
+                DomoticzEx.Log(f"Skipping local listener for {dev.get('name', dev_id)} (v3.1: single-connection protocol)")
             continue
         if dev_id not in local_listeners:
             local_listeners[dev_id] = LocalListener(dev_id, dev['key'])
@@ -1080,7 +1091,6 @@ def start_local_listeners():
                 DomoticzEx.Log(f"Local connection to {dev.get('name', dev_id)} established")
             else:
                 DomoticzEx.Log(f"Local connection to {dev.get('name', dev_id)} lost: {listener.error}")
-
 
 def stop_local_listeners():
     # Domoticz cannot unload the plugin while these threads are still running
