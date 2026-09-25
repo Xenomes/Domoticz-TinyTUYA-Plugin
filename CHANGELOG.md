@@ -151,3 +151,4 @@
 | 3.1.3 | fix(powermeter): label 3-phase units by phase letter only when multiple phases are present (#217) |
 | 3.1.4 | Added pull request qxj weather station: Wind device from the wind direction |
 | 3.1.5 | Local connection: leave covered devices out of the cloud poll |
+| 3.1.6 | Skip all v3.1 devices in start_local_listeners (fix Télé plug and future v3.1 devices) |
