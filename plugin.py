@@ -993,6 +993,9 @@ LOCAL_REFRESH = 300
 LOCAL_RETRY = 60
 local_listeners = {}
 local_state = {}
+local_used = {}
+local_skipped = {}
+reading_dev = None
 
 
 class LocalListener(threading.Thread):
@@ -1114,6 +1117,37 @@ def MergeLocalDps(dev_id, dps, ResultValue):
             ResultValue.append({'code': code, 'value': value})
     result[dev_id] = ResultValue
     return list(ResultValue)
+
+def LocalCovered(dev_id, dev_name):
+    # Which values the cloud poll would still have to bring for this device. An empty list means the open
+    # local connection already delivers everything the device's units read, so reading it from the cloud
+    # adds nothing and can be skipped; None means there is no live connection to judge by.
+    #
+    # Only the codes the units actually read count (local_used, collected in StatusDeviceTuya). Taking every
+    # code of the last status instead would keep a device in the poll forever over values nothing displays:
+    # a weather station, for instance, reports its empty spare sensor slots on every cloud read.
+    listener = local_listeners.get(dev_id)
+    if listener is None or not listener.connected:
+        missing = None
+    else:
+        by_id = dps_map.get(dev_id, {}).get('by_id', {})
+        seen = {by_id[int(dp)] for dp in listener.values() if int(dp) in by_id}
+        used = local_used.get(dev_id)
+        held = result.get(dev_id) or []
+        missing = sorted(item.get('code') for item in held
+                         if isinstance(item, dict) and item.get('code') not in seen
+                         and (not used or item.get('code') in used))
+    if missing != local_skipped.get(dev_id, False):
+        previous = local_skipped.get(dev_id)
+        local_skipped[dev_id] = missing
+        reason = 'the local connection is gone' if missing is None else f"the cloud still brings {', '.join(missing)}"
+        if missing == []:
+            DomoticzEx.Log(f"{dev_name} sends every value its units read over the LAN, leaving it out of the cloud poll")
+        elif previous == []:
+            DomoticzEx.Log(f"{dev_name} is back in the cloud poll: {reason}")
+        else:
+            DomoticzEx.Debug(f"{dev_name} is read from the cloud: {reason}")
+    return missing
 
 def CloudFallback(dev_id, dev_name, now):
     # Held result for this device, or an empty list if we have nothing yet
@@ -2795,6 +2829,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
             # Default values (offline-safe)
             t = 0
+            reading_dev = dev.get('id')
             StatusProperties   = properties.get(dev['id'], {}).get('status', [])
             FunctionProperties = properties.get(dev['id'], {}).get('functions', [])
             ResultValue        = result.get(dev['id'], [])
@@ -2860,14 +2895,19 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                 elif ((not local and not startup) or (not fulllocal)):
                     last_update = time.time()
-                    DomoticzEx.Debug(f"Cloud connection to device {dev['name']} id {dev['id']} synctime {now - cloud_status_time.get(dev_id, 0)}")
-                    try:
-                        cloud = tuya.getstatus(dev_id)
-                        ResultValue = cloud.get('result') or []
+                    if LocalCovered(dev_id, dev['name']) == []:
+                        # The open local connection already has everything this device's units read
+                        ResultValue = result.get(dev_id) or []
                         online = True
-                        cloud_status_time[dev_id] = now
-                    except Exception:
-                        online = False
+                    else:
+                        DomoticzEx.Debug(f"Cloud connection to device {dev['name']} id {dev['id']} synctime {now - cloud_status_time.get(dev_id, 0)}")
+                        try:
+                            cloud = tuya.getstatus(dev_id)
+                            ResultValue = cloud.get('result') or []
+                            online = True
+                            cloud_status_time[dev_id] = now
+                        except Exception:
+                            online = False
                 else:
                     DomoticzEx.Debug(f"Skipping status fetch for device {dev['name']} id {dev['id']} in full local mode")
                     online = False
@@ -5952,7 +5992,13 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
 
 def StatusDeviceTuya(Function):
     if searchCode(Function, StatusProperties):
-        valueRaw = [item['value'] for item in ResultValue if re.search(r'\b'+Function+r'\b', item['code']) != None][0]
+        found = [item for item in ResultValue if re.search(r'\b'+Function+r'\b', item['code']) != None][0]
+        valueRaw = found['value']
+        # Which codes a device's units read decides whether its local connection can stand in for
+        # the cloud poll, see LocalCovered(). Only the poll loop sets reading_dev, so a call from
+        # anywhere else is not counted against a device.
+        if reading_dev:
+            local_used.setdefault(reading_dev, set()).add(found['code'])
     else:
         DomoticzEx.Debug(f"StatusDeviceTuya called {Function} not found ")
         return None
