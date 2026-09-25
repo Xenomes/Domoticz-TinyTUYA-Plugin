@@ -6077,26 +6077,18 @@ def SendCommandTuya(ID, CommandName, Status):
                 if hasattr(d, 'set_socketPersistent'):
                     d.set_socketPersistent(False)
 
-                if is_cover:
-                    # Route to the correct cover action. The plugin sends '1'/'2'/'3'
-                    # for open/close/stop on the status DP, and FZ/ZZ/STOP on mach_operate.
-                    if actual_function_name in ('status', 'control', 'mach_operate'):
-                        if actual_status in ('1', 'FZ', 'open', 1):
-                            d.open_cover()
-                        elif actual_status in ('2', 'ZZ', 'close', 2):
-                            d.close_cover()
-                        elif actual_status in ('3', 'STOP', 'stop', 3):
-                            d.stop_cover()
-                        else:
-                            d.set_status(actual_status, int(dp_id))
+                if is_cover and actual_function_name == 'control':
+                    # standard Tuya cover: control DP with open/close/stop strings
+                    if actual_status == 'open':
+                        d.open_cover()
+                    elif actual_status == 'close':
+                        d.close_cover()
+                    elif actual_status == 'stop':
+                        d.stop_cover()
                     else:
-                        # position / percent_control: leave as generic set_status
-                        if device_version == 3.1:
-                            d.set_status(actual_status, int(dp_id), nowait=True)
-                            result = {'dps': {str(dp_id): actual_status}}
-                        else:
-                            result = d.set_status(actual_status, int(dp_id))
+                        d.set_status(actual_status, int(dp_id))
                 else:
+                    # raw DP: status / mach_operate / position / percent_control / everything else
                     if device_version == 3.1:
                         d.set_status(actual_status, int(dp_id), nowait=True)
                         result = {'dps': {str(dp_id): actual_status}}
