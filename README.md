@@ -22,6 +22,17 @@ The Tuya Cloud is primarily used for **initial device discovery, DPS mapping and
 >
 > **Recommendation**: After updating, verify all devices are working correctly. Some devices may need to be recreated if they show unexpected behavior.
 >
+> ### Devices created empty after the update?
+>
+> Some unit numbers differ from 2.*: the weather station barometer and rain are units 75 and 76 (81 and 82
+> in 2.4.5), the liquid sensors 72-74 (70-72). Domoticz tells devices apart by unit number, so those come
+> back as new, empty devices next to the old ones, which keep the history.
+>
+> Domoticz can move the history across: **Setup → Devices**, select the **old** device, press **Replace**
+> and point it at the new one. The old idx keeps its history and takes over the new unit, and the duplicate
+> disappears. Device types have to match, which they do in these cases. Scripts that refer to the device by
+> idx or by name keep working, since it is the old device that survives.
+>
 > ### Update fails? (git pull error)
 >
 > If `git pull` gives an error (for example about local changes, divergent branches,
@@ -173,6 +184,40 @@ After initial setup, the plugin minimizes cloud usage and prefers local LAN cont
 5. Configure and add
 
 Devices will be created automatically after discovery.
+
+## Local connection (LAN)
+
+Devices that answer on the LAN are not opened and closed on every cycle: the plugin keeps one connection
+open to each of them with its local key. What a device reports there - the replies to a status query and
+the pushes it sends by itself when something changes - is picked up as it arrives, so a change made on the
+device shows up in Domoticz within seconds instead of at the next poll.
+
+There is nothing to configure. A device is connected once the IP scan has found it and its local key is
+known from the cloud, which also means Domoticz has to sit in the same network segment as the devices:
+the scan listens for their UDP broadcasts. A device that does not answer locally - out of range, a battery
+device asleep, one behind a gateway - is read from the cloud at the API polling interval, exactly as before.
+
+Two lines in the log tell you where a device stands:
+
+| Line | Meaning |
+|---|---|
+| `Local connection to X established` | the connection is open and X is reporting |
+| `Local connection to X lost: ...` | the connection dropped, with the reason; the plugin reconnects by itself |
+
+The timing is set by four constants at the top of `plugin.py`. The defaults suit a normal home network and
+are worth changing only if yours is unusual:
+
+| Constant | Default | What it does |
+|---|---|---|
+| `LOCAL_BEAT` | 20 s | heartbeat that keeps the connection open - devices drop it around 30 s after the last packet from the client, and their own pushes do not count towards that |
+| `LOCAL_REFRESH` | 300 s | how often the full status is read again over the same connection |
+| `LOCAL_RETRY` | 60 s | pause before reconnecting after a connection is lost |
+| `LOCAL_TIMEOUT` | 5 s | socket timeout |
+
+A value a device does not send locally keeps whatever the cloud last gave it. Each connection starts with
+an empty set of values, so right after a reconnect a device has only what it has re-sent since.
+
+---
 
 ## Refresh button (optional)
 
