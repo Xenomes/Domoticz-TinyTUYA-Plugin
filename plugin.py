@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.6</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.7</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -1295,7 +1295,7 @@ class BasePlugin:
                 if len(Color) != 0:
                     Color = ast.literal_eval(Color)
 
-                if dev_type in ('switch', 'switch/sensor'):
+                if dev_type in ('switch', 'switch/sensor') and Unit == 1:
                     if searchCode('switch', function):
                         if Command == 'Off':
                             SendCommandTuya(DeviceID, 'switch', False)
@@ -1317,6 +1317,33 @@ class BasePlugin:
                         elif Command == 'On':
                             SendCommandTuya(DeviceID, f"switch_{Unit}", True)
                             UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+
+                if dev_type in ('switch', 'switch/sensor') and Unit == 2 and searchCode('switch_led', function):
+                    if Command == 'Off':
+                        SendCommandTuya(DeviceID, 'switch_led', False)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                    elif Command == 'On':
+                        SendCommandTuya(DeviceID, 'switch_led', True)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                    elif Command == 'Set Level':
+                        SendCommandTuya(DeviceID, 'switch_led', True)
+                        SendCommandTuya(DeviceID, 'bright_value', Level)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
+                    elif (Command == 'Set Color' or Command == 'Set Level') and len(Color) != 0:
+                        if Color.get('m') == 2:
+                            SendCommandTuya(DeviceID, 'switch_led', True)
+                            SendCommandTuya(DeviceID, 'work_mode', 'white')
+                            SendCommandTuya(DeviceID, 'bright_value', Level)
+                            UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
+                            UpdateDomoticz(DeviceID, Unit, Color, 1, 0)
+                        elif Color.get('m') == 3:
+                            h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
+                            hvs = {'h': h, 's': s, 'v': v}
+                            SendCommandTuya(DeviceID, 'switch_led', True)
+                            SendCommandTuya(DeviceID, 'work_mode', 'colour')
+                            SendCommandTuya(DeviceID, 'colour_data', hvs)
+                            UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
+                            UpdateDomoticz(DeviceID, Unit, Color, 1, 0)
 
                 if dev_type == 'wswitch':
                     if Command == 'Set Level':
@@ -3090,6 +3117,9 @@ def onHandleThread(startup, local, target_dev_id=None):
                             DomoticzEx.Unit(Name=f"{dev['name']} Reverse B(kWh)", DeviceID=dev_id, Unit=21, Type=243, Subtype=29, Used=1).Create()
                         if createDevice(dev_id, 22) and (searchCode('power_b', StatusProperties)):
                             DomoticzEx.Unit(Name=f"{dev['name']} Forward B(kWh)", DeviceID=dev_id, Unit=22, Type=243, Subtype=29, Used=1).Create()
+                        if (searchCode('switch_led', FunctionProperties) and searchCode('work_mode', FunctionProperties) and searchCode('colour_data', FunctionProperties) and createDevice(dev_id, 2)):
+                            DomoticzEx.Log('Create device Socket RGB LED')
+                            DomoticzEx.Unit(Name=f"{dev['name']} (LED)", DeviceID=dev_id, Unit=2, Type=241, Subtype=1, Switchtype=7, Used=1).Create()
 
                     if dev_type == 'cover' and createDevice(dev_id, 1):
                         DomoticzEx.Log('Create device Cover')
@@ -4973,6 +5003,29 @@ def onHandleThread(startup, local, target_dev_id=None):
                                 pass
                             elif update_bool_device('switch_on', 1):
                                 pass
+
+                            if checkDevice(dev_id, 2) and searchCode('switch_led', StatusProperties):
+                                led_on = bool(StatusDeviceTuya('switch_led'))
+                                led_bright = None
+                                if searchCode('bright_value', StatusProperties):
+                                    led_bright = brightness_to_pct(StatusProperties, 'bright_value', int(StatusDeviceTuya('bright_value')))
+                                if led_bright is None:
+                                    led_bright = 100
+                                led_svalue = str(led_bright) if led_on else '0'
+                                if str(Devices[dev_id].Units[2].sValue) != led_svalue:
+                                    UpdateDomoticz(dev_id, 2, led_svalue, int(led_on), 0)
+                                if led_on and searchCode('colour_data', StatusProperties):
+                                    cdata = StatusDeviceTuya('colour_data')
+                                    if isinstance(cdata, str) and cdata.startswith('{'):
+                                        try:
+                                            cdata = json.loads(cdata)
+                                        except Exception:
+                                            cdata = None
+                                    if isinstance(cdata, dict) and 'h' in cdata and 's' in cdata and 'v' in cdata:
+                                        r, g, b = hsv_to_rgb(int(cdata['h']), int(cdata['s']), int(cdata['v']))
+                                        color_str = json.dumps({'m': 3, 'r': r, 'g': g, 'b': b, 't': 0, 'cw': 0, 'ww': 0})
+                                        if str(Devices[dev_id].Units[2].Color) != color_str:
+                                            UpdateDomoticz(dev_id, 2, color_str, 1, 0)
 
                             for switch_number in range(2, 9):
                                 update_bool_device(f"switch_{switch_number}", switch_number)

@@ -152,3 +152,4 @@
 | 3.1.4 | Added pull request qxj weather station: Wind device from the wind direction |
 | 3.1.5 | Local connection: leave covered devices out of the cloud poll |
 | 3.1.6 | Skip all v3.1 devices in start_local_listeners (fix Télé plug and future v3.1 devices) (#216) |
+| 3.1.7 | Add RGB LED ring as Unit 2 for socket devices with switch_led + work_mode + colour_data |
