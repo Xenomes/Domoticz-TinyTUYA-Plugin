@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.8" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.8</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.9</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -1834,7 +1834,7 @@ class BasePlugin:
                     if Unit in extra and Command in ('On', 'Off'):
                         SendCommandTuya(DeviceID, extra[Unit], Command == 'On')
                         UpdateDomoticz(DeviceID, Unit, Command == 'On', int(Command == 'On'), 0)
-                        
+
                 if dev_type in ('sensor', 'switch/sensor'):
                     if Command == 'Set Level' and Unit == 15:
                         SendCommandTuya(DeviceID, 'ph_warn_min', Level)
@@ -3433,7 +3433,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                                                   (34, 'healthy', 'Health')):
                             if createDevice(dev_id, unit) and searchCode(code, FunctionProperties):
                                 DomoticzEx.Unit(Name=f"{dev['name']} ({label})", DeviceID=dev_id, Unit=unit, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                                
+
                     if dev_type in ('sensor', 'switch/sensor'):
                         temp = searchCode('va_temperature', StatusProperties) or searchCode('temp_current', StatusProperties) or searchCode('local_temp', StatusProperties) or searchCode('Tin', StatusProperties)
                         hum = searchCode('va_humidity', StatusProperties) or searchCode('humidity_value', StatusProperties) or searchCode('local_hum', StatusProperties) or searchCode('humidity', StatusProperties) or searchCode('Hin', StatusProperties)
@@ -5320,7 +5320,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                             update_dualvalue_device('temp_current', 'humidity_current', 16)
                             update_bool_device('anti_bother', 17)
                             for unit, code in ((30, 'turbo'), (31, 'quiet'), (32, 'sleep'), (33, 'energy_save'), (34, 'healthy')):
-                                update_bool_device(code, unit)                            
+                                update_bool_device(code, unit)
                             update_text_device('fault',18)
                             battery_device()
 
@@ -6328,7 +6328,7 @@ def get_scale(device_functions, actual_function_name, raw):
             resultscale = float(raw / 2)
         if product_id == 'g9m7honkxjweukvt' and actual_function_name == 'temp_current':
             resultscale = float(raw / 10)
-        # AJOUT : splits Tuya "kt" dont temp_current est en demi-degrés
+        # ADDED: Tuya "kt" divides temp_current by 2 (half-degree scale)
         if product_id == '9xvzf8c0bg33eenj' and actual_function_name == 'temp_current':
             resultscale = float(raw / 2)
         if unit == 'm':
