@@ -2098,43 +2098,11 @@ class BasePlugin:
                     elif Command == 'On' and Unit == 1:
                         SendCommandTuya(DeviceID, switch, True)
                         UpdateDomoticz(DeviceID, 1, True, 1, 0)
-                    if Command == 'Off' and Unit == 3:
-                        SendCommandTuya(DeviceID, 'areaone', False)
-                        UpdateDomoticz(DeviceID, 3, False, 0, 0)
-                    elif Command == 'On' and Unit == 3:
-                        SendCommandTuya(DeviceID, 'areaone', True)
-                        UpdateDomoticz(DeviceID, 3, True, 1, 0)
-                    if Command == 'Off' and Unit == 4:
-                        SendCommandTuya(DeviceID, 'areatwo', False)
-                        UpdateDomoticz(DeviceID, 4, False, 0, 0)
-                    elif Command == 'On' and Unit == 4:
-                        SendCommandTuya(DeviceID, 'areatwo', True)
-                        UpdateDomoticz(DeviceID, 4, True, 1, 0)
-                    if Command == 'Off' and Unit == 5:
-                        SendCommandTuya(DeviceID, 'areathree', False)
-                        UpdateDomoticz(DeviceID, 5, False, 0, 0)
-                    elif Command == 'On' and Unit == 5:
-                        SendCommandTuya(DeviceID, 'areathree', True)
-                        UpdateDomoticz(DeviceID, 5, True, 1, 0)
-                    if Command == 'Off' and Unit == 6:
-                        SendCommandTuya(DeviceID, 'areafour', False)
-                        UpdateDomoticz(DeviceID, 6, False, 0, 0)
-                    elif Command == 'On' and Unit == 6:
-                        SendCommandTuya(DeviceID, 'areafour', True)
-                        UpdateDomoticz(DeviceID, 6, True, 1, 0)
-                    if Command == 'Off' and Unit == 7:
-                        SendCommandTuya(DeviceID, 'areafive', False)
-                        UpdateDomoticz(DeviceID, 7, False, 0, 0)
-                    elif Command == 'On' and Unit == 7:
-                        SendCommandTuya(DeviceID, 'areafive', True)
-                        UpdateDomoticz(DeviceID, 7, True, 1, 0)
-                    if Command == 'Off' and Unit == 8:
-                        SendCommandTuya(DeviceID, 'areasix', False)
-                        UpdateDomoticz(DeviceID, 8, False, 0, 0)
-                    elif Command == 'On' and Unit == 8:
-                        SendCommandTuya(DeviceID, 'areasix', True)
-                        UpdateDomoticz(DeviceID, 8, True, 1, 0)
-
+                    area_codes = {3: 'areaone', 4: 'areatwo', 5: 'areathree', 6: 'areafour', 7: 'areafive', 8: 'areasix'}
+                    if Unit in area_codes and Command in ('On', 'Off'):
+                        on = (Command == 'On')
+                        SendCommandTuya(DeviceID, area_codes[Unit], on)
+                        UpdateDomoticz(DeviceID, Unit, on, int(on), 0)
                 if dev_type == 'starlight':
                     if Command == 'Off' and Unit == 1:
                         SendCommandTuya(DeviceID, 'switch_led', False)
@@ -2262,30 +2230,12 @@ class BasePlugin:
                                 colour_data_value = {"h": 0, "s": 0, "v": Level}
                             SendCommandTuya(DeviceID, 'colour_data', colour_data_value)
                             UpdateDomoticz(DeviceID, Unit, Color, 1, 0)
-                    if Command == 'Off' and Unit == 9:
-                        SendCommandTuya(DeviceID, 'child_lock', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
-                    elif Command == 'On' and Unit == 9:
-                        SendCommandTuya(DeviceID, 'child_lock', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
-                    if Command == 'Off' and Unit == 10:
-                        SendCommandTuya(DeviceID, 'anion', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
-                    elif Command == 'On' and Unit == 10:
-                        SendCommandTuya(DeviceID, 'anion', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
-                    if Command == 'Off' and Unit == 11:
-                        SendCommandTuya(DeviceID, 'filter_life', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
-                    elif Command == 'On' and Unit == 11:
-                        SendCommandTuya(DeviceID, 'filter_life', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
-                    if Command == 'Off' and Unit == 13:
-                        SendCommandTuya(DeviceID, 'runtime_total_reset', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
-                    elif Command == 'On' and Unit == 13:
-                        SendCommandTuya(DeviceID, 'anruntime_total_resetion', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                    dehumidifier_toggles = {9: 'child_lock', 10: 'anion', 11: 'filter_life', 13: 'runtime_total_reset'}
+                    if Unit in dehumidifier_toggles and Command in ('On', 'Off'):
+                        code = dehumidifier_toggles[Unit]
+                        on = (Command == 'On')
+                        SendCommandTuya(DeviceID, code, on)
+                        UpdateDomoticz(DeviceID, Unit, on, int(on), 0)
 
                 if dev_type == 'vacuum':
                     if Command == 'Off' and Unit == 1:
@@ -3092,20 +3042,9 @@ def onHandleThread(startup, local, target_dev_id=None):
                                 DomoticzEx.Unit(Name=f"{dev['name']} (Switch 1)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                             if createDevice(dev_id, 2):
                                 DomoticzEx.Unit(Name=f"{dev['name']} (Switch 2)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if createDevice(dev_id, 3) and searchCode('switch_3', FunctionProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 3)", DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if createDevice(dev_id, 4) and searchCode('switch_4', FunctionProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 4)", DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if createDevice(dev_id, 5) and searchCode('switch_5', FunctionProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 5)", DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if createDevice(dev_id, 6) and searchCode('switch_6', FunctionProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 6)", DeviceID=dev_id, Unit=6, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if createDevice(dev_id, 7) and searchCode('switch_7', FunctionProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 7)", DeviceID=dev_id, Unit=7, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if createDevice(dev_id, 8) and searchCode('switch_8', FunctionProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 8)", DeviceID=dev_id, Unit=8, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-                        if createDevice(dev_id, 9) and searchCode('switch_9', FunctionProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Switch 9)", DeviceID=dev_id, Unit=9, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        for unit in range(3, 10):
+                            if createDevice(dev_id, unit) and searchCode(f"switch_{unit}", FunctionProperties):
+                                DomoticzEx.Unit(Name=f"{dev['name']} (Switch {unit})", DeviceID=dev_id, Unit=unit, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 11) and ((searchCode('cur_current', StatusProperties) and get_unit('cur_current', StatusProperties) == 'A') or searchCode('phase_a', StatusProperties)):
                             DomoticzEx.Unit(Name=f"{dev['name']} (A)", DeviceID=dev_id, Unit=11, Type=243, Subtype=23, Used=1).Create()
                         if createDevice(dev_id, 12) and (searchCode('cur_power', StatusProperties) or searchCode('phase_a', StatusProperties)):
@@ -3811,9 +3750,9 @@ def onHandleThread(startup, local, target_dev_id=None):
                             DomoticzEx.Unit(Name=f"{dev['name']} (RH Value)", DeviceID=dev_id, Unit=10, Type=243, Subtype=31, Options=options, Used=1).Create()
                         if createDevice(dev_id, 11) and searchCode('anion', FunctionProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Anion)", DeviceID=dev_id, Unit=11, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
-                        if createDevice(dev_id, 12) and searchCode('anion', FunctionProperties):
+                        if createDevice(dev_id, 12) and searchCode('free_cooling', FunctionProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Free Cooling)", DeviceID=dev_id, Unit=12, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
-                        if createDevice(dev_id, 13) and searchCode('anion', FunctionProperties):
+                        if createDevice(dev_id, 13) and searchCode('powerful', FunctionProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Powerful)", DeviceID=dev_id, Unit=13, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
 
                     if dev_type == 'fanlight':
@@ -4280,28 +4219,12 @@ def onHandleThread(startup, local, target_dev_id=None):
                                     options['LevelNames'] = '|'.join(mode)
                                     options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
                             DomoticzEx.Unit(Name=f"{dev['name']} (Status)", DeviceID=dev_id, Unit=2, Type=244, Subtype=62, Switchtype=18, Options=options, Image=13, Used=1).Create()
-                        # Unlock method switches - maintain existing unit numbers for compatibility
-                        # Unit 3: Keep for unlock_ble (existing compatibility)
-                        if createDevice(dev_id, 3) and searchCode('unlock_ble', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (BLE)", DeviceID=dev_id, Unit=3, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
-                        # Unit 4: Keep for unlock_card (existing compatibility)
-                        if createDevice(dev_id, 4) and searchCode('unlock_card', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Card)", DeviceID=dev_id, Unit=4, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
-                        # Additional unlock methods for new smartlocks - start from Unit 5
-                        if createDevice(dev_id, 5) and searchCode('unlock_fingerprint', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Fingerprint)", DeviceID=dev_id, Unit=5, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
-                        if createDevice(dev_id, 6) and searchCode('unlock_password', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Password)", DeviceID=dev_id, Unit=6, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
-                        if createDevice(dev_id, 7) and searchCode('unlock_app', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (App)", DeviceID=dev_id, Unit=7, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
-                        if createDevice(dev_id, 8) and searchCode('unlock_key', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Key)", DeviceID=dev_id, Unit=8, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
-                        if createDevice(dev_id, 9) and searchCode('unlock_face', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Face)", DeviceID=dev_id, Unit=9, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
-                        if createDevice(dev_id, 10) and searchCode('unlock_hand', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Hand)", DeviceID=dev_id, Unit=10, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
-                        if createDevice(dev_id, 11) and searchCode('unlock_temporary', StatusProperties):
-                            DomoticzEx.Unit(Name=f"{dev['name']} (Temporary)", DeviceID=dev_id, Unit=11, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
+                        for unit, code, label in ((3, 'unlock_ble', 'BLE'), (4, 'unlock_card', 'Card'), (5, 'unlock_fingerprint', 'Fingerprint'),
+                            (6, 'unlock_password', 'Password'), (7, 'unlock_app', 'App'), (8, 'unlock_key', 'Key'), (9, 'unlock_face', 'Face'), (10, 'unlock_hand', 'Hand'),
+                            (11, 'unlock_temporary', 'Temporary')):
+                            if createDevice(dev_id, unit) and searchCode(code, StatusProperties):
+                                DomoticzEx.Unit(Name=f"{dev['name']} ({label})", DeviceID=dev_id, Unit=unit,
+                                                Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                     if dev_type == 'aromatherapy':
                         DomoticzEx.Log('Create device Aromatherapy')
@@ -5474,17 +5397,9 @@ def onHandleThread(startup, local, target_dev_id=None):
                             UpdateDomoticz(dev['id'], 76, f'{rate};{total}', 0, 0)
 
                         if dev_type == 'doorbell':
-                            update_bool_device('doorbell_active', 1, '')
-                            update_bool_device('floodlight_switch', 2)
-                            update_bool_device('motion_switch', 3)
-                            update_bool_device('basic_indicator', 4)
-                            update_bool_device('decibel_switch', 5)
-                            update_bool_device('basic_private', 6)
-                            update_bool_device('motion_area_switch', 7)
-                            update_bool_device('motion_area_switch', 8)
-                            update_bool_device('siren_switch', 9)
+                            for unit, code in ((1, 'doorbell_active'), (2, 'floodlight_switch'), (3, 'motion_switch'), (4, 'basic_indicator'), (5, 'decibel_switch'), (6, 'basic_private'), (7, 'motion_tracking'), (8, 'motion_area_switch'), (9, 'siren_switch'), (11, 'floodlight_switch')):
+                                update_bool_device(code, unit)
                             update_select_device('nightvision_mode', 10)
-                            update_bool_device('floodlight_switch', 11)
                             update_value_device('ipc_siren_volume', 12)
                             update_value_device('ipc_siren_duration', 13)
 
@@ -5765,16 +5680,9 @@ def onHandleThread(startup, local, target_dev_id=None):
                             elif update_bool_device('rtc_lock', 1):
                                 pass
                             update_select_device('alarm_lock', 2)
-                            # Update unlock method switches - maintain compatibility with existing units
-                            update_bool_device('unlock_ble', 3)
-                            update_bool_device('unlock_card', 4)
-                            update_bool_device('unlock_fingerprint', 5)
-                            update_bool_device('unlock_password', 6)
-                            update_bool_device('unlock_app', 7)
-                            update_bool_device('unlock_key', 8)
-                            update_bool_device('unlock_face', 9)
-                            update_bool_device('unlock_hand', 10)
-                            update_bool_device('unlock_temporary', 11)
+                            for unit, code in ((3, 'unlock_ble'), (4, 'unlock_card'), (5, 'unlock_fingerprint'), (6, 'unlock_password'), (7, 'unlock_app'), (8, 'unlock_key'),
+                                (9, 'unlock_face'), (10, 'unlock_hand'), (11, 'unlock_temporary')):
+                                update_bool_device(code, unit)
                             battery_device()
 
                         if dev_type == 'dehumidifier':

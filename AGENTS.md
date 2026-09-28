@@ -115,7 +115,9 @@ Always use `rgb_to_hsv` (0-255 scale) for Tuya `colour_data`, not the
 ### SmartLock Support (Issue #205)
 - Unit 1: Lock state (lock_motor_state/rtc_lock)
 - Unit 2: Alarm status (alarm_lock selector)
-- Units 3-11: Unlock methods (BLE, Card, Fingerprint, Password, App, Key, Face, Hand, Temporary)
+- Units 3-11: Unlock methods (BLE, Card, Fingerprint, Password, App,
+  Key, Face, Hand, Temporary), created and updated through a single
+  loop driven by a tuple of `(unit, code, label)` pairs
 - Compatibility maintained for existing unit numbers
 
 ### Aromatherapy Support (Issue #200)
@@ -171,6 +173,8 @@ Always use `rgb_to_hsv` (0-255 scale) for Tuya `colour_data`, not the
   - Unit 33: Energy save (`energy_save`)
   - Unit 34: Health (`healthy`)
 - Commands route through `SendCommandTuya(DeviceID, code, Command == 'On')`
+- Status updates and creation both use a single tuple-driven loop;
+  adding a new unit is one tuple entry, not a new block.
 - `get_scale()` has a device-specific branch for `product_id ==
   '9xvzf8c0bg33eenj'`: `temp_current` is reported in half degrees, so
   the value is divided by 2.
@@ -225,8 +229,8 @@ useful.
 
 | Label | When to use |
 |---|---|
-| `bug` | Confirmed defect with a reproduction (e.g. shutter ignoring commands after listener connects) |
-| `enhancement` | New feature or improvement (e.g. Thermor Niseko HVAC support) |
+| `bug` | Confirmed defect with a reproduction |
+| `enhancement` | New feature or improvement |
 | `documentation` | README, AGENT.md, CHANGELOG-only changes |
 | `device-support` | Adds or fixes support for a specific device type or product_id |
 | `protocol-3.1` | Anything related to the v3.1 single-connection limit |
@@ -248,8 +252,7 @@ Common combinations:
 - Colour wheel not following the device: `bug` + `color`
 - New Thermor Niseko unit: `enhancement` + `device-support`
 
-When in doubt, add `question` and ask for a log. Removing a wrong label
-is cheaper than merging a fix for the wrong cause.
+When in doubt, add `question` and ask for a log.
 
 ## Code Conventions
 
@@ -265,6 +268,26 @@ is cheaper than merging a fix for the wrong cause.
 - New optional units (e.g. Thermor 30-34) must be gated on `searchCode`
   in `FunctionProperties` so a device without the DP does not gain a
   phantom switch
+
+### Repetitive unit patterns — use a tuple-driven loop
+
+When a device type creates or updates a series of units that differ only
+in unit number, DP code and display label, write it as a single
+`for unit, code, label in (...)` loop. Do not copy the same block N
+times. Existing examples:
+
+- **SmartLock unlock methods** (units 3-11) — creation and status update
+- **Irrigatie area switches** (units 3-8) — in `onCommand` via an
+  `area_codes` dict
+- **Switch multi-gang** (units 3-9) — in creation via `for unit in
+  range(3, 10)`
+- **Thermor HVAC extras** (units 30-34) — creation, status update and
+  `onCommand` all use the same shape
+- **Doorbell** — status update via a tuple of `(unit, code)` pairs
+
+This is not just cosmetic: adding a new unlock method or a new HVAC
+mode becomes one tuple entry, and there is no risk of the creation
+block and the status-update block drifting apart.
 
 ### Status Updates
 - Helper functions: `update_bool_device()`, `update_select_device()`,
@@ -288,6 +311,9 @@ is cheaper than merging a fix for the wrong cause.
   `Unit == 2`.
 - `SendCommandTuya()` runs the actual socket write on a background
   thread so a slow device does not block the Domoticz main loop.
+- For a series of identical on/off units on the same device, use the
+  same tuple-driven approach as in device creation (see SmartLock and
+  Thermor examples).
 
 ### Local listeners
 - `LocalListener` is only started for devices whose protocol version is
@@ -327,6 +353,29 @@ is cheaper than merging a fix for the wrong cause.
 
 ### Battery device detection
 - `is_battery_device()` handles both `str` and `list`/`dict` inputs.
+- **Known bug (pending):** the outer guard in `battery_device()` only
+  checks `battery_state`, `battery`, `va_battery` and
+  `battery_percentage`. Devices with only `BatteryStatus` or only
+  `residual_electricity` are correctly flagged as battery devices by
+  `is_battery_device()` (and therefore never time out), but the
+  battery-update branches inside `battery_device()` are unreachable for
+  them. Fix: replace the outer guard with a call to
+  `is_battery_device(StatusProperties)`.
+
+### Duplicate battery update fragment
+- The six-line "write `battery_level` to every unit of a device" block
+  appears six times (five Pulsar fast paths + `battery_device()`).
+- Fix: extract to a single `apply_battery_level(dev_id, level, source)`
+  helper. This is cleanup, not a behaviour change, but it prevents the
+  copies from drifting apart on future changes.
+
+### Fallback code chains
+- `thermostat`/`heater`/`heatpump` and `sensor` blocks contain several
+  `if update_x('code_a', n): ... elif update_x('code_b', n): ...` chains,
+  because different Tuya firmwares name the same DP differently.
+- Fix: a small `update_first_of(('code_a', 'code_b', ...), unit,
+  updater)` helper makes the intent explicit. Behaviour is identical to
+  the `if/elif` chain — first matching code wins, later codes skipped.
 
 ### Testdata mode confusion
 - If the plugin's home folder contains `debug_devices.json`,
@@ -363,6 +412,11 @@ is cheaper than merging a fix for the wrong cause.
   instead of the non-existent `Color['s']` and the wrong `Color['t']`.
 - Humidifier RGB unit `nValue` follows `work_mode` instead of being
   hardcoded to `1`.
+- **Code cleanup (same release):** SmartLock unlock methods, irrigation
+  area switches, switch multi-gang, Thermor HVAC extras and doorbell
+  status updates are now tuple-driven loops. This incidentally fixed a
+  pre-existing bug where the doorbell's Unit 7 status update used
+  `motion_area_switch` instead of `motion_tracking`.
 
 ### Previous notable releases
 - `3.1.8`: Socket LED `switch_2` guard, light colour follow-up
@@ -377,10 +431,10 @@ is cheaper than merging a fix for the wrong cause.
 - `3.0.9`: Add SmartLock unlock methods (#205)
 - `3.0.8`: Fix battery device detection, remove dead code
 - `3.0.7`: Fix local status fetch for Tuya v3.4 devices
-- `3.0.6`: Cloud fallback for non-local devices in local poll path (fixes covers timing out after 3 minutes)
-- `3.0.5`: Add missing DeviceModelMapping() helper (fix NameError during cloud-init for all devices)
-- `3.0.4`: DPS mapping robustness: skip schema entries without dp_id, add DeviceModelMapping fallback for DPs missing from getdps()
-- `3.0.3`: fix: prevent IR/sub-devices from crashing the whole poll run
+- `3.0.6`: Cloud fallback for non-local devices in local poll path
+- `3.0.5`: Add missing DeviceModelMapping() helper
+- `3.0.4`: DPS mapping robustness
+- `3.0.3`: Prevent IR/sub-devices from crashing the whole poll run
 - `3.0.2`: Fix infrared device support and command handling bugs
 - `3.0.1`: Fix for category detection of 'tdq'
 - `3.0.0`: Release of hybrid version
@@ -511,6 +565,12 @@ Always run `python3 -m py_compile plugin.py` after changes
 - `rgb_to_hsv_v2` / `hsv_to_rgb_v2` - 0-1000 scale, only for
   `colour_data_v2` devices
 - `brightness_to_pct` / `pct_to_brightness` - read min/max from schema
+
+### Battery
+- `is_battery_device(StatusProperties)` - correctly recognises a device
+  with any of the battery codes, on both `str` and `list`/`dict` inputs
+- `apply_battery_level(dev_id, level)` *(pending extraction)* - single
+  place that writes a battery percentage to every unit of a device
 
 ### RGBIC Light Support
 - `encode_draw_tool_command()` - Encode multi-LED commands
