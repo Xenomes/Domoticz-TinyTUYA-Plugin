@@ -1816,8 +1816,9 @@ class BasePlugin:
                         UpdateDomoticz(DeviceID, 7, True, 1, 0)
                     elif Command == 'Set Level' and Unit  == 9:
                         if searchCode('fan_level', function) or searchCode('fan_speed_enum', function):
+                            fan_code = 'fan_level' if searchCode('fan_level', function) else 'fan_speed_enum'
                             mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                            SendCommandTuya(DeviceID, 9, mode[int(Level / 10)])
+                            SendCommandTuya(DeviceID, fan_code, mode[int(Level / 10)])
                             UpdateDomoticz(DeviceID, 9, Level, 1, 0)
                         else:
                             wind = 'windspeed'
@@ -1829,7 +1830,11 @@ class BasePlugin:
                     elif Command == 'On' and Unit == 17:
                         SendCommandTuya(DeviceID, 'anti_bother', True)
                         UpdateDomoticz(DeviceID, Unit, True, 1, 0)
-
+                    extra = {30: 'turbo', 31: 'quiet', 32: 'sleep', 33: 'energy_save', 34: 'healthy'}
+                    if Unit in extra and Command in ('On', 'Off'):
+                        SendCommandTuya(DeviceID, extra[Unit], Command == 'On')
+                        UpdateDomoticz(DeviceID, Unit, Command == 'On', int(Command == 'On'), 0)
+                        
                 if dev_type in ('sensor', 'switch/sensor'):
                     if Command == 'Set Level' and Unit == 15:
                         SendCommandTuya(DeviceID, 'ph_warn_min', Level)
@@ -3423,7 +3428,12 @@ def onHandleThread(startup, local, target_dev_id=None):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Anti bother)", DeviceID=dev_id, Unit=17, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 18) and searchCode('fault', StatusProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Fault)", DeviceID=dev_id, Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
-
+                        for unit, code, label in ((30, 'turbo', 'Turbo'), (31, 'quiet', 'Quiet'),
+                                                  (32, 'sleep', 'Sleep'), (33, 'energy_save', 'Energy save'),
+                                                  (34, 'healthy', 'Health')):
+                            if createDevice(dev_id, unit) and searchCode(code, FunctionProperties):
+                                DomoticzEx.Unit(Name=f"{dev['name']} ({label})", DeviceID=dev_id, Unit=unit, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                                
                     if dev_type in ('sensor', 'switch/sensor'):
                         temp = searchCode('va_temperature', StatusProperties) or searchCode('temp_current', StatusProperties) or searchCode('local_temp', StatusProperties) or searchCode('Tin', StatusProperties)
                         hum = searchCode('va_humidity', StatusProperties) or searchCode('humidity_value', StatusProperties) or searchCode('local_hum', StatusProperties) or searchCode('humidity', StatusProperties) or searchCode('Hin', StatusProperties)
@@ -5309,6 +5319,8 @@ def onHandleThread(startup, local, target_dev_id=None):
                                 pass
                             update_dualvalue_device('temp_current', 'humidity_current', 16)
                             update_bool_device('anti_bother', 17)
+                            for unit, code in ((30, 'turbo'), (31, 'quiet'), (32, 'sleep'), (33, 'energy_save'), (34, 'healthy')):
+                                update_bool_device(code, unit)                            
                             update_text_device('fault',18)
                             battery_device()
 
@@ -6316,6 +6328,9 @@ def get_scale(device_functions, actual_function_name, raw):
             resultscale = float(raw / 2)
         if product_id == 'g9m7honkxjweukvt' and actual_function_name == 'temp_current':
             resultscale = float(raw / 10)
+        # AJOUT : splits Tuya "kt" dont temp_current est en demi-degrés
+        if product_id == '9xvzf8c0bg33eenj' and actual_function_name == 'temp_current':
+            resultscale = float(raw / 2)
         if unit == 'm':
             resultscale = float(resultscale * 100)
     except Exception:
