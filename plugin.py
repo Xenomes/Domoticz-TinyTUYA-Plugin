@@ -1640,14 +1640,19 @@ class BasePlugin:
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Color' and Unit == 6:
                         if searchCode('colour_data', function):
-                            # Parse Color data for Tuya format
+                            # Tuya colour_data is HSV, Domoticz sends RGB.
+                            # Set work_mode first: the device ignores colour_data
+                            # while work_mode is 'white'.
                             if len(Color) > 0 and 'm' in Color:
                                 if Color['m'] == 2:
-                                    # White
+                                    if searchCode('work_mode', function):
+                                        SendCommandTuya(DeviceID, 'work_mode', 'white')
                                     colour_data_value = {"h": 0, "s": 0, "v": Level}
                                 elif Color['m'] == 3:
-                                    # RGB
-                                    colour_data_value = {"h": int(Color['t'] * 360), "s": int(Color['s']), "v": Level}
+                                    if searchCode('work_mode', function):
+                                        SendCommandTuya(DeviceID, 'work_mode', 'colour')
+                                    h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
+                                    colour_data_value = {"h": h, "s": s, "v": v}
                                 else:
                                     colour_data_value = {"h": 0, "s": 0, "v": Level}
                             else:
@@ -2233,14 +2238,19 @@ class BasePlugin:
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Color' and Unit == 6:
                         if searchCode('colour_data', function):
-                            # Parse Color data for Tuya format
+                            # Tuya colour_data is HSV, Domoticz sends RGB.
+                            # Set work_mode first: the device ignores colour_data
+                            # while work_mode is 'white'.
                             if len(Color) > 0 and 'm' in Color:
                                 if Color['m'] == 2:
-                                    # White
+                                    if searchCode('work_mode', function):
+                                        SendCommandTuya(DeviceID, 'work_mode', 'white')
                                     colour_data_value = {"h": 0, "s": 0, "v": Level}
                                 elif Color['m'] == 3:
-                                    # RGB
-                                    colour_data_value = {"h": int(Color['t'] * 360), "s": int(Color['s']), "v": Level}
+                                    if searchCode('work_mode', function):
+                                        SendCommandTuya(DeviceID, 'work_mode', 'colour')
+                                    h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
+                                    colour_data_value = {"h": h, "s": s, "v": v}
                                 else:
                                     colour_data_value = {"h": 0, "s": 0, "v": Level}
                             else:
