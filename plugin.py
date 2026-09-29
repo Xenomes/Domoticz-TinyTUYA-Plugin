@@ -6074,8 +6074,6 @@ def SendCommandTuya(ID, CommandName, Status):
                 if hasattr(d, 'set_socketPersistent'):
                     d.set_socketPersistent(False)
 
-                DomoticzEx.Log(actual_function_name)
-
                 if is_cover and actual_function_name == 'control':
                     # standard Tuya cover: control DP with open/close/stop strings
                     if actual_status == 'open':
