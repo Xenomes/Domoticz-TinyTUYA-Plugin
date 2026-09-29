@@ -5,7 +5,7 @@
 **Repository:** Domoticz-TinyTUYA-Plugin
 **Main File:** plugin.py
 **Purpose:** Domoticz plugin for Tuya IoT devices with hybrid local/cloud control
-**Current Version:** 3.1.9
+**Current Version:** 3.2.0
 **Author:** Xenomes (xenomes@outlook.com)
 
 ## Architecture
@@ -190,6 +190,64 @@ Always use `rgb_to_hsv` (0-255 scale) for Tuya `colour_data`, not the
   `local_used` by `StatusDeviceTuya()` while the poll loop runs.
 - Logs a single line when a device enters or leaves this state.
 
+### Cloud usage counters
+
+Purpose: make visible how much of the monthly Tuya budget (API calls +
+Pulsar messages) the plugin itself consumes.
+
+- `_usage_days` is the in-memory store: `'YYYY-MM-DD' -> {'api': n, 'msg': n}`.
+- `_usage_load()` / `_usage_save()` persist the counter store in
+  `DomoticzEx.Configuration()` under key `USAGE_KEY` (`'cloud_usage'`).
+  Saving is throttled (`USAGE_SAVE_INTERVAL = 60`); forcing is possible
+  with `_usage_save(force=True)` (done in `onStop`).
+- `_usage_count('api')` is called by `_count_cloud_calls()`, which wraps
+  `Cloud._tuyaplatform()`. If that method does not exist (older tinytuya)
+  the public methods are wrapped instead, and the count is approximate.
+- `_usage_count('msg')` is called at the start of `_pulsar_on_message()`.
+- `_usage_tick()` runs from `onHeartbeat()`: saves, detects a day
+  rollover (`_usage_last_day != today`) and then logs the midnight
+  report plus the month forecast.
+- `_usage_create_devices()` creates the two `CloudCredits` units
+  (Type=243, Subtype=31, Custom `1;Calls` and `1;Msg`).
+- `_usage_update_devices()` pushes the month totals every hour
+  (`USAGE_DEVICE_UPDATE_INTERVAL = 3600`) with `AlwaysUpdate=1`, so
+  `LastUpdate` shows the plugin is alive.
+- Limits (`USAGE_LIMITS`) and the warning threshold
+  (`USAGE_WARN_FRACTION = 0.9`) are constants at the top of the file.
+
+**Note:** the counters cover only what **this** plugin sends. Other
+tools on the same Tuya project are not included, so the Tuya console
+(Cloud → Usage) can show a higher number.
+
+**Bar Ranges** on the two credits devices are not set from the plugin:
+the Domoticz feature is too recent and its internal storage format
+could not be verified. Users set them by hand once in Setup → Devices.
+
+### LAN / Pulsar logging helpers
+
+- `_format_value(value, max_len=80)` — readable rendering of a DP value
+  for log lines; long base64 blobs are shortened.
+- `_dp_code(dev_id, dp_id)` — translates a DP id to the function code via
+  `dps_map`, or `None` if unknown.
+- `_describe_local_dps(dev_id, dps)` — `'switch_1 (DP 1) = true, ...'`.
+- `_log_local_error(dev_id, source, reply)` — if the reply contains
+  `Err`/`Error`: a clear ERROR line with the translated meaning from
+  `_LOCAL_ERRORS` (901/902/904/905/914) and a hint. Repeats within
+  `_LOCAL_ERROR_REPEAT = 3600` seconds go to Debug.
+- `_log_local_message(dev_id, source, reply)` — INFO line for every
+  message arriving over the LAN (status reply, push, heartbeat).
+  Calls `_log_local_error()` first.
+- `_log_pulsar_message(data)` — INFO line for every Pulsar message, in
+  both the legacy and IoT Core shapes, before any processing.
+- `_log_realtime_capable_devices()` — startup overview of devices
+  covered by the Pulsar fast path (door contacts, motion sensors,
+  doorbells), with OK / MISMATCH (not yet in Domoticz) / MISMATCH
+  (orphaned in Domoticz).
+- `_device_name(dev_id)` — best-effort human-readable name; tries the
+  Tuya device list first, then `Devices[dev_id].Units[1].Name`, then the ID.
+- `_sys_date(d, kind)` — formats a date using the locale of the system
+  Domoticz runs on. Falls back to ISO when only C/POSIX is available.
+
 ## Build and Verification
 
 ### Syntax Check
@@ -214,9 +272,9 @@ Always use `rgb_to_hsv` (0-255 scale) for Tuya `colour_data`, not the
 The version number lives in **two places** in the XML header of
 `plugin.py` and must match:
 
-    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.9" ...>
+    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.0" ...>
         ...
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.9</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.0</h2><br/>
 
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
@@ -237,6 +295,8 @@ useful.
 | `protocol-3.4` | Anything related to the v3.4 cloud fallback path |
 | `local-control` | Changes to `LocalListener`, `LocalCovered`, or LAN polling |
 | `cloud` | Changes to Pulsar, cloud fallback, or the Tuya IoT API |
+| `cloud-usage` | Changes to the usage counters, credits devices or forecast |
+| `logging` | Changes to LAN / Pulsar message logging or error translation |
 | `color` | Changes to colour handling, `colour_data`, `work_mode`, `draw_tool` |
 | `good first issue` | Small, self-contained issues suitable for newcomers |
 | `help wanted` | Needs outside input or device logs |
@@ -251,6 +311,8 @@ Common combinations:
 - Shutter / plug / Télé regression: `bug` + `protocol-3.1`
 - Colour wheel not following the device: `bug` + `color`
 - New Thermor Niseko unit: `enhancement` + `device-support`
+- New usage counter or forecast change: `enhancement` + `cloud-usage`
+- Log line missing or wrong: `bug` + `logging`
 
 When in doubt, add `question` and ask for a log.
 
@@ -321,6 +383,28 @@ block and the status-update block drifting apart.
   populated by the initial UDP scan.
 - Never start a listener for a device that a command has to reach over
   the same TCP connection.
+
+### Usage counters
+- All counter mutations go through `_usage_count(kind, amount=1)`.
+  Never write to `_usage_days` directly.
+- `_usage_tick()` must be called from `onHeartbeat()`; it saves,
+  detects a day rollover and logs the report.
+- `_usage_save(force=True)` in `onStop()` guarantees the counters
+  survive a restart.
+- The device updates in `_usage_update_devices()` use `AlwaysUpdate=1`
+  on purpose: the hour stamp on the tile is the plugin's liveness.
+- When adding a new counter kind, extend `USAGE_LIMITS`, `USAGE_LABELS`
+  and (if applicable) `_usage_forecast_lines()` — do not hardcode a
+  third value anywhere.
+
+### Logging helpers
+- `_log_local_message()` and `_log_pulsar_message()` must never raise:
+  logging must not be able to break a connection. Wrap the body in
+  try/except if the surrounding code can throw.
+- Repeated TinyTuya errors are throttled in `_log_local_error()` via
+  `_local_error_logged`; keep the throttle key as `(dev_id, err)`.
+- `_device_name()` is the single place that resolves a raw `dev_id` to
+  a name for log output. Do not add local lookups elsewhere.
 
 ## Known Issues and Solutions
 
@@ -394,53 +478,82 @@ block and the status-update block drifting apart.
 - **Master:** Stable version with latest features
 
 ### Version Differences
-- **3.x:** Hybrid local/cloud control with Pulsar realtime updates
+- **3.x:** Hybrid local/cloud control with Pulsar realtime updates,
+  cloud usage counters and extended logging
 
 ## Recent Work
 
-### Latest Changes (Version 3.1.9)
-- Add Thermor Niseko HVAC support (PR #221, thanks @Chrominator):
-  optional units 30–34 for turbo, quiet, sleep, energy_save, healthy;
-  half-degree temperature scale for `product_id == '9xvzf8c0bg33eenj'`.
-- Fix light colour control: `work_mode` set before `colour_data` on
-  `light` Unit 1, `light` Unit 2, `aromatherapy` Unit 6,
-  `dehumidifier` Unit 6.
-- Fix `NameError: Colour` in `dehumidifier` Unit 6 handler — renamed to
-  `Color`.
-- Fix `KeyError: 's'` in `aromatherapy` and `dehumidifier` Unit 6
-  `Set Color`: use `rgb_to_hsv(Color['r'], Color['g'], Color['b'])`
-  instead of the non-existent `Color['s']` and the wrong `Color['t']`.
-- Humidifier RGB unit `nValue` follows `work_mode` instead of being
-  hardcoded to `1`.
-- **Code cleanup (same release):** SmartLock unlock methods, irrigation
-  area switches, switch multi-gang, Thermor HVAC extras and doorbell
-  status updates are now tuple-driven loops. This incidentally fixed a
-  pre-existing bug where the doorbell's Unit 7 status update used
-  `motion_area_switch` instead of `motion_tracking`.
+### Latest Changes (Version 3.2.0)
+- **Cloud usage counters**: per-day tracking of API calls and Pulsar
+  messages, persisted in the plugin configuration, with day / week /
+  month totals.
+- **Two 'credits' devices** per hardware instance
+  (`DeviceID = CloudCredits`, Unit 1 = API calls, Unit 2 = Pulsar
+  messages), updated hourly with `AlwaysUpdate=1`.
+- **Midnight report** with the day's final totals, device count against
+  the account maximum, and a month forecast (average/day, expected
+  month total, expected shortage date). Warnings repeat as ERROR lines.
+- **Hourly INFO summary** of the day/week/month totals.
+- **Extended logging**:
+  - `_log_local_message()` logs every LAN message (status reply, push,
+    heartbeat) with device name, IP, DP code and value.
+  - `_log_local_error()` translates TinyTuya error codes
+    (901/902/904/905/914) into plain language plus a hint, throttled to
+    one ERROR per device + code per hour.
+  - `_log_pulsar_message()` logs every Pulsar message at INFO level
+    before any processing, in both legacy and IoT Core shapes.
+  - `_log_realtime_capable_devices()` logs a startup overview of the
+    devices covered by the Pulsar fast path with OK / MISMATCH states.
+- **`_sys_date()`** formats dates in log lines and reports using the
+  locale of the system Domoticz runs on.
+- **`_device_name()`** helper resolves a raw `dev_id` to a
+  human-readable name for log output.
+- **`_count_cloud_calls()`** wraps `Cloud._tuyaplatform()` so every
+  HTTP request to Tuya is counted, with a fallback to counting public
+  methods on older tinytuya versions.
 
 ### Previous notable releases
-- `3.1.8`: Socket LED `switch_2` guard, light colour follow-up
-- `3.1.7`: Skip covers in start_local_listeners (#216) and socket LED `switch_2` guard
-- `3.1.6`: Skip all v3.1 devices in start_local_listeners (Télé plug and future v3.1 devices)
-- `3.1.5`: Skip covers in start_local_listeners (#216)
-- `3.1.4`: Local connection coverage, non-blocking SendCommandTuya
-- `3.1.3`: Pulsar per-instance logging, smarter cover dispatch
-- `3.1.2`: Cover fix follow-ups (#208)
-- `3.1.1`: RGBW/RGBWW white channel support for draw_tool
-- `3.1.0`: Add aromatherapy device (#200)
-- `3.0.9`: Add SmartLock unlock methods (#205)
-- `3.0.8`: Fix battery device detection, remove dead code
-- `3.0.7`: Fix local status fetch for Tuya v3.4 devices
+- `3.1.9`: Add Thermor Niseko HVAC support (PR #221, thanks
+  @Chrominator): optional units 30–34 for turbo, quiet, sleep,
+  energy_save, healthy; half-degree temperature scale for
+  `product_id == '9xvzf8c0bg33eenj'`.
+- `3.1.8`: Fix light colour control: `work_mode` set before
+  `colour_data` on `light` Unit 1, `light` Unit 2, `aromatherapy`
+  Unit 6, `dehumidifier` Unit 6. Fix `NameError: Colour` in
+  `dehumidifier` Unit 6 handler. Humidifier RGB `nValue` follows
+  `work_mode` instead of being hardcoded to `1`.
+- `3.1.7`: Add RGB LED ring as Unit 2 for socket devices with
+  `switch_led` + `work_mode` + `colour_data`.
+- `3.1.6`: Skip all v3.1 devices in `start_local_listeners` (fix Télé
+  plug and future v3.1 devices) (#216).
+- `3.1.5`: Local connection: leave covered devices out of the cloud poll.
+- `3.1.4`: Added pull request qxj weather station: Wind device from the
+  wind direction.
+- `3.1.3`: fix(powermeter): label 3-phase units by phase letter only
+  when multiple phases are present (#217).
+- `3.1.2`: fix(local): fire-and-forget for Tuya 3.1 devices to avoid
+  Err 901 cloud fallback (#216).
+- `3.1.1`: Add RGBW/RGBWW white channel support to draw_tool commands
+  for RGBIC lights #200.
+- `3.1.0`: Add aromatherapy device #200.
+- `3.0.9`: Add SmartLock unlock methods #205.
+- `3.0.8`: Fix battery device detection, remove dead code (Arjan), drop
+  bare excepts (PR #214 alternative).
+- `3.0.7`: Fix local status fetch for Tuya v3.4 devices.
 - `3.0.6`: Cloud fallback for non-local devices in local poll path
-- `3.0.5`: Add missing DeviceModelMapping() helper
-- `3.0.4`: DPS mapping robustness
-- `3.0.3`: Prevent IR/sub-devices from crashing the whole poll run
-- `3.0.2`: Fix infrared device support and command handling bugs
-- `3.0.1`: Fix for category detection of 'tdq'
-- `3.0.0`: Release of hybrid version
-- `3.0.0-rc.3`: Weather station barometer/rain units (PR #210) and multi-zone irrigation support (PR #209)
-- `3.0.0-rc.2`: Add refresh button functionality (Mode5) from PR #211
-- `3.0.0-rc.1`: Merge Master branch changes (2.4.0-2.4.5) into Hybrid
+  (fixes covers timing out after 3 minutes).
+- `3.0.5`: Add missing `DeviceModelMapping()` helper (fix NameError
+  during cloud-init for all devices).
+- `3.0.4`: DPS mapping robustness: skip schema entries without dp_id,
+  add `DeviceModelMapping` fallback for DPs missing from `getdps()`.
+- `3.0.3`: fix: prevent IR/sub-devices from crashing the whole poll run.
+- `3.0.2`: Fix infrared device support and command handling bugs.
+- `3.0.1`: Fix for category detection of 'tdq'.
+- `3.0.0`: Release of hybrid version.
+- `3.0.0-rc.3`: Weather station barometer/rain units (PR #210) and
+  multi-zone irrigation support (PR #209).
+- `3.0.0-rc.2`: Add refresh button functionality (Mode5) from PR #211.
+- `3.0.0-rc.1`: Merge Master branch changes (2.4.0-2.4.5) into Hybrid.
 
 ## Testing Approach
 
@@ -499,6 +612,35 @@ folder and restart.
 2. Toggle each unit that exists — the corresponding DP must change
 3. Confirm `temp_current` reads in half degrees on this device
 
+### Cloud usage testing
+1. Delete any `debug_*.json` files and restart the plugin.
+2. Check the log for `Created device '<hw> API Credits'` and
+   `Created device '<hw> Message Credits'`.
+3. Confirm in the Domoticz UI that both Custom Sensors exist and show a
+   number (initially 0 or the calls since start).
+4. Wait one full poll cycle: the API number must rise by roughly the
+   number of devices (one call per device status).
+5. Send a command to a cloud-only device: the API number rises by 1.
+6. Let a Pulsar message come in (open a door contact, trigger motion):
+   the message number rises by 1 and the log shows a
+   `Pulsar message from ...` line.
+7. Restart the plugin: the values must have been preserved via
+   `USAGE_KEY` in the configuration.
+8. Temporarily move the system clock (or a value in `_usage_days`) one
+   day forward to test the midnight report: a
+   `Tuya cloud usage on <date> (final)` line must appear, followed by
+   the month forecast.
+
+### Logging testing
+1. Trigger a LAN status read on a device with a known error (e.g. power
+   it off and force a poll): a single ERROR line with the translated
+   TinyTuya code and hint must appear.
+2. Force the same error again within the hour: nothing new on ERROR,
+   the repeat goes to Debug.
+3. Watch a Pulsar-triggered device (door contact, motion sensor): a
+   `Pulsar message from ...` INFO line appears even when the plugin
+   decides to ignore it because the device is reachable locally.
+
 ### Syntax Verification
 Always run `python3 -m py_compile plugin.py` after changes
 
@@ -513,6 +655,10 @@ Always run `python3 -m py_compile plugin.py` after changes
   poll-only by design, not an error
 - `!!! Warning Plugin overruled by local json files !!!` — testdata
   mode, delete the `debug_*.json` files
+- `Tuya cloud usage on <date> (final)` — the midnight report; the
+  forecast lines right below it show the expected month total
+- `Pulsar message from ... -- will be ignored` — expected for a device
+  that is reachable locally
 
 ## Dependencies
 
@@ -531,6 +677,7 @@ Always run `python3 -m py_compile plugin.py` after changes
 - **plugin.py:** Main plugin file (all logic)
 - **CHANGELOG.md:** Version history
 - **README.md:** User documentation
+- **AGENTS.md:** This file — architecture and conventions for agents
 - **tools/**: Debug and utility scripts
 - **backup/**: Backup files
 - **examples/**: Example configurations
@@ -558,6 +705,32 @@ Always run `python3 -m py_compile plugin.py` after changes
 - `LocalCovered(dev_id, dev_name)` - returns the codes the cloud poll
   would still have to bring; `[]` means the local connection already
   covers everything and the cloud read can be skipped.
+
+### Cloud usage
+- `_usage_count(kind, amount=1)` - add to today's counter ('api' or 'msg')
+- `_usage_load()` / `_usage_save(force=False)` - persist / restore the
+  counter store via `USAGE_KEY`
+- `_usage_totals()` - day / week / month totals
+- `_usage_summary()` - single-line text for the log
+- `_usage_forecast(kind)` / `_usage_forecast_lines()` - month forecast
+  and warnings
+- `_usage_midnight_report(ended_day)` - the report logged at midnight
+- `_usage_create_devices()` / `_usage_update_devices(force=False)` -
+  the `CloudCredits` units
+- `_usage_tick()` - called from `onHeartbeat()`
+- `_count_cloud_calls(cloud)` - wraps `Cloud._tuyaplatform()`
+
+### Logging
+- `_device_name(dev_id)` - resolve a raw id to a readable name
+- `_format_value(value, max_len=80)` - readable DP value
+- `_describe_local_dps(dev_id, dps)` - readable DP list
+- `_dp_code(dev_id, dp_id)` - DP id -> function code
+- `_log_local_message(dev_id, source, reply)` - INFO line per LAN message
+- `_log_local_error(dev_id, source, reply)` - translated TinyTuya error
+- `_log_pulsar_message(data)` - INFO line per Pulsar message
+- `_log_realtime_capable_devices()` - startup overview of the Pulsar
+  fast-path devices
+- `_sys_date(d, kind='day')` - locale-aware date format
 
 ### Colour helpers
 - `rgb_to_hsv(r, g, b)` - 0-255 scale, use for Tuya `colour_data`
@@ -624,3 +797,20 @@ Always run `python3 -m py_compile plugin.py` after changes
   IP scan. They are poll-only by design and do not work well with a
   persistent listener. The plugin handles this automatically from
   version 3.1.6 onwards.
+
+### The credits devices show a lower number than the Tuya console
+- Expected. The counters cover only this plugin. Other tools or
+  projects on the same Tuya Cloud account are not included.
+- On very old tinytuya versions the fallback in `_count_cloud_calls()`
+  counts public method calls instead of HTTP requests, which can be
+  lower than what Tuya actually bills.
+
+### Bar chart on the credits devices is empty
+- The plugin does not set Bar Ranges; set them once by hand in
+  Setup → Devices → edit the device → bar-chart icon. The setting is
+  saved with the device and survives restarts.
+
+### Midnight report not in the log
+- The report only fires when `_usage_tick()` sees a day rollover.
+  Check that `onHeartbeat()` still calls `_usage_tick()`, and that the
+  Domoticz system clock is correct.

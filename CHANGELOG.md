@@ -155,3 +155,4 @@
 | 3.1.7 | Add RGB LED ring as Unit 2 for socket devices with switch_led + work_mode + colour_data |
 | 3.1.8 | Fix light colour control: set work_mode to colour before colour_data, fix Colour typo, respect work_mode for humidifier RGB state #200 |
 | 3.1.9 | Add Thermor Niseko HVAC support (turbo/quiet/sleep/energy_save/healthy units, half-degree temp scale) thanks @Chrominator |
+| 3.2.0 | Cloud usage tracking (API calls and Pulsar messages per day, with monthly forecast and warnings), two 'credits' Custom Sensor devices, extended INFO logging of LAN and Pulsar messages including translated TinyTuya error codes, realtime devices overview at startup thanks @Arjan|

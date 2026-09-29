@@ -60,6 +60,10 @@ The Tuya Cloud is primarily used for **initial device discovery, DPS mapping and
 - **Realtime push updates** via Tuya Pulsar (optional, requires `tuya-connector-python`)
   - Automatic fall-back to polling when Pulsar is not available
   - Pulsar updates are automatically skipped for locally reachable devices to prioritize LAN communication
+- **Cloud usage tracking**: daily counters for API calls and Pulsar messages, with week/month totals, a month forecast and warning thresholds
+- **Two 'credits' Custom Sensor devices** per hardware instance showing month-to-date API calls and Pulsar messages
+- **Extended logging**: every LAN and Pulsar message is logged with the device name, DP code and value; TinyTuya error codes are translated with a hint
+- **Realtime devices overview** at startup: which devices are covered by Pulsar, which are missing in Domoticz, and which are orphaned
 
 ---
 
@@ -83,7 +87,7 @@ pip3 install tuya-connector-python #--break-system-packages # if needed
 
 This is optional - the plugin will automatically fall back to regular polling if this package is not installed.
 
-> For best compatibility, set your devices to **“DP instruction”**
+> For best compatibility, set your devices to **"DP instruction"**
 > in the device settings on https://iot.tuya.com
 
 ---
@@ -253,6 +257,173 @@ The button is meant to be pressed by something outside the plugin, for example:
 The buttons are created when the plugin starts, so press Update on the Hardware page after changing the field; "Accept new Hardware Devices" must be enabled in the Domoticz settings at that moment.
 
 [examples/refresh-button](examples/refresh-button) shows how to press the button whenever an OpenWrt router sees the device talk to the Tuya cloud: an nftables counter, a small script on the router and a dzVents script.
+
+---
+
+## Cloud usage / credits
+
+Tuya Cloud has a monthly budget per account. The plugin keeps its own counters so you can see how much
+of it *this* plugin is using, without having to open the Tuya console.
+
+### The two 'credits' devices
+
+On startup the plugin creates two **Custom Sensor** devices per hardware instance:
+
+| Device | Unit | Shows |
+|---|---|---|
+| `<hardware name> API Credits` | 1 | API calls sent to Tuya **this month** |
+| `<hardware name> Message Credits` | 2 | Pulsar messages received **this month** |
+
+They live under `DeviceID = CloudCredits`, which can never collide with a real Tuya device ID (those are
+long alphanumeric strings). Renaming them in the Domoticz UI is fine - the plugin addresses them by
+DeviceID/Unit, never by name.
+
+The values are refreshed **once an hour**, so the `LastUpdate` on the tile also tells you the plugin is
+alive. The counters are stored in the plugin configuration and survive a Domoticz restart.
+
+> **Bar Ranges are not set by the plugin.** That Domoticz feature is very recent and its internal storage
+> format could not be verified, so setting it blind would risk silently doing nothing. Set it once by hand
+> if you want the bar-chart indicator on the Dashboard:
+> **Setup → Devices → edit the device → bar-chart icon**, and enter your own ranges (e.g. 0–10000, 10000–20000,
+> 20000–30000 for the API credits). It is saved with the device and survives restarts.
+
+### What the counters do and do not cover
+
+The counters count only what **this plugin** sends and receives. Other tools or projects on the same
+Tuya Cloud account are not included, so the Tuya console (*Cloud → Usage*) can show a higher number than
+the credits devices do.
+
+The plugin counts every HTTP request that goes through `tinytuya.Cloud._tuyaplatform()`, which covers
+token refreshes, device list, status reads and commands. On very old tinytuya versions that method does
+not exist, and the plugin falls back to counting public method calls, which can be *lower* than what
+Tuya actually bills.
+
+### Midnight report and month forecast
+
+Every night at 00:00 the plugin logs a `Status`-level report with:
+
+- the **final totals** of the day that just ended (API calls and Pulsar messages)
+- the number of **Tuya devices** against the account maximum (`50`), with a warning when you are close
+- the **month forecast**: how much was used through yesterday, the average per day, the expected month
+  total and - if a shortage is expected - the date the maximum is likely to be reached
+
+On the first of the month the report shows the **final result of the month that just ended** instead of a
+forecast, since there is no complete day of data yet for the new month.
+
+Warnings are repeated as an `Error` line, so they show up in red in the Domoticz log.
+
+An **INFO summary** is logged once an hour with the current day/week/month totals:
+
+```
+Tuya cloud usage - API calls: today 42, this week 310, this month 1240 |
+Pulsar messages: today 8, this week 55, this month 210
+```
+
+### Tuning
+
+The limits and thresholds are constants at the top of `plugin.py`:
+
+| Constant | Default | Meaning |
+|---|---|---|
+| `USAGE_LIMITS` | `{'api': 30000, 'msg': 140000}` | monthly maximums of the Tuya account |
+| `USAGE_MAX_DEVICES` | `50` | maximum number of Tuya devices per account |
+| `USAGE_WARN_FRACTION` | `0.9` | fraction of the maximum from which a forecast is reported as a warning |
+| `USAGE_KEEP_DAYS` | `100` | how many days of history are kept in the configuration |
+| `USAGE_SAVE_INTERVAL` | `60` | seconds between writes of the counter store (throttled) |
+| `USAGE_LOG_INTERVAL` | `3600` | seconds between the hourly INFO summaries |
+| `USAGE_DEVICE_UPDATE_INTERVAL` | `3600` | seconds between credits-device updates |
+
+Change them to match your Tuya subscription tier.
+
+---
+
+## Logging
+
+From version 3.2.0 the plugin logs every message it sends or receives, so you can see exactly what is
+happening without enabling full debug mode.
+
+### LAN messages
+
+Every message arriving from a device over the LAN is logged at **INFO** level with the device name, the
+IP, what kind of message it is, and the data points it contains:
+
+```
+Local message from Living room light (bf1234...) at 192.168.1.42 [pushed by device]:
+switch_led (DP 20) = true, bright_value_v2 (DP 22) = 750
+```
+
+The `[...]` part says where the message came from:
+
+| Source | Meaning |
+|---|---|
+| `status reply on connect` | the first status read after the connection opens |
+| `periodic status reply` | the full status read every `LOCAL_REFRESH` seconds |
+| `heartbeat reply` | the answer to the keep-alive heartbeat |
+| `pushed by device` | the device reporting a change on its own |
+| `status reply, single query` | a one-off status read outside the persistent connection |
+| `status reply to wake-up ping` | the answer to the battery-device wake-up ping |
+
+Values longer than 80 characters (e.g. base64 blobs from LED strips or cameras) are shortened with a
+`... (N chars)` suffix.
+
+### Pulsar messages
+
+Every message arriving via Tuya Pulsar is logged at **INFO** level **before** the plugin decides what to
+do with it, in both supported shapes (legacy `status` and IoT Core `bizData`):
+
+```
+Pulsar message from Front door (bf1234...) [property report, bizCode devicePropertyMessage]:
+doorcontact_state = true
+Pulsar message from Living room light (bf1234...) [status update]:
+switch_led = true -- will be ignored, device is reachable locally at 192.168.1.42
+```
+
+The trailing note tells you whether the plugin will act on the message or not.
+
+### TinyTuya error codes
+
+When a device answers with an error instead of data, the plugin translates the TinyTuya error code into
+plain language and adds a hint. The first occurrence per device and per error code is logged at **ERROR**
+level; repeats within the next hour go to **Debug** level, so a device with a permanent problem does not
+fill the log every cycle.
+
+| Code | Meaning | Hint |
+|---|---|---|
+| 901 | network error, could not connect | check that the device is powered and reachable on the LAN |
+| 902 | timeout, no answer from device | device may be offline, asleep or busy with another connection |
+| 904 | unexpected payload, could not decode the answer | check the device key and protocol version |
+| 905 | device unreachable (no route to host) | check that the IP address is still correct, rescan the LAN |
+| 914 | answer could not be decrypted | the device was probably re-paired (new local key) or the protocol version is wrong; refresh the device data from the cloud and check the version with `python3 -m tinytuya scan` |
+
+### Realtime devices overview at startup
+
+When the Pulsar listener starts, the plugin logs a short overview of the devices that are covered by the
+realtime fast path (door contacts, motion sensors and doorbells):
+
+```
+Realtime (Pulsar) updates active for 3 device(s):
+  - OK: Front door (bf1234...) [door contact]
+  - OK: Hallway motion (bf5678...) [motion sensor]
+  - OK: Driveway doorbell (bf9012...) [doorbell (multiple units)]
+MISMATCH: 1 device(s) known to Tuya, but not yet created in Domoticz (will appear after the next regular poll):
+  - Garden motion (bf3456...) [motion sensor]
+MISMATCH: 1 orphaned device(s) found in Domoticz (present here, but Tuya no longer reports this ID -- likely after re-pairing/resetting the physical device):
+  - Old kitchen door (bf0000...)
+```
+
+The three categories mean:
+
+| Category | Meaning |
+|---|---|
+| **OK** | Tuya reports it and Domoticz has it: realtime updates apply correctly |
+| **not yet created in Domoticz** | Tuya reports it but Domoticz has not created the device yet, e.g. right after startup before the first poll has run |
+| **orphaned in Domoticz** | Domoticz has a device whose ID Tuya no longer reports at all - typically after a re-pair or factory reset, the old device stops receiving updates and can be removed manually |
+
+### Date format
+
+Dates in log lines and reports follow the locale of the system Domoticz runs on (e.g. `28-09-2026` on a
+Dutch system). Without a usable system locale the ISO format is used, since the C/POSIX default is the
+ambiguous US format.
 
 ---
 

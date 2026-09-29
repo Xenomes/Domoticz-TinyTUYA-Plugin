@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.1.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.1.9</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.0</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -138,6 +138,9 @@ import re
 import base64
 import traceback
 import threading
+import datetime
+import calendar
+import locale
 
 # Runtime timing
 last_update = 0
@@ -224,6 +227,526 @@ def _device_name(dev_id):
         return dev_id
 
 
+# --- Cloud usage counters ---------------------------------------------------
+# Counts how many requests this plugin sends to the Tuya cloud ("API calls") and
+# how many Pulsar push messages it receives ("messages"), per calendar day, so
+# day / week (Monday-Sunday) / month totals can be shown. The counters are kept
+# in the Domoticz plugin configuration so they survive a restart. This is what
+# THIS plugin uses; other programs on the same Tuya project are not included, so
+# the Tuya console (Cloud > Usage) can show a higher number.
+USAGE_KEY = 'cloud_usage'
+USAGE_KEEP_DAYS = 100          # older days are dropped from the store
+USAGE_SAVE_INTERVAL = 60       # seconds; changes are written at most this often
+USAGE_LOG_INTERVAL = 3600      # seconds between the periodic INFO summary
+# Maximums of the Tuya account (per month, and devices in total) and the share of
+# a maximum from which an expected month total is reported as a warning
+USAGE_LIMITS = {'api': 30000, 'msg': 140000}
+USAGE_LABELS = {'api': 'API calls', 'msg': 'Pulsar messages'}
+USAGE_MAX_DEVICES = 50
+USAGE_WARN_FRACTION = 0.9
+# Fixed DeviceID/Units for the two "credits" indicator devices this plugin
+# creates for itself. 'CloudCredits' can never collide with a real Tuya
+# device id (those are long alphanumeric strings from Tuya)
+USAGE_DEVICE_ID = 'CloudCredits'
+USAGE_UNIT_API = 1
+USAGE_UNIT_MSG = 2
+USAGE_DEVICE_UPDATE_INTERVAL = 3600     # seconds between device updates (hourly)
+_usage_last_device_update = 0
+_usage_lock = threading.Lock()
+_usage_days = {}               # 'YYYY-MM-DD' -> {'api': n, 'msg': n}
+_usage_dirty = False
+_usage_last_save = 0
+_usage_last_log = 0
+_usage_last_day = None
+
+
+def _usage_count(kind, amount=1):
+    """Add to today's counter ('api' or 'msg'). Cheap and thread-safe; the
+    actual saving to the configuration is done from the heartbeat."""
+    global _usage_dirty
+    try:
+        day = datetime.date.today().isoformat()
+        with _usage_lock:
+            bucket = _usage_days.setdefault(day, {'api': 0, 'msg': 0})
+            bucket[kind] = bucket.get(kind, 0) + amount
+            _usage_dirty = True
+    except Exception:
+        pass
+
+
+def _usage_totals():
+    """{'day': (api, msg), 'week': (api, msg), 'month': (api, msg)} for the
+    current calendar day, ISO week (Mon-Sun) and calendar month."""
+    today = datetime.date.today()
+    week_start = today - datetime.timedelta(days=today.weekday())
+    totals = {'day': [0, 0], 'week': [0, 0], 'month': [0, 0]}
+    with _usage_lock:
+        items = [(k, dict(v)) for k, v in _usage_days.items()]
+    for key, bucket in items:
+        try:
+            d = datetime.date.fromisoformat(key)
+        except ValueError:
+            continue
+        api, msg = bucket.get('api', 0), bucket.get('msg', 0)
+        periods = []
+        if d == today:
+            periods.append('day')
+        if week_start <= d <= today:
+            periods.append('week')
+        if d.year == today.year and d.month == today.month:
+            periods.append('month')
+        for period in periods:
+            totals[period][0] += api
+            totals[period][1] += msg
+    return totals
+
+
+def _usage_summary():
+    t = _usage_totals()
+    return (f"API calls: today {t['day'][0]}, this week {t['week'][0]}, this month {t['month'][0]} | "
+            f"Pulsar messages: today {t['day'][1]}, this week {t['week'][1]}, this month {t['month'][1]}")
+
+
+def _usage_load():
+    """Restore the counters saved before the last stop/restart."""
+    global _usage_last_day, _usage_last_log
+    try:
+        config = getConfigItem()
+        stored = config.get(USAGE_KEY) if isinstance(config, dict) else None
+        if isinstance(stored, dict):
+            with _usage_lock:
+                for day, bucket in stored.items():
+                    if isinstance(bucket, dict):
+                        mine = _usage_days.setdefault(day, {'api': 0, 'msg': 0})
+                        mine['api'] += int(bucket.get('api', 0))
+                        mine['msg'] += int(bucket.get('msg', 0))
+        _usage_last_day = datetime.date.today().isoformat()
+        _usage_last_log = time.time()
+        DomoticzEx.Log(f"Tuya cloud usage (restored after start) - {_usage_summary()}")
+    except Exception as e:
+        DomoticzEx.Error(f"Cloud usage: could not restore counters: {e}")
+
+
+def _usage_save(force=False):
+    """Write the counters to the plugin configuration (throttled unless forced)."""
+    global _usage_dirty, _usage_last_save
+    try:
+        if not _usage_dirty:
+            return
+        now = time.time()
+        if not force and now - _usage_last_save < USAGE_SAVE_INTERVAL:
+            return
+        cutoff = (datetime.date.today() - datetime.timedelta(days=USAGE_KEEP_DAYS)).isoformat()
+        with _usage_lock:
+            for day in [d for d in _usage_days if d < cutoff]:
+                del _usage_days[day]
+            snapshot = {d: dict(b) for d, b in _usage_days.items()}
+            _usage_dirty = False
+        _usage_last_save = now
+        setConfigItem(USAGE_KEY, snapshot)
+    except Exception as e:
+        DomoticzEx.Error(f"Cloud usage: could not save counters: {e}")
+
+
+_locale_lock = threading.Lock()
+
+
+def _sys_date(d, kind='day'):
+    """Date in the format of the system Domoticz runs on (the locale set in its
+    environment, e.g. 28-09-2026 on a Dutch system): kind 'day' gives the
+    locale's date format, kind 'month' gives month name and year. LC_TIME is
+    only switched for the moment of formatting and then put back. Without a
+    usable system locale (plain C/POSIX) the ISO format is used, as the C
+    format is the ambiguous US one."""
+    iso = d.isoformat() if kind == 'day' else d.strftime('%Y-%m')
+    try:
+        with _locale_lock:
+            previous = locale.setlocale(locale.LC_TIME)
+            try:
+                current = locale.setlocale(locale.LC_TIME, '')
+                if current in ('C', 'POSIX') or current.startswith('C.'):
+                    return iso
+                return d.strftime('%x' if kind == 'day' else '%B %Y')
+            finally:
+                locale.setlocale(locale.LC_TIME, previous)
+    except Exception:
+        return iso
+
+
+def _log_status(text):
+    """Log at Status level; a Domoticz without Status() gets a normal line."""
+    (getattr(DomoticzEx, 'Status', None) or DomoticzEx.Log)(text)
+
+
+def _usage_forecast(kind):
+    """Expected month total for 'api' or 'msg', from the days of this month
+    that are complete (yesterday and earlier). Returns a dict with used (so far,
+    through yesterday), avg (per day, None if there is no complete day of data
+    yet), projected (expected month total, or None) and reached (date the
+    maximum is expected to be reached, or None).
+
+    The first day this plugin ever counted is normally a partial day, so it is
+    left out of the average (but not out of 'used')."""
+    limit = USAGE_LIMITS[kind]
+    today = datetime.date.today()
+    month_start = today.replace(day=1)
+    days_in_month = calendar.monthrange(today.year, today.month)[1]
+    with _usage_lock:
+        items = [(k, dict(v)) for k, v in _usage_days.items()]
+    per_day = {}
+    recorded = []
+    for key, bucket in items:
+        try:
+            d = datetime.date.fromisoformat(key)
+        except ValueError:
+            continue
+        recorded.append(d)
+        if month_start <= d < today:
+            per_day[d] = bucket.get(kind, 0)
+    used = sum(per_day.values())
+    first_full = month_start
+    if recorded and min(recorded) >= month_start:
+        first_full = min(recorded) + datetime.timedelta(days=1)
+    n_full = (today - first_full).days
+    avg = projected = reached = None
+    if n_full >= 1:
+        total_full = sum(per_day.get(first_full + datetime.timedelta(days=i), 0) for i in range(n_full))
+        avg = total_full / n_full
+        remaining_days = days_in_month - (today.day - 1)      # today up to and including the last day
+        projected = used + avg * remaining_days
+        if projected > limit and avg > 0 and used < limit:
+            reached = today + datetime.timedelta(days=int((limit - used) // avg))
+    return {'limit': limit, 'used': used, 'avg': avg, 'projected': projected, 'reached': reached}
+
+
+def _usage_forecast_lines():
+    """[(text, is_warning), ...] for the API-call and message forecast."""
+    lines = []
+    for kind in ('api', 'msg'):
+        f = _usage_forecast(kind)
+        label, limit = USAGE_LABELS[kind], f['limit']
+        head = f"Month estimate {label}: used {f['used']:,} through yesterday, maximum {limit:,}"
+        if f['used'] >= limit:
+            lines.append((f"{head} - MAXIMUM REACHED, no credits left for this month", True))
+        elif f['projected'] is None:
+            lines.append((f"{head} - no estimate yet, needs at least one complete day of data this month", False))
+        else:
+            pct = f['projected'] / limit * 100
+            body = f"{head}, average {f['avg']:,.0f}/day, expected month total {f['projected']:,.0f} ({pct:.0f}% of maximum)"
+            if f['projected'] > limit:
+                when = f", maximum expected around {_sys_date(f['reached'])}" if f['reached'] else ''
+                lines.append((f"{body} - SHORTAGE expected{when}", True))
+            elif f['projected'] > limit * USAGE_WARN_FRACTION:
+                lines.append((f"{body} - WARNING: more than {USAGE_WARN_FRACTION * 100:.0f}% of the maximum expected, "
+                              f"risk of running short", True))
+            else:
+                lines.append((f"{body} - OK", False))
+    return lines
+
+
+def _usage_device_line():
+    """(text, is_warning) for the number of devices against the account maximum."""
+    try:
+        count = len(devs) if isinstance(devs, list) else None
+    except NameError:
+        count = None
+    if count is None:
+        return ("Tuya devices: number not known yet (device list not loaded), "
+                f"maximum {USAGE_MAX_DEVICES}", False)
+    pct = count / USAGE_MAX_DEVICES * 100
+    text = f"Tuya devices: {count} of maximum {USAGE_MAX_DEVICES} ({pct:.0f}%)"
+    if count > USAGE_MAX_DEVICES:
+        return (f"{text} - OVER THE MAXIMUM by {count - USAGE_MAX_DEVICES}", True)
+    if count > USAGE_MAX_DEVICES * USAGE_WARN_FRACTION:
+        return (f"{text} - WARNING: almost at the maximum, {USAGE_MAX_DEVICES - count} free", True)
+    return (f"{text} - {USAGE_MAX_DEVICES - count} free", False)
+
+
+def _usage_midnight_report(ended_day):
+    """Everything logged when a day has ended: the final total of that day, the
+    devices, and the estimate for the rest of the month (all Status level).
+    A warning is repeated as an Error line, so it shows up red in the log."""
+    with _usage_lock:
+        bucket = dict(_usage_days.get(ended_day, {}))
+    _log_status(f"Tuya cloud usage on {_sys_date(datetime.date.fromisoformat(ended_day))} (final) - API calls: {bucket.get('api', 0)}, "
+                f"Pulsar messages: {bucket.get('msg', 0)}")
+    warnings = []
+    text, warn = _usage_device_line()
+    _log_status(text)
+    if warn:
+        warnings.append(text)
+    if datetime.date.today().day == 1:
+        # A new month has just started: report how the month that ended closed,
+        # there is no data yet to estimate the new one
+        ended = datetime.date.fromisoformat(ended_day)
+        month_prefix = ended_day[:7]
+        with _usage_lock:
+            month = {k: dict(v) for k, v in _usage_days.items() if k.startswith(month_prefix)}
+        for kind in ('api', 'msg'):
+            total = sum(b.get(kind, 0) for b in month.values())
+            limit = USAGE_LIMITS[kind]
+            text = (f"Month result {_sys_date(ended, 'month')} {USAGE_LABELS[kind]}: {total:,} of maximum {limit:,} "
+                    f"({total / limit * 100:.0f}%)")
+            if total > limit:
+                text += " - MAXIMUM EXCEEDED"
+                warnings.append(text)
+            _log_status(text)
+        _log_status(f"Month estimate {_sys_date(datetime.date.today(), 'month')}: new month, "
+                    f"no estimate until one complete day of data is available")
+    else:
+        for text, warn in _usage_forecast_lines():
+            _log_status(text)
+            if warn:
+                warnings.append(text)
+    for text in warnings:
+        DomoticzEx.Error(f"WARNING Tuya cloud credits: {text}")
+
+
+def _usage_create_devices():
+    """Create the two 'credits' Custom Sensor devices for this hardware
+    instance if they do not exist yet (e.g. after an upgrade, or if they were
+    removed). They show how much of the monthly API-call and Pulsar-message
+    budget has been used so far this month. Renaming them in the GUI is fine;
+    the plugin only ever addresses them by DeviceID/Unit, never by name.
+
+    Ranges/colors for the Utility-tab bar indicator (Dashboard Dynamic, "Bar
+    Ranges") are NOT set here: that Domoticz feature is very recent and its
+    internal storage format could not be confirmed, so setting it blind risks
+    silently doing nothing or storing something wrong. Set it once by hand:
+    Setup > Devices, edit the device, click the bar-chart icon, and enter the
+    ranges below. It is saved with the device and survives restarts."""
+    try:
+        hw_name = Parameters.get('Name', 'Tuya')
+        if createDevice(USAGE_DEVICE_ID, USAGE_UNIT_API):
+            DomoticzEx.Unit(Name=f"{hw_name} API Credits", DeviceID=USAGE_DEVICE_ID,
+                             Unit=USAGE_UNIT_API, Type=243, Subtype=31,
+                             Options={'Custom': '1;Calls'}, Used=1).Create()
+            DomoticzEx.Log(f"Created device '{hw_name} API Credits' "
+                            f"(DeviceID={USAGE_DEVICE_ID}, Unit={USAGE_UNIT_API})")
+        if createDevice(USAGE_DEVICE_ID, USAGE_UNIT_MSG):
+            DomoticzEx.Unit(Name=f"{hw_name} Message Credits", DeviceID=USAGE_DEVICE_ID,
+                             Unit=USAGE_UNIT_MSG, Type=243, Subtype=31,
+                             Options={'Custom': '1;Msg'}, Used=1).Create()
+            DomoticzEx.Log(f"Created device '{hw_name} Message Credits' "
+                            f"(DeviceID={USAGE_DEVICE_ID}, Unit={USAGE_UNIT_MSG})")
+    except Exception as e:
+        DomoticzEx.Error(f"Cloud usage: could not create credits devices: {e}")
+
+
+def _usage_update_devices(force=False):
+    """Push the running month-to-date totals (today included) to the two
+    credits devices. Runs every USAGE_DEVICE_UPDATE_INTERVAL seconds so the
+    devices' LastUpdate also shows the plugin is alive, hence AlwaysUpdate."""
+    global _usage_last_device_update
+    try:
+        now = time.time()
+        if not force and now - _usage_last_device_update < USAGE_DEVICE_UPDATE_INTERVAL:
+            return
+        _usage_last_device_update = now
+        if not checkDevice(USAGE_DEVICE_ID, USAGE_UNIT_API):
+            return
+        totals = _usage_totals()
+        month_api, month_msg = totals['month']
+        UpdateDomoticz(USAGE_DEVICE_ID, USAGE_UNIT_API, month_api, 0, 0, AlwaysUpdate=1)
+        UpdateDomoticz(USAGE_DEVICE_ID, USAGE_UNIT_MSG, month_msg, 0, 0, AlwaysUpdate=1)
+    except Exception as e:
+        DomoticzEx.Error(f"Cloud usage: could not update credits devices: {e}")
+
+
+def _usage_tick():
+    """Called from onHeartbeat: save changes, report the final total of a day
+    that just ended, and log the periodic summary."""
+    global _usage_last_day, _usage_last_log
+    try:
+        today = datetime.date.today().isoformat()
+        if _usage_last_day and _usage_last_day != today:
+            _usage_midnight_report(_usage_last_day)
+            DomoticzEx.Log(f"Tuya cloud usage - {_usage_summary()}")
+            _usage_last_log = time.time()
+        _usage_last_day = today
+        if time.time() - _usage_last_log >= USAGE_LOG_INTERVAL:
+            _usage_last_log = time.time()
+            DomoticzEx.Log(f"Tuya cloud usage - {_usage_summary()}")
+        _usage_update_devices()
+        _usage_save()
+    except Exception as e:
+        DomoticzEx.Error(f"Cloud usage: tick failed: {e}")
+
+
+def _count_cloud_calls(cloud):
+    """Make a tinytuya.Cloud object count its requests. Every HTTP request to
+    Tuya (token, device list, status, commands, ...) goes through
+    Cloud._tuyaplatform(), so that is what gets wrapped. If a tinytuya version
+    has no such method, the public methods are counted instead (then one
+    method call = one request, which can be lower than what Tuya counts)."""
+    try:
+        if getattr(cloud, '_usage_counted', False):
+            return
+        original = getattr(cloud, '_tuyaplatform', None)
+        if callable(original):
+            def counted(*args, **kwargs):
+                _usage_count('api')
+                return original(*args, **kwargs)
+            cloud._tuyaplatform = counted
+        else:
+            DomoticzEx.Log("Cloud usage: this tinytuya version has no _tuyaplatform(), counting public calls (approximate)")
+            for name in ('cloudrequest', 'getdevices', 'getstatus', 'getproperties', 'getdps',
+                         'getfunctions', 'sendcommand', 'getconnectstatus', 'getdevicelog'):
+                method = getattr(cloud, name, None)
+                if callable(method):
+                    def make(m):
+                        def counted(*args, **kwargs):
+                            _usage_count('api')
+                            return m(*args, **kwargs)
+                        return counted
+                    setattr(cloud, name, make(method))
+        cloud._usage_counted = True
+    except Exception as e:
+        DomoticzEx.Error(f"Cloud usage: could not enable call counting: {e}")
+
+
+def _format_value(value, max_len=80):
+    """Readable rendering of a DP value for log lines. Long values (e.g.
+    base64 blobs from LED strips or cameras) are shortened."""
+    if isinstance(value, bool):
+        text = 'true' if value else 'false'
+    elif isinstance(value, str):
+        text = f"'{value}'"
+    else:
+        try:
+            text = json.dumps(value, ensure_ascii=False)
+        except Exception:
+            text = str(value)
+    if len(text) > max_len:
+        text = f"{text[:max_len]}... ({len(text)} chars)"
+    return text
+
+
+def _dp_code(dev_id, dp_id):
+    """Function code (e.g. 'switch_1') for a local DP id, or None if the
+    plugin does not (yet) know that DP for this device."""
+    try:
+        code = dps_map[dev_id]['by_id'].get(int(dp_id))
+        return None if not code or code == 'None' else code
+    except Exception:
+        return None
+
+
+def _describe_local_dps(dev_id, dps):
+    """'switch_1 (DP 1) = true, bright_value_v2 (DP 3) = 500' for a local
+    {dp_id: value} dict. Unknown DPs are marked as unmapped."""
+    parts = []
+    for dp_id, value in dps.items():
+        code = _dp_code(dev_id, dp_id)
+        label = f"{code} (DP {dp_id})" if code else f"DP {dp_id} (not mapped)"
+        parts.append(f"{label} = {_format_value(value)}")
+    return ', '.join(parts) if parts else 'no data points'
+
+
+# TinyTuya error codes that a device connection can return, with a plain
+# explanation and a hint what to check
+_LOCAL_ERRORS = {
+    '901': ('network error, could not connect', 'check that the device is powered and reachable on the LAN'),
+    '902': ('timeout, no answer from device', 'device may be offline, asleep or busy with another connection'),
+    '904': ('unexpected payload, could not decode the answer', 'check the device key and protocol version'),
+    '905': ('device unreachable (no route to host)', 'check that the IP address is still correct, rescan the LAN'),
+    '914': ('answer could not be decrypted: wrong local key or protocol version',
+            'the device was probably re-paired (new local key) or the protocol version is wrong; refresh the device data from the Tuya cloud and check the version with "python3 -m tinytuya scan"'),
+}
+# One error line per device and error code per hour; repeats go to Debug so a
+# device with a permanent problem does not fill the log every heartbeat
+_LOCAL_ERROR_REPEAT = 3600
+_local_error_logged = {}
+
+
+def _log_local_error(dev_id, source, reply):
+    """Clear ERROR line for a device that answered with an error instead of
+    data. Returns True if the reply was an error reply (and so handled)."""
+    if not isinstance(reply, dict) or not ('Err' in reply or 'Error' in reply):
+        return False
+    err = str(reply.get('Err', ''))
+    text = reply.get('Error', '')
+    ip = (localtuya.get(dev_id) or {}).get('ip', '?')
+    meaning, hint = _LOCAL_ERRORS.get(err, (f"{text or 'unknown error'}", 'see the TinyTuya error codes'))
+    msg = (f"Local error from {_device_name(dev_id)} ({dev_id}) at {ip} [{source}]: "
+           f"{meaning} (TinyTuya error {err or '?'}: {text}). Hint: {hint}")
+    now = time.time()
+    key = (dev_id, err)
+    if now - _local_error_logged.get(key, 0) >= _LOCAL_ERROR_REPEAT:
+        _local_error_logged[key] = now
+        DomoticzEx.Error(msg + f" (repeats are only logged in debug, next in {_LOCAL_ERROR_REPEAT // 3600} h)")
+    else:
+        DomoticzEx.Debug(msg)
+    return True
+
+
+def _log_local_message(dev_id, source, reply):
+    """INFO log entry for every message that arrives from a device over the
+    LAN. `source` says what kind of message it is (status reply, push by the
+    device itself, heartbeat reply, ...). Never raises: logging must not be
+    able to break the connection."""
+    try:
+        if _log_local_error(dev_id, source, reply):
+            return
+        ip = (localtuya.get(dev_id) or {}).get('ip', '?')
+        head = f"Local message from {_device_name(dev_id)} ({dev_id}) at {ip} [{source}]"
+        if isinstance(reply, dict) and isinstance(reply.get('dps'), dict):
+            DomoticzEx.Log(f"{head}: {_describe_local_dps(dev_id, reply['dps'])}")
+        else:
+            DomoticzEx.Log(f"{head}: no data points, raw message: {_format_value(reply, 200)}")
+    except Exception as e:
+        try:
+            DomoticzEx.Error(f"Local: could not log incoming message for {dev_id}: {e}")
+        except Exception:
+            pass
+
+
+def _log_pulsar_message(data):
+    """INFO log entry for every message that arrives via Tuya Pulsar, in
+    both supported shapes (legacy 'status' and IoT Core 'bizData'), before
+    the plugin decides whether it does anything with it. Never raises."""
+    try:
+        if not isinstance(data, dict):
+            DomoticzEx.Log(f"Pulsar message received (unexpected format): {_format_value(data, 200)}")
+            return
+        biz_code = data.get('bizCode')
+        biz_data = data.get('bizData') if isinstance(data.get('bizData'), dict) else {}
+        dev_id = biz_data.get('devId') or data.get('devId')
+        who = f"{_device_name(dev_id)} ({dev_id})" if dev_id else 'unknown device'
+
+        if isinstance(biz_data.get('properties'), list):
+            items = biz_data['properties']
+            kind = f"property report, bizCode {biz_code}" if biz_code else 'property report'
+        elif isinstance(data.get('status'), list):
+            items = data['status']
+            kind = 'status update'
+        else:
+            items = None
+            kind = f"bizCode {biz_code}" if biz_code else 'message'
+
+        if items is not None:
+            text = ', '.join(
+                f"{i.get('code')} = {_format_value(i.get('value'))}"
+                for i in items if isinstance(i, dict)
+            ) or 'no data points'
+        else:
+            # online/offline, events, and anything else without data points
+            rest = {k: v for k, v in (biz_data or data).items() if k not in ('devId', 'bizCode')}
+            text = _format_value(rest, 200) if rest else 'no further details'
+
+        try:
+            ip = (localtuya.get(dev_id) or {}).get('ip', '') if dev_id else ''
+        except Exception:
+            ip = ''
+        note = f" -- will be ignored, device is reachable locally at {ip}" if ip else ''
+        DomoticzEx.Log(f"Pulsar message from {who} [{kind}]: {text}{note}")
+    except Exception as e:
+        try:
+            DomoticzEx.Error(f"Pulsar: could not log incoming message: {e}")
+        except Exception:
+            pass
+
+
 def _pulsar_on_message(msg):
     """Called from the Pulsar network thread the instant Tuya reports a
     device status change (the same channel the Tuya app uses). We don't
@@ -247,11 +770,16 @@ def _pulsar_on_message(msg):
                           "bizData": {"devId": "...",
                                       "properties": [{"code":..,"value":..}]}}
     """
+    _usage_count('msg')
     try:
         data = json.loads(msg)
     except Exception as e:
-        DomoticzEx.Debug(f"Pulsar: could not parse message ({e}): {msg}")
+        DomoticzEx.Log(f"Pulsar message received but could not be parsed ({e}): {_format_value(msg, 200)}")
         return
+
+    # Log every incoming Pulsar message at INFO level, before anything else
+    # decides to ignore or process it
+    _log_pulsar_message(data)
 
     try:
         if 'bizData' in data:
@@ -1034,24 +1562,33 @@ class LocalListener(threading.Thread):
                                      connection_retry_limit=1, connection_retry_delay=1)
             device.set_socketTimeout(LOCAL_TIMEOUT)
             reply = device.status()
+            source = 'status reply on connect'
             next_status = time.time() + LOCAL_REFRESH
             next_beat = time.time() + LOCAL_BEAT
             while not self.stopping.is_set():
                 if isinstance(reply, dict) and 'Err' in reply:
                     self.error = str(reply.get('Error'))
+                    _log_local_message(self.dev_id, source, reply)
                     return
                 if isinstance(reply, dict) and isinstance(reply.get('dps'), dict):
                     self.dps.update({str(dp): value for dp, value in reply['dps'].items()})
                     self.connected, self.error = True, None
+                    _log_local_message(self.dev_id, source, reply)
+                elif isinstance(reply, dict) and reply:
+                    # A message without data points (e.g. heartbeat answer): still log it
+                    _log_local_message(self.dev_id, source, reply)
                 now = time.time()
                 if now >= next_status:
                     next_status = now + LOCAL_REFRESH
                     reply = device.status()
+                    source = 'periodic status reply'
                 elif now >= next_beat:
                     next_beat = now + LOCAL_BEAT
                     reply = device.heartbeat(nowait=True)
+                    source = 'heartbeat reply'
                 else:
                     reply = device.receive()
+                    source = 'pushed by device'
         except Exception as e:
             self.error = str(e)
         finally:
@@ -1219,8 +1756,11 @@ class BasePlugin:
             testdata = False
             fulllocal = False
         # DomoticzEx.Heartbeat(2)
+        _usage_load()
         onHandleThread(True, False)
         CreateRefreshUnits()
+        _usage_create_devices()
+        _usage_update_devices(force=True)
 
         # Start realtime push updates (falls back to poll-only if the
         # tuya-connector-python package isn't installed, or if it's not
@@ -1236,6 +1776,10 @@ class BasePlugin:
 
         stop_pulsar_listener()
         stop_local_listeners()
+
+        # Keep the cloud usage counters across the restart
+        _usage_save(force=True)
+        DomoticzEx.Log(f"Tuya cloud usage (at stop) - {_usage_summary()}")
 
         # Give background threads time to exit cleanly
         time.sleep(0.5)
@@ -2353,6 +2897,7 @@ class BasePlugin:
 
     def onHeartbeat(self):
         DomoticzEx.Debug('onHeartbeat called')
+        _usage_tick()
         if Devices:
             def _run_poll(do_cloud):
                 if not _handle_lock.acquire(blocking=False):
@@ -2555,6 +3100,10 @@ def onHandleThread(startup, local, target_dev_id=None):
                             apiSecret=Parameters['Password'],
                             apiDeviceID=Parameters['Mode2']
                         )
+                        # The constructor already fetched a token (one request);
+                        # every request after this is counted by the wrapper
+                        _usage_count('api')
+                        _count_cloud_calls(tuya)
                     except Exception as e:
                         DomoticzEx.Error(f"Tuya initialization failed: {e}")
                         return
@@ -2806,6 +3355,8 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                         # Send ping
                         ping_result = d.status()
+                        if isinstance(ping_result, dict) and ping_result:
+                            _log_local_message(dev_id, 'status reply to wake-up ping', ping_result)
                         if ping_result and isinstance(ping_result, dict) and 'dps' in ping_result:
                             DomoticzEx.Log(f"Battery device {dev.get('name', 'Unknown')} ({dev_id}) responded - woken up successfully")
                             # Update result cache with fresh status
@@ -2877,6 +3428,8 @@ def onHandleThread(startup, local, target_dev_id=None):
                         d.socketRetryLimit = 1
                         d.socketRetryDelay = 1
                         status = d.status()
+                        if isinstance(status, dict) and status:
+                            _log_local_message(dev_id, 'status reply, single query', status)
                         if status and isinstance(status, dict) and 'dps' in status and 'Error' not in status and 'Err' not in status:
                             online = True
                             ResultValue = MergeLocalDps(dev_id, status['dps'], ResultValue)
