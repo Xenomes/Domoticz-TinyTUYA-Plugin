@@ -203,6 +203,9 @@ Two lines in the log tell you where a device stands:
 |---|---|
 | `Local connection to X established` | the connection is open and X is reporting |
 | `Local connection to X lost: ...` | the connection dropped, with the reason; the plugin reconnects by itself |
+| `X sends every value its units read over the LAN, leaving it out of the cloud poll` | X costs no API calls for as long as that holds |
+| `X is back in the cloud poll: ...` | with the reason - either a value only the cloud brings, or the connection is gone |
+| `Skipping local listener for X (v3.1: single-connection protocol)` | see *Protocol v3.1 devices* below |
 
 The timing is set by four constants at the top of `plugin.py`. The defaults suit a normal home network and
 are worth changing only if yours is unusual:
@@ -216,6 +219,26 @@ are worth changing only if yours is unusual:
 
 A value a device does not send locally keeps whatever the cloud last gave it. Each connection starts with
 an empty set of values, so right after a reconnect a device has only what it has re-sent since.
+
+### Devices that stop costing API calls
+
+A device whose connection delivers every value its own Domoticz units read is left out of the cloud poll
+while that holds: reading it from the cloud would bring nothing new. Only the values the units actually
+read are counted, so the spare channels a device reports but nobody displays - the empty extra sensor
+slots of a weather station, for instance - do not keep it in the poll. As soon as something is missing,
+the connection drops, or a device reconnects and has not re-sent everything yet, it is read from the cloud
+again; each change is in the log with its reason.
+
+Nothing has to be configured for this, and the polling interval still applies to every device the LAN does
+not cover.
+
+### Protocol v3.1 devices
+
+A v3.1 device accepts only one TCP connection at a time. A permanent listener would hold the only slot,
+and the short-lived socket used to send a command would then be accepted but silently ignored - no error,
+the device just does not act. Those devices therefore get no listener: they are polled and controlled
+through the same short-lived socket, as they were before. You can tell which protocol a device speaks from
+the IP scan lines in the log.
 
 ---
 
