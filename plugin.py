@@ -2180,13 +2180,33 @@ class BasePlugin:
                         if searchCode('work_mode', function):
                             switch = 'work_mode'
                             mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                            DomoticzEx.Debug(f"Aromatherapy scene: Level={Level}, mode={mode}, sending={mode[int(Level / 10)]}")
                             SendCommandTuya(DeviceID, switch, mode[int(Level / 10)])
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Color' and Unit == 6:
                         if searchCode('colour_data', function):
-                            # Tuya colour_data is HSV, Domoticz sends RGB.
-                            # Set work_mode first: the device ignores colour_data
-                            # while work_mode is 'white'.
+                            if searchCode('lightmode', function):
+                                for item in function:
+                                    if item['code'] == 'lightmode':
+                                        the_values = json.loads(item['values'])
+                                        modes = []
+                                        if item['type'] == 'Bitmap':
+                                            modes.extend(the_values.get('label', []))
+                                        else:
+                                            modes.extend(the_values.get('range', []))
+                                        steady = None
+                                        for cand in ('steady', 'static', 'normal', 'constant'):
+                                            for m in modes:
+                                                if str(m).lower() == cand:
+                                                    steady = m
+                                                    break
+                                            if steady:
+                                                break
+                                        if steady is None and len(modes) > 2:
+                                            steady = modes[2]
+                                        if steady is not None:
+                                            SendCommandTuya(DeviceID, 'lightmode', steady)
+                                        break
                             if len(Color) > 0 and 'm' in Color:
                                 if Color['m'] == 2:
                                     if searchCode('work_mode', function):
@@ -2755,9 +2775,28 @@ class BasePlugin:
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Color' and Unit == 6:
                         if searchCode('colour_data', function):
-                            # Tuya colour_data is HSV, Domoticz sends RGB.
-                            # Set work_mode first: the device ignores colour_data
-                            # while work_mode is 'white'.
+                            if searchCode('lightmode', function):
+                                for item in function:
+                                    if item['code'] == 'lightmode':
+                                        the_values = json.loads(item['values'])
+                                        modes = []
+                                        if item['type'] == 'Bitmap':
+                                            modes.extend(the_values.get('label', []))
+                                        else:
+                                            modes.extend(the_values.get('range', []))
+                                        steady = None
+                                        for cand in ('steady', 'static', 'normal', 'constant'):
+                                            for m in modes:
+                                                if str(m).lower() == cand:
+                                                    steady = m
+                                                    break
+                                            if steady:
+                                                break
+                                        if steady is None and len(modes) > 2:
+                                            steady = modes[2]
+                                        if steady is not None:
+                                            SendCommandTuya(DeviceID, 'lightmode', steady)
+                                        break
                             if len(Color) > 0 and 'm' in Color:
                                 if Color['m'] == 2:
                                     if searchCode('work_mode', function):
@@ -6134,19 +6173,28 @@ def onHandleThread(startup, local, target_dev_id=None):
                             update_bool_device('light', 5)
 
                         if dev_type == 'aromatherapy':
+                            power_on = True
+                            if searchCode('Power', StatusProperties):
+                                power_on = bool(StatusDeviceTuya('Power'))
+
                             if update_bool_device('Power', 1):
                                 pass
-                            if update_bool_device('Light', 2):
-                                pass
+
+                            if searchCode('Light', StatusProperties):
+                                light_on = bool(StatusDeviceTuya('Light')) and power_on
+                                if (str(Devices[dev_id].Units[2].sValue) != str(int(light_on))
+                                        or Devices[dev_id].Units[2].nValue != int(light_on)):
+                                    UpdateDomoticz(dev_id, 2, light_on, int(light_on), 0)
+
                             if update_select_device('lightmode', 3):
                                 pass
                             if update_select_device('dp_mist_grade', 4):
                                 pass
                             if update_select_device('work_mode', 5):
                                 pass
+
                             if searchCode('colour_data', StatusProperties):
                                 currentcolor = StatusDeviceTuya('colour_data')
-                                # Handle JSON string format from Tuya
                                 if isinstance(currentcolor, str) and currentcolor.startswith('{'):
                                     try:
                                         parsed_color = json.loads(currentcolor)
@@ -6154,8 +6202,14 @@ def onHandleThread(startup, local, target_dev_id=None):
                                             currentcolor = parsed_color
                                     except Exception:
                                         pass
-                                if str(currentcolor) != str(Devices[dev_id].Units[6].sValue):
-                                    UpdateDomoticz(dev_id, 6, currentcolor, 1, 0)
+                                colour_mode = True
+                                if searchCode('work_mode', StatusProperties):
+                                    colour_mode = str(StatusDeviceTuya('work_mode')) == 'colour'
+                                rgb_on = power_on and colour_mode
+                                nval = 1 if rgb_on else 0
+                                if (str(currentcolor) != str(Devices[dev_id].Units[6].sValue)
+                                        or Devices[dev_id].Units[6].nValue != nval):
+                                    UpdateDomoticz(dev_id, 6, currentcolor, nval, 0)
 
                         if dev_type == 'waterleak':
                             update_bool_device('watersensor_state', 1, 'normal')
