@@ -2149,6 +2149,9 @@ class BasePlugin:
                     elif Command == 'On' and Unit == 2:
                         if searchCode('Light', function):
                             SendCommandTuya(DeviceID, 'Light', True)
+                            steady = find_steady_lightmode(function)
+                            if steady is not None:
+                                SendCommandTuya(DeviceID, 'lightmode', steady)
                             UpdateDomoticz(DeviceID, Unit, True, 1, 0)
                     elif Command == 'Off' and Unit == 2:
                         if searchCode('Light', function):
@@ -2185,36 +2188,14 @@ class BasePlugin:
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Color' and Unit == 6:
                         if searchCode('colour_data', function):
-                            if searchCode('lightmode', function):
-                                for item in function:
-                                    if item['code'] == 'lightmode':
-                                        the_values = json.loads(item['values'])
-                                        modes = []
-                                        if item['type'] == 'Bitmap':
-                                            modes.extend(the_values.get('label', []))
-                                        else:
-                                            modes.extend(the_values.get('range', []))
-                                        steady = None
-                                        for cand in ('steady', 'static', 'normal', 'constant'):
-                                            for m in modes:
-                                                if str(m).lower() == cand:
-                                                    steady = m
-                                                    break
-                                            if steady:
-                                                break
-                                        if steady is None and len(modes) > 2:
-                                            steady = modes[2]
-                                        if steady is not None:
-                                            SendCommandTuya(DeviceID, 'lightmode', steady)
-                                        break
+                            steady = find_steady_lightmode(function)
+                            if steady is not None:
+                                SendCommandTuya(DeviceID, 'lightmode', steady)
+
                             if len(Color) > 0 and 'm' in Color:
                                 if Color['m'] == 2:
-                                    if searchCode('work_mode', function):
-                                        SendCommandTuya(DeviceID, 'work_mode', 'white')
                                     colour_data_value = {"h": 0, "s": 0, "v": Level}
                                 elif Color['m'] == 3:
-                                    if searchCode('work_mode', function):
-                                        SendCommandTuya(DeviceID, 'work_mode', 'colour')
                                     h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
                                     colour_data_value = {"h": h, "s": s, "v": v}
                                 else:
@@ -5411,19 +5392,15 @@ def onHandleThread(startup, local, target_dev_id=None):
                             return True
 
                         def update_select_device(code, unit):
-                            # Check if the given code is present and device is valid
                             if not searchCode(code, StatusProperties) or not checkDevice(dev_id, unit):
                                 return False
-                            # Get the current mode of the device
                             currentmode = StatusDeviceTuya(code)
-                            # Get the mode configuration once
+                            if currentmode is None:
+                                return False
                             mode = getConfigItem(f"{dev_id}-{unit}", 'mode')
                             if mode is None or mode == {}:
-                                # Loop through StatusProperties to set the mode
                                 for item in StatusProperties:
                                     if item['code'] == code:
-                                        DomoticzEx.Debug(f"code: {item['code']}")
-                                        # Parse values based on item type
                                         the_values = json.loads(item['values'])
                                         mode = ['off']
                                         if item['type'] == 'Bitmap':
@@ -5431,17 +5408,15 @@ def onHandleThread(startup, local, target_dev_id=None):
                                         else:
                                             mode.extend(the_values['range'])
                                         setConfigItem(f"{dev_id}-{unit}", {'mode': mode})
-                                        break  # Exit the loop once we find the code
-                            # Calculate the new value
+                                        break
                             try:
                                 new_value = mode.index(str(currentmode)) * 10
                             except Exception:
                                 mode.append(currentmode)
-                                Devices[dev_id].Units[unit].Options={'LevelNames': '|'.join(mode)}
+                                Devices[dev_id].Units[unit].Options = {'LevelNames': '|'.join(mode)}
                                 setConfigItem(f"{dev_id}-{unit}", {'mode': mode})
                                 Devices[dev_id].Units[unit].Update(UpdateOptions=True)
                                 new_value = mode.index(str(currentmode)) * 10
-                            # Only update if the new value differs from the current value
                             if str(new_value) != str(Devices[dev_id].Units[unit].sValue):
                                 UpdateDomoticz(dev_id, unit, int(new_value), 1, 0)
                             return True
@@ -6173,19 +6148,17 @@ def onHandleThread(startup, local, target_dev_id=None):
                             update_bool_device('light', 5)
 
                         if dev_type == 'aromatherapy':
-                            power_on = True
-                            if searchCode('Power', StatusProperties):
-                                power_on = bool(StatusDeviceTuya('Power'))
-
+                            # Main power switch of the humidifier.
                             if update_bool_device('Power', 1):
                                 pass
 
-                            if searchCode('Light', StatusProperties):
-                                light_on = bool(StatusDeviceTuya('Light')) and power_on
-                                if (str(Devices[dev_id].Units[2].sValue) != str(int(light_on))
-                                        or Devices[dev_id].Units[2].nValue != int(light_on)):
-                                    UpdateDomoticz(dev_id, 2, light_on, int(light_on), 0)
+                            # Light follows its own DP only. On this device the light can be
+                            # switched on while the humidifier itself is off, so it must NOT be
+                            # gated on Power.
+                            if update_bool_device('Light', 2):
+                                pass
 
+                            # Selectors keep their last value so the setting stays visible.
                             if update_select_device('lightmode', 3):
                                 pass
                             if update_select_device('dp_mist_grade', 4):
@@ -6193,23 +6166,19 @@ def onHandleThread(startup, local, target_dev_id=None):
                             if update_select_device('work_mode', 5):
                                 pass
 
+                            # RGB unit: colour_data may be a JSON dict or a hex string like
+                            # 'DC0A00000200DC'. Decode it to RGB; nValue follows the Light
+                            # state (the light can be on while Power is off).
                             if searchCode('colour_data', StatusProperties):
                                 currentcolor = StatusDeviceTuya('colour_data')
-                                if isinstance(currentcolor, str) and currentcolor.startswith('{'):
-                                    try:
-                                        parsed_color = json.loads(currentcolor)
-                                        if isinstance(parsed_color, dict):
-                                            currentcolor = parsed_color
-                                    except Exception:
-                                        pass
-                                colour_mode = True
-                                if searchCode('work_mode', StatusProperties):
-                                    colour_mode = str(StatusDeviceTuya('work_mode')) == 'colour'
-                                rgb_on = power_on and colour_mode
-                                nval = 1 if rgb_on else 0
-                                if (str(currentcolor) != str(Devices[dev_id].Units[6].sValue)
-                                        or Devices[dev_id].Units[6].nValue != nval):
-                                    UpdateDomoticz(dev_id, 6, currentcolor, nval, 0)
+                                colour_dict = decode_colour_data(currentcolor)
+                                light_on = bool(StatusDeviceTuya('Light')) if searchCode('Light', StatusProperties) else False
+                                nval = 1 if light_on else 0
+                                if colour_dict is not None:
+                                    svalue = json.dumps(colour_dict)
+                                    if (str(svalue) != str(Devices[dev_id].Units[6].sValue)
+                                            or Devices[dev_id].Units[6].nValue != nval):
+                                        UpdateDomoticz(dev_id, 6, svalue, nval, 0)
 
                         if dev_type == 'waterleak':
                             update_bool_device('watersensor_state', 1, 'normal')
@@ -6886,6 +6855,54 @@ def hsv_to_rgb_v2(h, s, v):
     g = round(g * 255)
     b = round(b * 255)
     return r, g, b
+
+def decode_colour_data(raw):
+    if isinstance(raw, dict):
+        h, s, v = raw.get('h'), raw.get('s'), raw.get('v')
+        if h is None or s is None or v is None:
+            return None
+        r, g, b = hsv_to_rgb(int(h), int(s), int(v))
+        return {'m': 3, 'r': r, 'g': g, 'b': b, 't': 0, 'cw': 0, 'ww': 0}
+
+    if isinstance(raw, str) and len(raw) >= 6 and len(raw) % 2 == 0:
+        try:
+            data = bytes.fromhex(raw)
+        except ValueError:
+            return None
+        if len(data) < 3:
+            return None
+        r, g, b = data[0], data[1], data[2]
+        return {'m': 3, 'r': r, 'g': g, 'b': b, 't': 0, 'cw': 0, 'ww': 0}
+
+    return None
+
+
+def find_steady_lightmode(function):
+    for item in function or []:
+        if item.get('code') != 'lightmode':
+            continue
+        try:
+            the_values = json.loads(item['values'])
+        except Exception:
+            return None
+        modes = []
+        if item.get('type') == 'Bitmap':
+            modes.extend(the_values.get('label', []))
+        else:
+            modes.extend(the_values.get('range', []))
+        for cand in ('steady', 'static', 'normal', 'constant'):
+            for m in modes:
+                if str(m).lower() == cand:
+                    return m
+        # No named mode: the device uses numeric values. Mode 2 is
+        # steady on the models seen so far.
+        for m in modes:
+            if str(m) == '2':
+                return m
+        if len(modes) > 2:
+            return modes[2]
+        return None
+    return None
 
 def get_draw_tool_max_value(DeviceID):
     """Detect the max value (255 or 1000) for draw_tool brightness from device result"""

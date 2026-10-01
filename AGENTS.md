@@ -70,19 +70,23 @@
   reporting v3.1 in the initial IP scan.
 - **Not affected:** v3.3 and v3.4 devices keep their persistent listeners.
 
-### Work mode must be set before colour data
+### Work mode must be set before colour data — but not on every device
 
 - **Symptom:** Sending `colour_data` to a light whose `work_mode` is
   still `white` has no visible effect, or the device falls back to a
-  rainbow/effect mode. The Domoticz colour tile updates but the physical
-  light does not.
-- **Cause:** Tuya firmware ignores `colour_data` while `work_mode` is
-  `white`. The value is buffered but not applied.
-- **Fix:** whenever `Set Color` is sent with a colour-mode payload
-  (`Color['m'] == 3`), the plugin sends `work_mode = 'colour'`
+  rainbow/effect mode.
+- **Cause:** On **most** Tuya lights the firmware ignores `colour_data`
+  while `work_mode` is `white`.
+- **Fix (general case):** whenever `Set Color` is sent with a
+  colour-mode payload (`Color['m'] == 3`), send `work_mode = 'colour'`
   immediately before `colour_data`.
-- **Applies to:** `light` Unit 1, `light` Unit 2, `aromatherapy` Unit 6,
-  `dehumidifier` Unit 6, socket LED (Unit 2).
+- **Applies to:** `light` Unit 1, `light` Unit 2, socket LED (Unit 2).
+- **Exception — aromatherapy (`jsq`):** some firmware revisions interpret
+  `work_mode = 'colour'` (DP 109) as a request to switch the device
+  **off**, and they use `lightmode` (DP 110) rather than `work_mode` to
+  select between steady colour and cycling effects. On those devices the
+  plugin must **not** send `work_mode` at all; it sets a steady
+  `lightmode` instead. See *Aromatherapy Support* below.
 
 ### Domoticz colour dict — only m, r, g, b for mode 3
 
@@ -106,6 +110,12 @@ Always use `rgb_to_hsv` (0-255 scale) for Tuya `colour_data`, not the
 `_v2` variant (0-1000 scale). Tuya reports `colour_data` with `s` and
 `v` in 0-255 for most devices.
 
+**Reading** a Tuya `colour_data` value is a separate problem: the
+device can report it as JSON (`{'h':.., 's':.., 'v':..}`) **or** as a
+raw hex string (e.g. `DC0A00000200DC`). Never write the raw value into
+`sValue`; always decode it first with `decode_colour_data()` (see
+*Colour helpers*).
+
 ### Curtain Switch Support (Issue #208, #216)
 - Category 'qt' devices with "curtain" in product_name are treated as covers
 - Status mapping: 1=Open, 2=Close, 3=Stop
@@ -121,17 +131,63 @@ Always use `rgb_to_hsv` (0-255 scale) for Tuya `colour_data`, not the
 - Compatibility maintained for existing unit numbers
 
 ### Aromatherapy Support (Issue #200)
-- Unit 1: Power (main switch)
-- Unit 2: Light (light switch)
-- Unit 3: Lightmode (selector)
-- Unit 4: Mist grade (small/big selector)
-- Unit 5: Scene/Work mode (white/colour/scene/music selector)
-- Unit 6: RGB (color control)
-- Unit 6 `Set Color` (m==3) must send `work_mode = 'colour'` before
-  `colour_data`, and convert Domoticz RGB to Tuya HSV with `rgb_to_hsv`.
-- Unit 6 state update must respect `work_mode`: when the device reports
-  `white` (or anything other than `colour`) or the RGB switch is off,
-  the Domoticz RGB unit must not be forced to `nValue = 1`.
+
+Six units, plus a fallback for firmware variants that behave
+differently from the "generic" Tuya light.
+
+| Unit | DP | Notes |
+|---|---|---|
+| 1 | `Power` | main humidifier switch |
+| 2 | `Light` | light switch, **independent of `Power`** |
+| 3 | `lightmode` | selector: effect (1 = multicolour, 2 = steady, ...) |
+| 4 | `dp_mist_grade` | selector: mist intensity |
+| 5 | `work_mode` | selector: scene (white / colour / scene / music) |
+| 6 | `colour_data` | RGB colour, may be JSON or hex (see below) |
+
+#### Key facts learned from real devices
+
+- **`Light` is independent of `Power`.** The device can have
+  `Light = true` while `Power = false` (light-only mode). The Light
+  unit must follow its **own** DP and **not** be gated on the main
+  Power state. (Earlier attempts coupled them; that caused the Light
+  tile to flip back to off on every poll.)
+- **The RGB unit's `nValue` follows `Light`, not `Power`.** A colour
+  JSON in `sValue` does not imply the unit is on; the tile must be
+  grey unless `Light = true`.
+- **`colour_data` can be a hex string.** Older aromatherapy firmware
+  reports DP 108 as a raw 7-byte hex string (e.g. `DC0A00000200DC`)
+  rather than the JSON form. Decode with `decode_colour_data()`; never
+  write the raw string into `sValue`.
+- **`work_mode = 'colour'` can turn the device off.** On some firmware,
+  sending `work_mode = 'colour'` on DP 109 is interpreted as "switch
+  off". The plugin therefore does **not** send `work_mode` from the RGB
+  Set Color handler on aromatherapy devices. Instead it sets a steady
+  `lightmode` first.
+- **The device starts in `lightmode = 1` (multicolour).** Turning the
+  Light on without setting a lightmode produces a cycling effect.
+  The Light On handler must send a steady lightmode right after
+  `Light = true`. `find_steady_lightmode()` finds the value.
+- **`work_mode` is not echoed back.** On this firmware DP 109 is
+  write-only; it never appears in the status reply. The generic
+  `update_select_device()` would guess a value and flip the tile back
+  on every poll, so it now early-returns when `StatusDeviceTuya()`
+  returns `None` for the requested code.
+- **`colour_data` value on the device may not match what was sent.**
+  On this firmware `colour_data` often stays at its last value while
+  the light cycles or is off, so the RGB tile simply mirrors what the
+  device reports (decoded) and does not try to infer intent.
+
+#### What the plugin does on Set Color (Unit 6)
+
+1. Find the steady lightmode (`find_steady_lightmode()`) and send it.
+2. Build the `colour_data` payload from Domoticz' `Color` dict and send
+   it.
+3. **Do not send `work_mode`.**
+
+#### What the plugin does on Light On (Unit 2)
+
+1. Send `Light = true`.
+2. Send the steady lightmode, so the light does not start cycling.
 
 ### Socket with RGB LED ring
 - Category 'cz' sockets (e.g. Maxcio plug) expose two independent
@@ -146,6 +202,8 @@ Always use `rgb_to_hsv` (0-255 scale) for Tuya `colour_data`, not the
 - `colour_data` on such a device uses the classic 0–255 range for `s`
   and `v`, so the plain `rgb_to_hsv` / `hsv_to_rgb` helpers are used.
 - The `Set Color` payload must set `work_mode` before `colour_data`.
+  (This is the *general* rule; the aromatherapy exception above does
+  not apply here.)
 - The old `switch` block in `onCommand` is gated on `Unit == 1` so it
   does not build a bogus `switch_2` command for the LED unit.
 
@@ -279,6 +337,10 @@ The version number lives in **two places** in the XML header of
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
 
+**Aromatherapy follow-up for #200 is in `master` but not yet released:**
+the header is still on `3.2.0`. The next release that includes the
+aromatherapy fix should bump both places to `3.2.1`.
+
 ## GitHub Labels
 
 When opening or triaging issues and PRs, apply the repository's existing
@@ -313,6 +375,7 @@ Common combinations:
 - New Thermor Niseko unit: `enhancement` + `device-support`
 - New usage counter or forecast change: `enhancement` + `cloud-usage`
 - Log line missing or wrong: `bug` + `logging`
+- Aromatherapy follow-up: `bug` + `device-support` + `color`
 
 When in doubt, add `question` and ask for a log.
 
@@ -363,11 +426,19 @@ block and the status-update block drifting apart.
   JSON in `sValue` does not imply the unit is on.
 - Dimmer units need `nValue = 2` to redraw the slider from `LastLevel`.
   `nValue = 1` leaves the slider frozen.
+- `update_select_device()` must **early-return when the device does not
+  report the code**. Some Tuya firmware has DPs that are write-only
+  (e.g. `work_mode` on aromatherapy); guessing the current value makes
+  the tile flip on every poll. If `StatusDeviceTuya(code)` returns
+  `None`, leave the tile alone.
 
 ### Command Handling
 - Pattern: check function code, send command, update Domoticz
 - Special cases for dimmers, colors, multi-channel devices
-- When a colour command is sent, set `work_mode` before `colour_data`.
+- **General case:** when a colour command is sent, set `work_mode`
+  before `colour_data`.
+- **Aromatherapy exception:** do **not** send `work_mode`. Set a steady
+  `lightmode` first; see *Aromatherapy Support*.
 - When a socket has both a relay and an RGB LED, the plain switch
   handler must be gated on `Unit == 1`, and the LED handler on
   `Unit == 2`.
@@ -406,6 +477,20 @@ block and the status-update block drifting apart.
 - `_device_name()` is the single place that resolves a raw `dev_id` to
   a name for log output. Do not add local lookups elsewhere.
 
+### Colour decoding helpers
+- **Never write a raw Tuya colour value into `sValue`.** It may be JSON
+  *or* hex, and Domoticz expects a colour dict.
+- `decode_colour_data(raw)` is the single entry point: it accepts the
+  JSON dict form (`{'h','s','v'}`) **and** the hex string form
+  (`'DC0A00000200DC'`), and returns a Domoticz colour dict
+  (`{'m':3,'r','g','b','t':0,'cw':0,'ww':0}`) or `None` when the value
+  cannot be interpreted. Callers must handle `None` by leaving the tile
+  untouched, not by writing the raw value.
+- `find_steady_lightmode(function)` finds the "steady" value in a
+  `lightmode` enum by looking for `steady` / `static` / `normal` /
+  `constant`, falling back to index 2. Returns `None` when the device
+  has no `lightmode` DP; callers must skip the send in that case.
+
 ## Known Issues and Solutions
 
 ### Category Mismatches
@@ -423,12 +508,16 @@ block and the status-update block drifting apart.
 - RGB vs RGBW vs RGBWW format differences
 - Solution: Detect type from `bright_value` max and use appropriate encoding
 - `draw_tool` commands need special base64 encoding
-- **`work_mode` must be set before `colour_data`** on every device that
-  has a `work_mode` enum.
+- **`work_mode` must be set before `colour_data`** on the *general*
+  case, but **never on aromatherapy devices** (see the section on
+  aromatherapy).
 - **`nValue` on an RGB unit must follow the on/off state**, not be
-  hardcoded to `1`.
+  hardcoded to `1`. On aromatherapy devices the relevant on/off state
+  is `Light`, not `Power`.
 - **Colour dict for `m=3` should only carry `m, r, g, b`.** Extra fields
   can cause Domoticz to ignore the update.
+- **Reading `colour_data` requires decoding.** It can arrive as JSON or
+  as a hex string; use `decode_colour_data()`.
 
 ### Local Connection Issues
 - Protocol 3.4 devices may not respond to local queries
@@ -461,6 +550,18 @@ block and the status-update block drifting apart.
   updater)` helper makes the intent explicit. Behaviour is identical to
   the `if/elif` chain — first matching code wins, later codes skipped.
 
+### Aromatherapy firmware variants
+- Some firmware revisions have a `Power` DP that stays `false` while
+  `Light` is `true` (light-only mode). Never gate the Light unit on the
+  main Power state.
+- Some revisions interpret `work_mode = 'colour'` as "switch off". Never
+  send `work_mode` from the aromatherapy RGB handler.
+- `work_mode` (DP 109) is write-only on some revisions; it never appears
+  in the status reply. `update_select_device()` must early-return when
+  the value cannot be read, or the Scene tile flips back on every poll.
+- `colour_data` (DP 108) can be a hex string on older firmware; decode
+  it with `decode_colour_data()`.
+
 ### Testdata mode confusion
 - If the plugin's home folder contains `debug_devices.json`,
   `debug_functions.json`, or `debug_result.json`, the plugin runs in
@@ -483,7 +584,29 @@ block and the status-update block drifting apart.
 
 ## Recent Work
 
-### Latest Changes (Version 3.2.0)
+### In master, not yet released (aromatherapy #200 follow-up)
+- `Light` unit (2) no longer follows the main `Power` state. The device
+  can have the light on while the humidifier itself is off, so the
+  Light tile now tracks its own DP only.
+- `RGB` unit (6) `nValue` follows `Light` (not `Power`) and the RGB
+  tile only shows "on" when the light is actually on. Previously it was
+  hardcoded to `1`, which is why the tile stayed "Acceso" on every poll.
+- `colour_data` on the RGB unit is now decoded through
+  `decode_colour_data()` — supports both the JSON form and the hex
+  string form (`DC0A00000200DC`) that older aromatherapy firmware
+  reports. The raw value is never written into `sValue` again.
+- `Set Color` on the RGB unit no longer sends `work_mode` (this
+  firmware interprets `work_mode = 'colour'` as "switch off"). It sets
+  a steady `lightmode` first, using the new `find_steady_lightmode()`
+  helper.
+- `Light On` (Unit 2) now also sets the steady lightmode, so the light
+  does not start in the cycling multicolour mode it defaults to.
+- `update_select_device()` early-returns when the device does not
+  report the requested code, so the Scene (work_mode) tile no longer
+  flips back to `white` on every poll just because DP 109 is
+  write-only on this firmware.
+
+### Latest released (Version 3.2.0)
 - **Cloud usage counters**: per-day tracking of API calls and Pulsar
   messages, persisted in the plugin configuration, with day / week /
   month totals.
@@ -588,9 +711,30 @@ folder and restart.
 2. Set brightness to a mid value
 3. Pick a solid colour (red, then blue)
    - The physical light must actually change colour
-   - The log should show `work_mode = 'colour'` sent before `colour_data`
+   - On generic lights the log should show `work_mode = 'colour'` sent
+     before `colour_data`
+   - On aromatherapy devices the log should show a steady `lightmode`
+     sent before `colour_data`, and no `work_mode`
 4. Pick white
    - The light must return to white and honour the brightness slider
+
+### Aromatherapy testing (Issue #200)
+1. **Main switch off, Light on.** The Light tile must stay green, and
+   the RGB tile must go grey. Before the fix, the plugin flipped the
+   Light tile back to off on every poll.
+2. **Turn Light on.** The light must come up steady (not cycling). The
+   log must show a `lightmode` send right after the `Light = true` send.
+3. **Pick a colour on the RGB unit.** The physical light must change
+   colour, and the RGB tile must show a colour (not a hex string).
+   The log must **not** contain `dp_id 109 = colour`.
+4. **Pick a Scene on the Scene selector.** The tile must stay on
+   whatever was picked, and must not flip back to `white` on the next
+   poll. Whether picking `colour` turns the physical device off is a
+   firmware limitation, not a plugin bug — note it in the issue and
+   leave the fix at "the tile state is preserved".
+5. **Lightmode selector.** Toggling between values must work; the tile
+   must reflect the current value (it *is* reported back on this
+   firmware).
 
 ### RGB unit state testing
 1. Open the Humidifier RGB unit or the socket LED unit
@@ -659,6 +803,10 @@ Always run `python3 -m py_compile plugin.py` after changes
   forecast lines right below it show the expected month total
 - `Pulsar message from ... -- will be ignored` — expected for a device
   that is reachable locally
+- `[LOCAL] Command queued: dp_id 109 = colour` — on an aromatherapy
+  device this is a **bug**: DP 109 must not be sent from the RGB
+  handler. If you see this line, the aromatherapy RGB handler is
+  falling into the generic colour path.
 
 ## Dependencies
 
@@ -738,6 +886,14 @@ Always run `python3 -m py_compile plugin.py` after changes
 - `rgb_to_hsv_v2` / `hsv_to_rgb_v2` - 0-1000 scale, only for
   `colour_data_v2` devices
 - `brightness_to_pct` / `pct_to_brightness` - read min/max from schema
+- `decode_colour_data(raw)` - **new**. Accepts a Tuya `colour_data`
+  value in JSON or hex-string form and returns a Domoticz colour dict,
+  or `None` when the value cannot be interpreted. Callers must handle
+  `None` by leaving the tile untouched.
+- `find_steady_lightmode(function)` - **new**. Finds the "steady" value
+  in a `lightmode` enum (`steady` / `static` / `normal` / `constant`,
+  falling back to index 2). Returns `None` when the device has no
+  `lightmode` DP.
 
 ### Battery
 - `is_battery_device(StatusProperties)` - correctly recognises a device
@@ -767,13 +923,34 @@ Always run `python3 -m py_compile plugin.py` after changes
   line, the plugin is running a version older than 3.1.6.
 
 ### Light does not change colour
-- Check whether the plugin sends `work_mode = 'colour'` before
-  `colour_data`. If only `colour_data` is sent, the device is in white
-  mode and ignores it. Fixed in 3.1.9.
+- On generic lights: check whether the plugin sends
+  `work_mode = 'colour'` before `colour_data`. If only `colour_data`
+  is sent, the device is in white mode and ignores it. Fixed in 3.1.9.
+- On aromatherapy devices: check whether the plugin sends a steady
+  `lightmode` before `colour_data` and **does not** send `work_mode`.
+  Fixed in the #200 follow-up.
 
-### Humidifier RGB stays on
-- Check whether the `nValue` of Unit 6 is forced to `1` regardless of
-  `work_mode`. Fixed in 3.1.9.
+### Aromatherapy Light tile stays green while the humidifier is off
+- Not a bug. The Light unit follows its own `Light` DP, which can be
+  `true` while the humidifier's `Power` DP is `false`. Fixed in the
+  #200 follow-up (the Light tile used to be coupled to `Power`).
+
+### Aromatherapy RGB tile stays on / shows a hex string
+- Both were fixed in the #200 follow-up. The RGB tile now follows the
+  `Light` DP for its `nValue` and decodes the hex-string `colour_data`
+  through `decode_colour_data()`.
+
+### Aromatherapy Scene selector flips back
+- `work_mode` (DP 109) is write-only on some aromatherapy firmware. The
+  plugin now early-returns from `update_select_device()` when the
+  device does not report the code, so the tile stays on what was last
+  picked. Fixed in the #200 follow-up.
+
+### Picking "colour" on the Aromatherapy Scene selector turns the device off
+- Firmware behaviour, not a plugin bug. On this firmware DP 109 accepts
+  `white` but not `colour`. The plugin no longer sends `work_mode` from
+  the RGB handler, so picking a colour on the RGB unit does not turn
+  the device off. Use the RGB unit for colours, not the Scene selector.
 
 ### Socket LED does not respond
 - Check whether the plugin sends `switch_2`. If so, the plain `switch`
