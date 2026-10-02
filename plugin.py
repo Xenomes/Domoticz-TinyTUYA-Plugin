@@ -3428,6 +3428,7 @@ def onHandleThread(startup, local, target_dev_id=None):
             dev_product_name   = dev.get('product_name', 'Unknown Device')
             dev_type           = DeviceType(category, product_id, dev_product_name)
             dev_id             = dev.get('id', 'Unknown ID')
+            is_ir_device = dev_type in ('smartir', 'infrared', 'infrared_ac')
             online             = False
             now = time.time()
 
