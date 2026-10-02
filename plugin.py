@@ -1618,6 +1618,18 @@ def start_local_listeners():
                 local_state[dev_id] = False
                 DomoticzEx.Log(f"Skipping local listener for {dev.get('name', dev_id)} (v3.1: single-connection protocol)")
             continue
+        # IR controllers do not speak the normal Tuya LAN protocol for status.
+        # Opening a persistent connection to them only produces 905/904 errors.
+        try:
+            category = properties.get(dev_id, {}).get('category', '')
+            product_name = properties.get(dev_id, {}).get('product_name', '')
+            if DeviceType(category, None, product_name) in ('smartir', 'infrared', 'infrared_ac'):
+                if local_state.get(dev_id) is not False:
+                    local_state[dev_id] = False
+                    DomoticzEx.Log(f"Skipping local listener for {dev.get('name', dev_id)} (IR controller: no local status)")
+                continue
+        except Exception:
+            pass
         if dev_id not in local_listeners:
             local_listeners[dev_id] = LocalListener(dev_id, dev['key'])
             local_listeners[dev_id].start()
@@ -3428,7 +3440,13 @@ def onHandleThread(startup, local, target_dev_id=None):
 
             # LOCAL FIRST
             try:
-                if testdata:
+                if is_ir_device:
+                    # IR controllers have no local status to read. Keep whatever
+                    # the cloud last gave them; do not touch the LAN.
+                    DomoticzEx.Debug(f"IR device {dev['name']} id {dev['id']}: skipping local status, IR controllers have no local state")
+                    ResultValue, online = CloudFallback(dev_id, dev['name'], now)
+
+                elif testdata:
                     DomoticzEx.Debug(f"Testdata mode: loading status for device {dev['name']} id {dev['id']}")
                     with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
                         rData = json.load(rFile)
