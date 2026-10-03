@@ -657,7 +657,8 @@ _LOCAL_ERRORS = {
 # device with a permanent problem does not fill the log every heartbeat
 _LOCAL_ERROR_REPEAT = 3600
 _local_error_logged = {}
-
+_local_failures = {}
+_local_last_wake = {}
 
 def _log_local_error(dev_id, source, reply):
     """Clear ERROR line for a device that answered with an error instead of
@@ -671,6 +672,10 @@ def _log_local_error(dev_id, source, reply):
     msg = (f"Local error from {_device_name(dev_id)} ({dev_id}) at {ip} [{source}]: "
            f"{meaning} (TinyTuya error {err or '?'}: {text}). Hint: {hint}")
     now = time.time()
+    # Register this failure for the "is not recovering" detection. It
+    # counts even when the individual log line is throttled below.
+    _local_note_failure(dev_id, err, now)
+
     key = (dev_id, err)
     if now - _local_error_logged.get(key, 0) >= _LOCAL_ERROR_REPEAT:
         _local_error_logged[key] = now
@@ -679,15 +684,94 @@ def _log_local_error(dev_id, source, reply):
         DomoticzEx.Debug(msg)
     return True
 
+def _local_note_success(dev_id):
+    """Register a successful exchange with a device. Clears the error
+    history for it, restarts the settling period, and if there had been
+    failures since the last success, logs one clear INFO line saying it
+    recovered."""
+    state = _local_failures.setdefault(
+        dev_id,
+        {'errors': [], 'last_success': 0.0, 'alerted_at': 0.0, 'started_at': 0.0},
+    )
+    errors = state.get('errors') or []
+    if errors:
+        first_err = errors[0][1] if errors[0][1] else '?'
+        last_err = errors[-1][1] if errors[-1][1] else '?'
+        DomoticzEx.Log(
+            f"Local connection to {_device_name(dev_id)} ({dev_id}) recovered "
+            f"after {len(errors)} failed attempt(s) "
+            f"(first error {first_err}, last error {last_err})"
+        )
+    state['errors'] = []
+    state['last_success'] = time.time()
+    state['started_at'] = time.time()
+
+def _local_note_failure(dev_id, err_code, now):
+    """Register a failed exchange. If enough errors have accumulated in
+    LOCAL_ALERT_WINDOW without any successful reply in between, raise a
+    clear, throttled warning once.
+
+    A settling period after a (re)connect is honoured: a Tuya device can
+    take half a minute before it accepts a new TCP connection, and a
+    burst of errors in that window is not a problem.
+    """
+    state = _local_failures.setdefault(
+        dev_id,
+        {'errors': [], 'last_success': 0.0, 'alerted_at': 0.0, 'started_at': 0.0},
+    )
+    state['errors'].append((now, err_code))
+    # keep only the errors that fall inside the window
+    cutoff = now - LOCAL_ALERT_WINDOW
+    state['errors'] = [(t, e) for t, e in state['errors'] if t >= cutoff]
+
+    if len(state['errors']) < LOCAL_ALERT_MIN_ERRORS:
+        return
+
+    # Do not raise the warning during the settling period after a plugin
+    # start or a reconnect.
+    started = state.get('started_at') or 0.0
+    if started and now - started < LOCAL_ALERT_GRACE:
+        return
+
+    # Did the device answer successfully at any point since the first
+    # error in the current burst? If yes, the hik recovered by itself and
+    # this is not a sustained failure.
+    first_error_at = state['errors'][0][0]
+    if state['last_success'] >= first_error_at:
+        return
+
+    # Throttle the warning so it does not fill the log
+    if now - state['alerted_at'] < LOCAL_ALERT_REPEAT:
+        return
+
+    state['alerted_at'] = now
+    ip = (localtuya.get(dev_id) or {}).get('ip', '?')
+    first_err = state['errors'][0][1] or '?'
+    last_err = state['errors'][-1][1] or '?'
+    DomoticzEx.Error(
+        f"Local connection to {_device_name(dev_id)} ({dev_id}) at {ip} is not "
+        f"recovering: {len(state['errors'])} failed attempt(s) in the last "
+        f"{LOCAL_ALERT_WINDOW // 60} minutes without a successful reply "
+        f"(first error {first_err}, last error {last_err}). "
+        f"Device may be offline, on a different IP, or blocked on the network."
+    )
 
 def _log_local_message(dev_id, source, reply):
     """INFO log entry for every message that arrives from a device over the
     LAN. `source` says what kind of message it is (status reply, push by the
     device itself, heartbeat reply, ...). Never raises: logging must not be
     able to break the connection."""
+    state = _local_failures.setdefault(
+        dev_id, {'errors': [], 'last_success': 0.0, 'alerted_at': 0.0, 'started_at': 0.0}
+    )
+    state['started_at'] = time.time()
     try:
         if _log_local_error(dev_id, source, reply):
             return
+        # Any reply that is not an error counts as a successful exchange:
+        # it clears the failure history for this device and may log a
+        # "recovered" line if there had been errors since the last one.
+        _local_note_success(dev_id)
         ip = (localtuya.get(dev_id) or {}).get('ip', '?')
         head = f"Local message from {_device_name(dev_id)} ({dev_id}) at {ip} [{source}]"
         if isinstance(reply, dict) and isinstance(reply.get('dps'), dict):
@@ -1519,12 +1603,37 @@ LOCAL_BEAT = 20
 LOCAL_TIMEOUT = 5
 LOCAL_REFRESH = 300
 LOCAL_RETRY = 60
+LOCAL_WAKE_BEFORE_CONNECT = True
+LOCAL_WAKE_MIN_INTERVAL = 30
+LOCAL_ALERT_WINDOW = 300
+LOCAL_ALERT_MIN_ERRORS = 3
+LOCAL_ALERT_REPEAT = 3600
+LOCAL_ALERT_GRACE = 300
 local_listeners = {}
 local_state = {}
 local_used = {}
 local_skipped = {}
 reading_dev = None
 
+def _wake_device(dev_id):
+    """Send a quick UDP broadcast that Tuya devices answer to, to pull a
+    sleeping WiFi module back online before the first TCP connect. This
+    is the same mechanism the IP scan uses; a device that is answering
+    normally is not affected because the broadcast is just a packet on
+    the network. Throttled per device by LOCAL_WAKE_MIN_INTERVAL."""
+    if not LOCAL_WAKE_BEFORE_CONNECT:
+        return
+    now = time.time()
+    if now - _local_last_wake.get(dev_id, 0) < LOCAL_WAKE_MIN_INTERVAL:
+        return
+    _local_last_wake[dev_id] = now
+    try:
+        # tinytuya's broadcast scanner sends the standard UDP discovery
+        # packet and listens briefly. The response itself is not needed:
+        # receiving the packet is what wakes the device up.
+        tinytuya.deviceScan(verbose=False, maxretry=1, byID=True)
+    except Exception as e:
+        DomoticzEx.Debug(f"Wake-up broadcast for {_device_name(dev_id)} ({dev_id}) failed: {e}")
 
 class LocalListener(threading.Thread):
     # Keeps one LAN connection to a device and collects the DPs it reports. Runs outside the plugin
@@ -1552,9 +1661,9 @@ class LocalListener(threading.Thread):
 
     def listen(self, endpoint):
         device = None
-        # Every connection starts empty: whatever the device pushed while it was down is lost, so a value
-        # from an earlier connection may be outdated and only what arrives on the live one counts
         self.dps = {}
+        if self.error or not self.connected:
+            _wake_device(self.dev_id)
         try:
             device = tinytuya.Device(self.dev_id, endpoint['ip'], self.key,
                                      version=float(endpoint.get('version') or 3.3),
@@ -1650,7 +1759,8 @@ def stop_local_listeners():
             listener.join(30)
     local_listeners.clear()
     local_state.clear()
-
+    _local_failures.clear()
+    _local_last_wake.clear()
 
 def MergeLocalDps(dev_id, dps, ResultValue):
     # Lay the DPs a device reported over the LAN on top of the status the plugin holds for it, in the
@@ -3428,7 +3538,7 @@ def onHandleThread(startup, local, target_dev_id=None):
             dev_product_name   = dev.get('product_name', 'Unknown Device')
             dev_type           = DeviceType(category, product_id, dev_product_name)
             dev_id             = dev.get('id', 'Unknown ID')
-            is_ir_device = dev_type in ('smartir', 'infrared', 'infrared_ac')
+            is_ir_device       = dev_type in ('smartir', 'infrared', 'infrared_ac')
             online             = False
             now = time.time()
 
@@ -3463,6 +3573,12 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     elif dev_id in localtuya and localtuya[dev_id].get('ip', '') != '':
                         DomoticzEx.Debug(f"Local connection to device {dev['name']} id {dev['id']} using IP {localtuya[dev_id].get('ip', 'unknown')} and version {localtuya[dev_id].get('version', 'unknown')}")
+                        # If this device recently failed to answer, give it a
+                        # UDP nudge first: the first connect after a failure
+                        # has a high chance of hitting the TCP listener while
+                        # it is still closed.
+                        if _local_failures.get(dev_id, {}).get('errors'):
+                            _wake_device(dev_id)
                         d = tinytuya.Device(dev_id, localtuya[dev_id].get('ip'), dev['key'], version=localtuya.get(dev_id, {}).get('version', '3.3'))
                         d.socketRetryLimit = 1
                         d.socketRetryDelay = 1
@@ -6580,7 +6696,7 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
     Devices[ID].TimedOut = TimedOut
     unit.Update(Log=True)
 
-    DomoticzEx.Log(f"Update device: {Name} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}")
+    DomoticzEx.Debug(f"Update device: {Name} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}")
 
 def StatusDeviceTuya(Function):
     if searchCode(Function, StatusProperties):

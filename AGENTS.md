@@ -70,6 +70,45 @@
   reporting v3.1 in the initial IP scan.
 - **Not affected:** v3.3 and v3.4 devices keep their persistent listeners.
 
+### Sleeping Tuya WiFi modules
+
+- **Symptom:** A device that is online (the Tuya app can control it,
+  the UDP IP scan finds it) refuses the LAN connection with
+  `901 Unable to Connect`. A `ping` from a machine next to it fails with
+  `Destination Host Unreachable`, and `nc -zv <ip> 6668` fails with
+  `No route to host`. Seconds after the device is operated from the app
+  or HA, `nc` on port 6668 succeeds and stays succeeded for a while.
+- **Cause:** Many Tuya WiFi modules (especially ESP-based ones and the
+  BK7231) enter a low-power mode after a period of inactivity. In that
+  mode the module still **receives and answers UDP broadcasts**, but
+  its **TCP listener on port 6668 is closed**, and it often does not
+  even answer ARP or ICMP. That is why the UDP-based IP scan finds the
+  device while TCP connect and ping both fail: the module is asleep.
+- **Fix (option B, current):** Before the first TCP connect, the plugin
+  sends a short UDP discovery broadcast to the device that recently
+  failed. The same packet the IP scan uses. Receiving it pulls the
+  module back online in time to accept the connection. Throttled per
+  device so a device that is really offline is not spammed.
+- **Constants:** `LOCAL_WAKE_BEFORE_CONNECT = True`,
+  `LOCAL_WAKE_MIN_INTERVAL = 30` (seconds).
+- **State:** `_local_last_wake[dev_id]` holds the last wake-up time
+  per device.
+- **Helper:** `_wake_device(dev_id)` sends the broadcast via
+  `tinytuya.deviceScan(verbose=False, maxretry=1, byID=True)`. The
+  response itself is not needed; receiving the packet is what wakes
+  the device up.
+- **Where it runs:**
+  - `LocalListener.listen()`, right before the `tinytuya.Device(...)`
+    call, when `self.error` is set or the listener is not connected.
+  - `onHandleThread()`'s single-query fallback branch, when
+    `_local_failures[dev_id]['errors']` is not empty (i.e. the device
+    recently failed).
+- **Not run for:** a device that is answering normally. The check is
+  cheap and only fires when a recent failure is on record.
+- **Log signature of a successful wake-up:** the `901` stops, and
+  `Local connection to <name> established` appears immediately after,
+  followed by a `Local message from ... [status reply on connect]`.
+
 ### Work mode must be set before colour data — but not on every device
 
 - **Symptom:** Sending `colour_data` to a light whose `work_mode` is
@@ -306,6 +345,36 @@ could not be verified. Users set them by hand once in Setup → Devices.
 - `_sys_date(d, kind)` — formats a date using the locale of the system
   Domoticz runs on. Falls back to ISO when only C/POSIX is available.
 
+### "Is not recovering" detection
+
+Purpose: distinguish an occasional LAN hik that recovers by itself from
+a device that has really gone away.
+
+- **State:** `_local_failures[dev_id] = {'errors': [(t, err), ...],
+  'last_success': t, 'alerted_at': t, 'started_at': t}`.
+  A device is only warned about once per `LOCAL_ALERT_REPEAT` (1 h).
+- **Helpers:**
+  - `_local_note_success(dev_id)` — called by `_log_local_message()`
+    for every non-error reply. Clears `errors`, restarts the settling
+    period (`started_at`), and logs a single INFO line
+    `Local connection to <name> recovered after N failed attempt(s)`
+    when there had been errors.
+  - `_local_note_failure(dev_id, err_code, now)` — called by
+    `_log_local_error()`. Keeps only errors within
+    `LOCAL_ALERT_WINDOW` (5 min). Raises the ERROR-level warning
+    `... is not recovering: N failed attempt(s) ...` only when
+    `LOCAL_ALERT_MIN_ERRORS` (3) is reached, the settling period
+    `LOCAL_ALERT_GRACE` (5 min) has passed since the last success, no
+    successful reply has happened since the first error in the burst,
+    and `LOCAL_ALERT_REPEAT` has elapsed since the last warning.
+- **Constants:** `LOCAL_ALERT_WINDOW`, `LOCAL_ALERT_MIN_ERRORS`,
+  `LOCAL_ALERT_REPEAT`, `LOCAL_ALERT_GRACE`.
+- **Bug to avoid:** both helpers must call
+  `_local_failures.setdefault(...)` as their **first statement** so
+  `state` exists before it is read. A previous version of the patch
+  referenced `state` before it was created, giving
+  `UnboundLocalError: cannot access local variable 'state'`.
+
 ## Build and Verification
 
 ### Syntax Check
@@ -337,9 +406,9 @@ The version number lives in **two places** in the XML header of
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
 
-**Aromatherapy follow-up for #200 is in `master` but not yet released:**
-the header is still on `3.2.0`. The next release that includes the
-aromatherapy fix should bump both places to `3.2.1`.
+**Aromatherapy follow-up for #200 and the wake-up patch are in `master`
+but not yet released:** the header is still on `3.2.0`. The next release
+that includes them should bump both places to `3.2.1`.
 
 ## GitHub Labels
 
@@ -355,7 +424,7 @@ useful.
 | `device-support` | Adds or fixes support for a specific device type or product_id |
 | `protocol-3.1` | Anything related to the v3.1 single-connection limit |
 | `protocol-3.4` | Anything related to the v3.4 cloud fallback path |
-| `local-control` | Changes to `LocalListener`, `LocalCovered`, or LAN polling |
+| `local-control` | Changes to `LocalListener`, `LocalCovered`, LAN polling or the wake-up |
 | `cloud` | Changes to Pulsar, cloud fallback, or the Tuya IoT API |
 | `cloud-usage` | Changes to the usage counters, credits devices or forecast |
 | `logging` | Changes to LAN / Pulsar message logging or error translation |
@@ -376,6 +445,7 @@ Common combinations:
 - New usage counter or forecast change: `enhancement` + `cloud-usage`
 - Log line missing or wrong: `bug` + `logging`
 - Aromatherapy follow-up: `bug` + `device-support` + `color`
+- Sleeping device / wake-up work: `enhancement` + `local-control`
 
 When in doubt, add `question` and ask for a log.
 
@@ -454,6 +524,11 @@ block and the status-update block drifting apart.
   populated by the initial UDP scan.
 - Never start a listener for a device that a command has to reach over
   the same TCP connection.
+- Before the first connect of a listener that is not connected, or of a
+  device that recently failed, call `_wake_device(dev_id)` first. The
+  wake-up is throttled per device by `LOCAL_WAKE_MIN_INTERVAL`.
+- IR controllers (`smartir`, `infrared`, `infrared_ac`) get no listener
+  and no local status read at all; they only accept send-IR commands.
 
 ### Usage counters
 - All counter mutations go through `_usage_count(kind, amount=1)`.
@@ -476,6 +551,10 @@ block and the status-update block drifting apart.
   `_local_error_logged`; keep the throttle key as `(dev_id, err)`.
 - `_device_name()` is the single place that resolves a raw `dev_id` to
   a name for log output. Do not add local lookups elsewhere.
+- The "is not recovering" state must be created with
+  `_local_failures.setdefault(...)` as the first statement of both
+  `_local_note_failure()` and `_local_note_success()`, so `state` always
+  exists before it is read.
 
 ### Colour decoding helpers
 - **Never write a raw Tuya colour value into `sValue`.** It may be JSON
@@ -523,6 +602,10 @@ block and the status-update block drifting apart.
 - Protocol 3.4 devices may not respond to local queries
 - Solution: Cloud fallback with rate limiting
 - **Protocol 3.1 devices must not get a persistent listener**.
+- **Sleeping WiFi modules**: a device that is online but refuses the
+  LAN connection with 901 is probably in the Tuya low-power mode.
+  `_wake_device()` sends a UDP discovery broadcast first; see
+  *Sleeping Tuya WiFi modules*.
 
 ### Battery device detection
 - `is_battery_device()` handles both `str` and `list`/`dict` inputs.
@@ -562,6 +645,16 @@ block and the status-update block drifting apart.
 - `colour_data` (DP 108) can be a hex string on older firmware; decode
   it with `decode_colour_data()`.
 
+### `UnboundLocalError: cannot access local variable 'state'`
+- Symptom: every LAN reply logs
+  `Local: could not log incoming message for <id>: cannot access local
+  variable 'state' where it is not associated with a value`, and the
+  device falls back to the cloud on every poll.
+- Cause: in `_local_note_failure()` or `_local_note_success()`, `state`
+  is read before `_local_failures.setdefault(...)` has created it.
+- Fix: `state = _local_failures.setdefault(dev_id, {...})` must be the
+  **first** statement in both helpers.
+
 ### Testdata mode confusion
 - If the plugin's home folder contains `debug_devices.json`,
   `debug_functions.json`, or `debug_result.json`, the plugin runs in
@@ -580,9 +673,23 @@ block and the status-update block drifting apart.
 
 ### Version Differences
 - **3.x:** Hybrid local/cloud control with Pulsar realtime updates,
-  cloud usage counters and extended logging
+  cloud usage counters, extended logging and wake-up of sleeping
+  modules
 
 ## Recent Work
+
+### In master, not yet released (sleeping device wake-up)
+- **`_wake_device(dev_id)`**: sends a UDP discovery broadcast before
+  the first TCP connect of a device that recently failed, to pull a
+  sleeping Tuya WiFi module back online. Throttled per device by
+  `LOCAL_WAKE_MIN_INTERVAL`. Constants
+  `LOCAL_WAKE_BEFORE_CONNECT`, `LOCAL_WAKE_MIN_INTERVAL`.
+- Called from `LocalListener.listen()` (before the `tinytuya.Device`
+  call when `self.error` or not connected) and from the single-query
+  fallback in `onHandleThread()` when
+  `_local_failures[dev_id]['errors']` is not empty.
+- State: `_local_last_wake[dev_id]`, cleared in
+  `stop_local_listeners()`.
 
 ### In master, not yet released (aromatherapy #200 follow-up)
 - `Light` unit (2) no longer follows the main `Power` state. The device
@@ -605,6 +712,18 @@ block and the status-update block drifting apart.
   report the requested code, so the Scene (work_mode) tile no longer
   flips back to `white` on every poll just because DP 109 is
   write-only on this firmware.
+
+### In master, not yet released (LAN failure detection)
+- `_local_note_success()` / `_local_note_failure()`: per-device
+  detection of a device that keeps failing without a single successful
+  reply in between. Logs a single ERROR warning `... is not recovering:
+  N failed attempt(s) ...` when `LOCAL_ALERT_MIN_ERRORS` is reached
+  inside `LOCAL_ALERT_WINDOW`, the settling period `LOCAL_ALERT_GRACE`
+  has passed, no success has happened since the first error, and
+  `LOCAL_ALERT_REPEAT` has elapsed. Logs a single INFO line
+  `recovered after N failed attempt(s)` on the next successful reply.
+- Throttles the noise from devices that hiccup occasionally, while
+  still telling the user clearly when something is really wrong.
 
 ### Latest released (Version 3.2.0)
 - **Cloud usage counters**: per-day tracking of API calls and Pulsar
@@ -706,6 +825,22 @@ folder and restart.
    should read back the new state
 5. Send a command to one v3.3+ device — it should act as before
 
+### Sleeping device testing
+1. Pick a device that is online but has not been operated for a while,
+   so its TCP listener may be closed.
+2. Confirm from a shell next to Domoticz that
+   `nc -zv <ip> 6668` fails.
+3. Restart the plugin, or wait for the next poll with the device not in
+   the local listener's `connected` state.
+4. The log should show one wake-up followed by
+   `Local connection to <name> established` and then
+   `Local message from ... [status reply on connect]`.
+5. Confirm with `nc -zv <ip> 6668` from the shell that the port is now
+   open (the device was woken up by the broadcast).
+6. Confirm that the wake-up is throttled: two consecutive polls of the
+   same device should only show one wake-up attempt per
+   `LOCAL_WAKE_MIN_INTERVAL` seconds.
+
 ### Light colour testing
 1. Turn the light on
 2. Set brightness to a mid value
@@ -735,6 +870,22 @@ folder and restart.
 5. **Lightmode selector.** Toggling between values must work; the tile
    must reflect the current value (it *is* reported back on this
    firmware).
+
+### LAN failure detection testing
+1. Unplug a device that is currently in the local listener's
+   `connected` state, or block its port 6668 from the Domoticz host.
+2. Wait for at least `LOCAL_ALERT_MIN_ERRORS` failed polls inside
+   `LOCAL_ALERT_WINDOW`. You should see **one** ERROR line
+   `Local connection to <name> ... is not recovering: N failed
+   attempt(s) ...`.
+3. Keep the device offline. The warning must not repeat until
+   `LOCAL_ALERT_REPEAT` has passed.
+4. Plug the device back in / unblock the port. The plugin should log
+   `Local connection to <name> ... recovered after N failed attempt(s)
+   (first error ..., last error ...)` and then
+   `Local connection to <name> established`.
+5. Hiccups shorter than `LOCAL_ALERT_MIN_ERRORS` inside the window must
+   **not** produce the warning.
 
 ### RGB unit state testing
 1. Open the Humidifier RGB unit or the socket LED unit
@@ -797,6 +948,9 @@ Always run `python3 -m py_compile plugin.py` after changes
   send thread raised before completing
 - `Skipping local listener for <name> (v3.1: ...)` — the device is
   poll-only by design, not an error
+- `Skipping local listener for <name> (IR controller: no local status)`
+  — the device is an IR controller, has no local status, works through
+  the cloud only, not an error
 - `!!! Warning Plugin overruled by local json files !!!` — testdata
   mode, delete the `debug_*.json` files
 - `Tuya cloud usage on <date> (final)` — the midnight report; the
@@ -807,6 +961,15 @@ Always run `python3 -m py_compile plugin.py` after changes
   device this is a **bug**: DP 109 must not be sent from the RGB
   handler. If you see this line, the aromatherapy RGB handler is
   falling into the generic colour path.
+- `Local connection to <name> ... is not recovering: N failed
+  attempt(s) ...` — ERROR, raised at most once per `LOCAL_ALERT_REPEAT`
+  when the plugin believes the device is really gone. Look for the
+  matching `recovered after N failed attempt(s)` INFO line once the
+  device answers again.
+- `Local: could not log incoming message for <id>: cannot access local
+  variable 'state'` — **bug**: `state` is read before
+  `_local_failures.setdefault()` in `_local_note_failure()` or
+  `_local_note_success()`. `setdefault` must be the first statement.
 
 ## Dependencies
 
@@ -848,11 +1011,17 @@ Always run `python3 -m py_compile plugin.py` after changes
 
 ### Local connections
 - `LocalListener` - per-device persistent LAN connection. Only started
-  for devices whose protocol version is not 3.1.
+  for devices whose protocol version is not 3.1 and that are not IR
+  controllers.
 - `start_local_listeners()` / `stop_local_listeners()` - lifecycle
 - `LocalCovered(dev_id, dev_name)` - returns the codes the cloud poll
   would still have to bring; `[]` means the local connection already
   covers everything and the cloud read can be skipped.
+- `_wake_device(dev_id)` - send a UDP discovery broadcast to pull a
+  sleeping Tuya WiFi module back online. Throttled per device.
+- `_local_note_success(dev_id)` / `_local_note_failure(dev_id, err, now)`
+  - per-device LAN failure tracking, feeds the "is not recovering"
+  warning and the "recovered after N failed attempt(s)" INFO line.
 
 ### Cloud usage
 - `_usage_count(kind, amount=1)` - add to today's counter ('api' or 'msg')
@@ -921,6 +1090,22 @@ Always run `python3 -m py_compile plugin.py` after changes
   (`[protocol vX.Y]` in the initial IP scan). If it is v3.1 and the
   device still appears in a `Local connection to <name> established`
   line, the plugin is running a version older than 3.1.6.
+
+### Device is online but the plugin says 901 Unable to Connect
+- The device is probably in the Tuya low-power mode: it answers UDP
+  broadcasts but has closed the TCP listener. Confirm with
+  `nc -zv <ip> 6668` from a shell next to Domoticz: it will fail with
+  `No route to host` while the device is actually online. Operate the
+  device once from the app; `nc` will then succeed.
+- The plugin now sends a UDP wake-up (`_wake_device`) before the first
+  TCP connect of a device that recently failed, so it should recover by
+  itself. If the warning `is not recovering` appears, the device is
+  genuinely offline or on a different IP.
+
+### `cannot access local variable 'state'`
+- Bug in the "is not recovering" helpers. `_local_failures.setdefault`
+  must be the first statement of `_local_note_failure()` and
+  `_local_note_success()`. Fixed in the wake-up patch.
 
 ### Light does not change colour
 - On generic lights: check whether the plugin sends
