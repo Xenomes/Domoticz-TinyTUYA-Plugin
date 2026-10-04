@@ -6680,6 +6680,7 @@ def DeviceType(category, product_id=None, product_name=None):
     elif 'infrared_' in category: # keep it last
         resultdev = 'infrared'
 
+    DomoticzEx.Debug(resultdev)
     return resultdev
 
 def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
