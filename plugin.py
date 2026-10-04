@@ -694,8 +694,7 @@ def _log_local_error(dev_id, source, reply):
     text = reply.get('Error', '')
     ip = (localtuya.get(dev_id) or {}).get('ip', '?')
     meaning, hint = _LOCAL_ERRORS.get(err, (f"{text or 'unknown error'}", 'see the TinyTuya error codes'))
-    msg = (f"Local error from {_device_name(dev_id)} ({dev_id}) at {ip} [{source}]: "
-           f"{meaning} (TinyTuya error {err or '?'}: {text}). Hint: {hint}")
+    msg = f"{meaning} (TinyTuya error {err or '?'}: {text}). Hint: {hint}"
     now = time.time()
     # Register this failure for the "is not recovering" detection. It
     # counts even when the individual log line is throttled below.
@@ -704,9 +703,10 @@ def _log_local_error(dev_id, source, reply):
     key = (dev_id, err)
     if now - _local_error_logged.get(key, 0) >= _LOCAL_ERROR_REPEAT:
         _local_error_logged[key] = now
-        DomoticzEx.Error(msg + f" (repeats are only logged in debug, next in {_LOCAL_ERROR_REPEAT // 3600} h)")
+        Error(device=dev_id, name=_device_name(dev_id), ip=ip, event=source,
+              message=msg + f" (repeats are only logged in debug, next in {_LOCAL_ERROR_REPEAT // 3600} h)")
     else:
-        DomoticzEx.Debug(msg)
+        Debug(device=dev_id, name=_device_name(dev_id), ip=ip, event=source, message=msg)
     return True
 
 def _local_note_success(dev_id):
@@ -722,10 +722,10 @@ def _local_note_success(dev_id):
     if errors:
         first_err = errors[0][1] if errors[0][1] else '?'
         last_err = errors[-1][1] if errors[-1][1] else '?'
-        DomoticzEx.Log(
-            f"Local connection to {_device_name(dev_id)} ({dev_id}) recovered "
-            f"after {len(errors)} failed attempt(s) "
-            f"(first error {first_err}, last error {last_err})"
+        Log(
+            device=dev_id, name=_device_name(dev_id), event="recovered",
+            message=f"after {len(errors)} failed attempt(s) "
+                    f"(first error {first_err}, last error {last_err})"
         )
     state['errors'] = []
     state['last_success'] = time.time()
@@ -773,12 +773,12 @@ def _local_note_failure(dev_id, err_code, now):
     ip = (localtuya.get(dev_id) or {}).get('ip', '?')
     first_err = state['errors'][0][1] or '?'
     last_err = state['errors'][-1][1] or '?'
-    DomoticzEx.Error(
-        f"Local connection to {_device_name(dev_id)} ({dev_id}) at {ip} is not "
-        f"recovering: {len(state['errors'])} failed attempt(s) in the last "
-        f"{LOCAL_ALERT_WINDOW // 60} minutes without a successful reply "
-        f"(first error {first_err}, last error {last_err}). "
-        f"Device may be offline, on a different IP, or blocked on the network."
+    Error(
+        device=dev_id, name=_device_name(dev_id), ip=ip, event="is not recovering",
+        message=f"{len(state['errors'])} failed attempt(s) in the last "
+                f"{LOCAL_ALERT_WINDOW // 60} minutes without a successful reply "
+                f"(first error {first_err}, last error {last_err}). "
+                f"Device may be offline, on a different IP, or blocked on the network."
     )
 
 def _log_local_message(dev_id, source, reply):
@@ -798,14 +798,15 @@ def _log_local_message(dev_id, source, reply):
         # "recovered" line if there had been errors since the last one.
         _local_note_success(dev_id)
         ip = (localtuya.get(dev_id) or {}).get('ip', '?')
-        head = f"Local message from {_device_name(dev_id)} ({dev_id}) at {ip} [{source}]"
         if isinstance(reply, dict) and isinstance(reply.get('dps'), dict):
-            DomoticzEx.Log(f"{head}: {_describe_local_dps(dev_id, reply['dps'])}")
+            Log(device=dev_id, name=_device_name(dev_id), ip=ip, event=source,
+                message=_describe_local_dps(dev_id, reply['dps']))
         else:
-            DomoticzEx.Log(f"{head}: no data points, raw message: {_format_value(reply, 200)}")
+            Log(device=dev_id, name=_device_name(dev_id), ip=ip, event=source,
+                message=f"no data points, raw message: {_format_value(reply, 200)}")
     except Exception as e:
         try:
-            DomoticzEx.Error(f"Local: could not log incoming message for {dev_id}: {e}")
+            Error(device=dev_id, event="log error", message=f"could not log incoming message: {e}")
         except Exception:
             pass
 
@@ -816,12 +817,11 @@ def _log_pulsar_message(data):
     the plugin decides whether it does anything with it. Never raises."""
     try:
         if not isinstance(data, dict):
-            DomoticzEx.Log(f"Pulsar message received (unexpected format): {_format_value(data, 200)}")
+            Log(event="pulsar", message=f"message received (unexpected format): {_format_value(data, 200)}")
             return
         biz_code = data.get('bizCode')
         biz_data = data.get('bizData') if isinstance(data.get('bizData'), dict) else {}
         dev_id = biz_data.get('devId') or data.get('devId')
-        who = f"{_device_name(dev_id)} ({dev_id})" if dev_id else 'unknown device'
 
         if isinstance(biz_data.get('properties'), list):
             items = biz_data['properties']
@@ -848,10 +848,11 @@ def _log_pulsar_message(data):
         except Exception:
             ip = ''
         note = f" -- will be ignored, device is reachable locally at {ip}" if ip else ''
-        DomoticzEx.Log(f"Pulsar message from {who} [{kind}]: {text}{note}")
+        Log(device=dev_id, name=_device_name(dev_id) if dev_id else None, ip=ip or None, event=kind,
+            message=text + note)
     except Exception as e:
         try:
-            DomoticzEx.Error(f"Pulsar: could not log incoming message: {e}")
+            Error(event="pulsar", message=f"could not log incoming message: {e}")
         except Exception:
             pass
 
@@ -1558,27 +1559,27 @@ def _log_realtime_capable_devices():
                         existing_name = existing_id
                     orphaned.append(f"{existing_name} ({existing_id})")
         except Exception as e:
-            DomoticzEx.Debug(f"Pulsar: could not enumerate existing Domoticz devices for orphan check: {e}")
+            Debug(event="pulsar", message=f"could not enumerate existing Domoticz devices for orphan check: {e}")
 
         if active:
-            DomoticzEx.Log(f"Realtime (Pulsar) updates active for {len(active)} device(s):")
+            Log(event="pulsar", message=f"Realtime updates active for {len(active)} device(s):")
             for entry in active:
-                DomoticzEx.Log(f"  - OK: {entry}")
+                Log(event="pulsar", message=f"  - OK: {entry}")
 
         if missing_in_domoticz:
-            DomoticzEx.Log(f"MISMATCH: {len(missing_in_domoticz)} device(s) known to Tuya, but not yet created in Domoticz (will appear after the next regular poll):")
+            Log(event="pulsar", message=f"MISMATCH: {len(missing_in_domoticz)} device(s) known to Tuya, but not yet created in Domoticz (will appear after the next regular poll):")
             for entry in missing_in_domoticz:
-                DomoticzEx.Log(f"  - {entry}")
+                Log(event="pulsar", message=f"  - {entry}")
 
         if orphaned:
-            DomoticzEx.Log(f"MISMATCH: {len(orphaned)} orphaned device(s) found in Domoticz (present here, but Tuya no longer reports this ID -- likely after re-pairing/resetting the physical device; the old device no longer receives updates and can be removed manually):")
+            Log(event="pulsar", message=f"MISMATCH: {len(orphaned)} orphaned device(s) found in Domoticz (present here, but Tuya no longer reports this ID -- likely after re-pairing/resetting the physical device; the old device no longer receives updates and can be removed manually):")
             for entry in orphaned:
-                DomoticzEx.Log(f"  - {entry}")
+                Log(event="pulsar", message=f"  - {entry}")
 
         if not realtime_devices and not orphaned:
-            DomoticzEx.Log("No door contacts, motion sensors, or doorbells found for this instance -- realtime Pulsar updates are not applicable right now.")
+            Log(event="pulsar", message="No door contacts, motion sensors, or doorbells found for this instance -- realtime Pulsar updates are not applicable right now.")
     except Exception as e:
-        DomoticzEx.Debug(f"Pulsar: could not build realtime-devices overview: {e}")
+        Debug(event="pulsar", message=f"could not build realtime-devices overview: {e}")
 
 
 def stop_pulsar_listener():
