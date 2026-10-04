@@ -1,145 +1,3 @@
-# Domoticz TinyTUYA Plugin - Agent Documentation
-
-## Project Overview
-
-**Repository:** Domoticz-TinyTUYA-Plugin
-**Main File:** plugin.py
-**Purpose:** Domoticz plugin for Tuya IoT devices with hybrid local/cloud control
-**Current Version:** 3.2.0
-**Author:** Xenomes (xenomes@outlook.com)
-
-## Architecture
-
-### Hybrid Control System
-- **Cloud Communication:** Used for initial device discovery, DPS mapping, and configuration
-- **Local Communication:** Uses TinyTuya library for device control and status updates
-- **Fallback:** Automatically falls back to cloud when local control is unavailable
-- **Realtime Updates:** Tuya Pulsar websocket for push updates from devices
-
-### Key Components
-- **plugin.py:** Main plugin file with all device logic
-- **TinyTuya:** Python library for local Tuya device communication
-- **Tuya Cloud API:** Used for device discovery and configuration
-
-## Device Categorization
-
-### Main Device Types
-- **switch/sensor:** Basic switches with optional sensor functionality
-- **switch:** Basic switches without sensors (e.g. Maxcio plug, category 'cz')
-- **light:** RGB/RGBW/RGBWW lights, dimmers, fans with lights
-- **thermostat/heater/heatpump:** Temperature control devices
-- **cover:** Curtains, blinds, shutters
-- **smartlock:** Door locks with multiple unlock methods
-- **aromatherapy:** Aroma diffusers with light and mist control
-- **dehumidifier:** Humidity control devices
-- **sensor:** Motion sensors, temperature/humidity sensors
-- **doorcontact:** Door/window contact sensors
-- **Other:** Many specialized device types
-
-### Special Categories
-- **Category 'qt':** Ambiguous - can be smoke detector OR curtain switch (detected via product_name)
-- **Category 'wnykq':** Smart IR devices (currently marked as unsupported)
-- **Category 'jsq':** Aromatherapy devices
-- **Category 'ms'/'jtmspro':** Smart locks
-- **Category 'cz':** Smart socket, possibly with RGB LED ring (e.g. Maxcio plug)
-- **Category 'dc':** Light, sometimes RGBIC multi-LED strip (e.g. Faretti esterni, KSIX BXOUTL1)
-- **Category 'kt':** Air conditioner (e.g. Thermor Niseko, half-degree temperature scale)
-
-## Important Implementation Details
-
-### Tuya protocol v3.1 single-connection limit
-
-- **Symptom:** Commands work for the first ~20 seconds after plugin
-  startup, then stop responding once the log shows
-  `Local connection to <name> established`. The plugin still logs
-  `[LOCAL] Command sent` but the device does not act, and the next poll
-  reports the unchanged state.
-- **Cause:** Tuya v3.1 firmware accepts only one TCP connection per
-  device. `LocalListener` opens a persistent socket (`persist=True`) to
-  receive pushed DP updates. `SendCommandTuya` then opens a *second*
-  socket to send the command. The device accepts the second handshake
-  but drops the payload, so nothing errors in the log while the command
-  is lost.
-- **Fix:** `start_local_listeners()` reads the protocol version from
-  `localtuya[dev_id]['version']` and skips every device whose version
-  is `3.1`. Those devices are poll-only: the poll loop opens a
-  short-lived socket, reads the status, closes it — the same connection
-  style `SendCommandTuya` uses, so the two no longer fight over the
-  single slot.
-- **Covered by this rule:** every Maxcio device, and any other device
-  reporting v3.1 in the initial IP scan.
-- **Not affected:** v3.3 and v3.4 devices keep their persistent listeners.
-
-### Sleeping Tuya WiFi modules
-
-- **Symptom:** A device that is online (the Tuya app can control it,
-  the UDP IP scan finds it) refuses the LAN connection with
-  `901 Unable to Connect`. A `ping` from a machine next to it fails with
-  `Destination Host Unreachable`, and `nc -zv <ip> 6668` fails with
-  `No route to host`. Seconds after the device is operated from the app
-  or HA, `nc` on port 6668 succeeds and stays succeeded for a while.
-- **Cause:** Many Tuya WiFi modules (especially ESP-based ones and the
-  BK7231) enter a low-power mode after a period of inactivity. In that
-  mode the module still **receives and answers UDP broadcasts**, but
-  its **TCP listener on port 6668 is closed**, and it often does not
-  even answer ARP or ICMP. That is why the UDP-based IP scan finds the
-  device while TCP connect and ping both fail: the module is asleep.
-- **Fix (option B, current):** Before the first TCP connect, the plugin
-  sends a short UDP discovery broadcast to the device that recently
-  failed. The same packet the IP scan uses. Receiving it pulls the
-  module back online in time to accept the connection. Throttled per
-  device so a device that is really offline is not spammed.
-- **Constants:** `LOCAL_WAKE_BEFORE_CONNECT = True`,
-  `LOCAL_WAKE_MIN_INTERVAL = 30` (seconds).
-- **State:** `_local_last_wake[dev_id]` holds the last wake-up time
-  per device.
-- **Helper:** `_wake_device(dev_id)` sends the broadcast via
-  `tinytuya.deviceScan(verbose=False, maxretry=1, byID=True)`. The
-  response itself is not needed; receiving the packet is what wakes
-  the device up.
-- **Where it runs:**
-  - `LocalListener.listen()`, right before the `tinytuya.Device(...)`
-    call, when `self.error` is set or the listener is not connected.
-  - `onHandleThread()`'s single-query fallback branch, when
-    `_local_failures[dev_id]['errors']` is not empty (i.e. the device
-    recently failed).
-- **Not run for:** a device that is answering normally. The check is
-  cheap and only fires when a recent failure is on record.
-- **Log signature of a successful wake-up:** the `901` stops, and
-  `Local connection to <name> established` appears immediately after,
-  followed by a `Local message from ... [status reply on connect]`.
-
-### Work mode must be set before colour data — but not on every device
-
-- **Symptom:** Sending `colour_data` to a light whose `work_mode` is
-  still `white` has no visible effect, or the device falls back to a
-  rainbow/effect mode.
-- **Cause:** On **most** Tuya lights the firmware ignores `colour_data`
-  while `work_mode` is `white`.
-- **Fix (general case):** whenever `Set Color` is sent with a
-  colour-mode payload (`Color['m'] == 3`), send `work_mode = 'colour'`
-  immediately before `colour_data`.
-- **Applies to:** `light` Unit 1, `light` Unit 2, socket LED (Unit 2).
-- **Exception — aromatherapy (`jsq`):** some firmware revisions interpret
-  `work_mode = 'colour'` (DP 109) as a request to switch the device
-  **off**, and they use `lightmode` (DP 110) rather than `work_mode` to
-  select between steady colour and cycling effects. On those devices the
-  plugin must **not** send `work_mode` at all; it sets a steady
-  `lightmode` instead. See *Aromatherapy Support* below.
-
-### Domoticz colour dict — only m, r, g, b for mode 3
-
-Domoticz' `Color` parameter uses these fields:
-
-```
-m  - ColorMode (0=none, 1=white, 2=temp, 3=RGB, 4=custom)
-t  - colour temperature 0-255
-r  - red 0-255
-g  - green 0-255
-b  - blue 0-255
-cw - cold white 0-255
-ww - warm white 0-255
-```
 
 For `m=3` (ColorModeRGB), **only `r`, `g`, `b` are valid**. Extra
 fields (`t`, `cw`, `ww`) can make Domoticz reject the colour update and
@@ -322,39 +180,61 @@ could not be verified. Users set them by hand once in Setup → Devices.
 
 ### LAN / Pulsar logging helpers
 
-- `_format_value(value, max_len=80)` — readable rendering of a DP value
-  for log lines; long base64 blobs are shortened.
-- `_dp_code(dev_id, dp_id)` — translates a DP id to the function code via
-  `dps_map`, or `None` if unknown.
-- `_describe_local_dps(dev_id, dps)` — `'switch_1 (DP 1) = true, ...'`.
-- `_log_fields(device=None, name=None, ip=None, event=None)` — builds the
-  structured prefix `[device=<id> name="<name>" ip=<ip> event=<event>]`
-  for grep-able log lines. All fields are optional.
-- `Log(device=None, name=None, ip=None, event=None, message="")` — INFO-level
-  structured log line. Use for normal flow: LAN messages, Pulsar messages,
-  device state changes, cloud fallbacks. Calls `DomoticzEx.Log()` internally.
-- `Debug(device=None, name=None, ip=None, event=None, message="")` — DEBUG-level
-  structured log line. Same fields as `Log()`; only visible when Mode6
-  debugging is enabled. Calls `DomoticzEx.Debug()` internally.
-- `Error(device=None, name=None, ip=None, event=None, message="")` — ERROR-level
-  structured log line. Use for unreachable devices, protocol errors, cloud
-  failures, misconfiguration. Calls `DomoticzEx.Error()` internally.
+All plugin log output goes through three structured wrappers so every
+line carries the same fixed fields in the same order:
+
+    [device=X unit=U name="Y" ip=Z event=E] <message>
+
+- `device` — Tuya device ID (= Domoticz DeviceID)
+- `unit`   — Domoticz unit number, when the message concerns one unit
+- `name`   — human-readable device name
+- `ip`     — LAN IP, when known
+- `event`  — short tag for what happened (startup, command, recovered, ...)
+
+Fields are emitted in that fixed order. `name` and `ip` are filled in
+automatically from `device=` via `_log_resolve()` when the caller does
+not supply them. Values containing whitespace or quotes are quoted by
+`_log_quote()`, so a single log line never breaks the `key=value`
+pairing.
+
+- `_log_quote(value)` — quotes a value if it contains whitespace or `"`.
+- `_log_resolve(device, name, ip)` — fills in `name`/`ip` from the
+  device ID via `_device_name()` and `localtuya`/`getConfigItem()`.
+  Never raises.
+- `_log_fields(device=None, unit=None, name=None, ip=None, event=None)` —
+  builds the bracketed prefix `[device=<id> unit=<u> name="<name>"
+  ip=<ip> event=<event>]`. All fields are optional.
+- `Log(device=None, unit=None, name=None, ip=None, event=None, message="")`
+  — INFO-level structured log line. Use for normal flow: LAN messages,
+  Pulsar messages, device state changes, cloud fallbacks. Calls
+  `DomoticzEx.Log()` internally.
+- `Debug(device=None, unit=None, name=None, ip=None, event=None, message="")`
+  — DEBUG-level structured log line. Same fields as `Log()`; only
+  visible when Mode6 debugging is enabled. Calls `DomoticzEx.Debug()`
+  internally.
+- `Error(device=None, unit=None, name=None, ip=None, event=None, message="")`
+  — ERROR-level structured log line. Use for unreachable devices,
+  protocol errors, cloud failures, misconfiguration. Calls
+  `DomoticzEx.Error()` internally.
 - `_log_local_error(dev_id, source, reply)` — if the reply contains
   `Err`/`Error`: a clear ERROR line with the translated meaning from
   `_LOCAL_ERRORS` (901/902/904/905/914) and a hint. Repeats within
-  `_LOCAL_ERROR_REPEAT = 3600` seconds go to Debug. Now uses the
+  `_LOCAL_ERROR_REPEAT = 3600` seconds go to Debug. Uses the
   structured `Error()` and `Debug()` helpers.
 - `_log_local_message(dev_id, source, reply)` — INFO line for every
   message arriving over the LAN (status reply, push, heartbeat).
-  Calls `_log_local_error()` first. Now uses the structured `Log()` helper.
+  Calls `_log_local_error()` first. Uses the structured `Log()` helper.
 - `_log_pulsar_message(data)` — INFO line for every Pulsar message, in
-  both the legacy and IoT Core shapes, before any processing. Now uses
-  the structured `Log()` helper.
+  both the legacy and IoT Core shapes, before any processing. Uses the
+  structured `Log()` helper.
 - `_log_realtime_capable_devices()` — startup overview of devices
   covered by the Pulsar fast path (door contacts, motion sensors,
   doorbells), with OK / MISMATCH (not yet in Domoticz) / MISMATCH
-  (orphaned in Domoticz). Now uses the structured `Log()` and `Debug()`
+  (orphaned in Domoticz). Uses the structured `Log()` and `Debug()`
   helpers.
+- `_log_status(text)` — logs at Status level when available; falls back
+  to `Log(event="cloud-usage", message=text)` on a Domoticz without
+  `DomoticzEx.Status`.
 - `_device_name(dev_id)` — best-effort human-readable name; tries the
   Tuya device list first, then `Devices[dev_id].Units[1].Name`, then the ID.
 - `_sys_date(d, kind)` — formats a date using the locale of the system
@@ -363,8 +243,10 @@ could not be verified. Users set them by hand once in Setup → Devices.
 **Important:** Do NOT use the standard library `logging` module for plugin
 logging. Domoticz captures the plugin's output on its own, and the stdlib
 logger writes to a different stream. Always use the structured `Log()`,
-`Debug()`, and `Error()` helpers (or directly `DomoticzEx.Log/Debug/Error`)
-to ensure messages appear in the Domoticz log.
+`Debug()`, and `Error()` helpers to ensure messages appear in the Domoticz
+log. The only exception is the `_DomoticzPulsarLogHandler`, which exists
+precisely to route `tuya-connector-python`'s own stdlib logging back into
+the plugin's wrappers.
 
 ### "Is not recovering" detection
 
@@ -420,17 +302,17 @@ a device that has really gone away.
 The version number lives in **two places** in the XML header of
 `plugin.py` and must match:
 
-    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.0" ...>
+    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.1" ...>
         ...
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.0</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.1</h2><br/>
 
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
 
-**Aromatherapy follow-up for #200, the wake-up patch, LAN failure detection,
-and structured logging are in `master` but not yet released:** the header is
-still on `3.2.0`. The next release that includes them should bump both
-places to `3.2.1`.
+**3.2.1 is released:** the aromatherapy follow-up for #200, the wake-up
+patch, the LAN failure detection, and the structured logging are all
+part of 3.2.1. The header was bumped from 3.2.0 to 3.2.1 in the release
+commit. The next change should bump both places again.
 
 ## GitHub Labels
 
@@ -568,10 +450,16 @@ block and the status-update block drifting apart.
 ### Logging helpers
 - Use the structured `Log()`, `Debug()`, and `Error()` helpers for all
   device-bound log lines. They build a grep-able prefix
-  `[device=<id> name="<name>" ip=<ip> event=<event>]` and forward to
-  `DomoticzEx.Log/Debug/Error` internally.
+  `[device=<id> unit=<u> name="<name>" ip=<ip> event=<event>]` and
+  forward to `DomoticzEx.Log/Debug/Error` internally.
+- Do **not** call `DomoticzEx.Log/Debug/Error` directly from the plugin
+  body. The wrappers are the single entry point; the only exceptions are
+  `_log_status()` (which uses `DomoticzEx.Status` when available and
+  falls back to `Log(event="cloud-usage", message=text)`) and the
+  wrappers themselves.
 - All fields in the structured helpers are optional. A line without
-  device context (e.g. account-wide summaries) can omit those fields.
+  device context (e.g. account-wide summaries) can omit those fields;
+  `name` and `ip` are then resolved from `device=` automatically.
 - `_log_local_message()` and `_log_pulsar_message()` must never raise:
   logging must not be able to break a connection. Wrap the body in
   try/except if the surrounding code can throw.
@@ -583,6 +471,11 @@ block and the status-update block drifting apart.
   `_local_failures.setdefault(...)` as the first statement of both
   `_local_note_failure()` and `_local_note_success()`, so `state` always
   exists before it is read.
+- Watch the argument order: the wrapper signatures put `event=` before
+  `message=`, and both are keyword-only in practice. Never pass a
+  positional argument after a keyword argument — Python raises
+  `SyntaxError: positional argument follows keyword argument` at import
+  time and the whole plugin fails to load.
 
 ### Colour decoding helpers
 - **Never write a raw Tuya colour value into `sValue`.** It may be JSON
@@ -683,6 +576,31 @@ block and the status-update block drifting apart.
 - Fix: `state = _local_failures.setdefault(dev_id, {...})` must be the
   **first** statement in both helpers.
 
+### `SyntaxError: positional argument follows keyword argument`
+- Symptom: Domoticz refuses to load the plugin with
+  `Error: TinyTuya: (tinytuya) failed to load 'plugin.py'.
+   Exception: 'SyntaxError: positional argument follows keyword argument
+   (plugin.py, line N)'.`
+- Cause: a leftover log-level constant from the pre-structured-logging
+  code was passed as a **positional** argument *after* the keyword
+  arguments. Typical shape:
+
+      Log(event='device', message=f"…", DomoticzEx.ERROR)   # wrong
+
+  The old `DomoticzEx.Log(message, DomoticzEx.ERROR)` form used a
+  second positional argument for the level. The wrapper signature does
+  not have that, so the leftover constant becomes a syntax error at
+  import time and the whole plugin fails to load.
+- Fix: drop the constant and, if the original intent was ERROR-level,
+  use `Error()` instead of `Log()`:
+
+      Error(event='device', message=f"…")
+
+- Where it appeared: `UpdateDevice()` had exactly one such line
+  (`Failed to remove device idx …: …`, `DomoticzEx.ERROR`). Search the
+  file for `, DomoticzEx.ERROR)` and `, DomoticzEx.LOG)` after any
+  future bulk edit.
+
 ### Testdata mode confusion
 - If the plugin's home folder contains `debug_devices.json`,
   `debug_functions.json`, or `debug_result.json`, the plugin runs in
@@ -701,25 +619,44 @@ block and the status-update block drifting apart.
 
 ### Version Differences
 - **3.x:** Hybrid local/cloud control with Pulsar realtime updates,
-  cloud usage counters, extended logging and wake-up of sleeping
-  modules
+  cloud usage counters, extended structured logging, wake-up of
+  sleeping modules, and LAN failure detection.
 
 ## Recent Work
 
-### In master, not yet released (sleeping device wake-up)
-- **`_wake_device(dev_id)`**: sends a UDP discovery broadcast before
-  the first TCP connect of a device that recently failed, to pull a
-  sleeping Tuya WiFi module back online. Throttled per device by
-  `LOCAL_WAKE_MIN_INTERVAL`. Constants
-  `LOCAL_WAKE_BEFORE_CONNECT`, `LOCAL_WAKE_MIN_INTERVAL`.
-- Called from `LocalListener.listen()` (before the `tinytuya.Device`
-  call when `self.error` or not connected) and from the single-query
-  fallback in `onHandleThread()` when
-  `_local_failures[dev_id]['errors']` is not empty.
-- State: `_local_last_wake[dev_id]`, cleared in
-  `stop_local_listeners()`.
+### Latest released (Version 3.2.1)
 
-### In master, not yet released (aromatherapy #200 follow-up)
+**Structured logging** — every plugin log line now goes through
+`Log()`, `Debug()`, or `Error()` and carries the same fixed fields:
+
+    [device=X unit=U name="Y" ip=Z event=E] <message>
+
+- New wrappers with a fixed field order and an optional `unit=` field.
+  `name` and `ip` are auto-resolved from `device=` via `_log_resolve()`.
+- `_log_quote()` quotes values with whitespace or quotes so a single
+  log line never breaks the `key=value` pairing.
+- Every direct `DomoticzEx.Log/Debug/Error` call in the plugin body
+  replaced by the matching wrapper with a per-call-site `event=` tag
+  (`startup`, `shutdown`, `command`, `cloud-init`, `ip-scan`, `local`,
+  `cloud-usage`, `pulsar`, `create`, `update`, `wake-up`, `draw-tool`,
+  ...).
+- `_log_status()` now falls back to `Log(event="cloud-usage", …)`
+  instead of `DomoticzEx.Log` on a Domoticz without `DomoticzEx.Status`.
+- The `_DomoticzPulsarLogHandler` routes `tuya-connector-python`'s own
+  stdlib logging through the wrappers.
+- All device-bound log lines can now be filtered by device ID, event
+  type, or IP address using grep, making it easier to trace activity
+  for a specific device across LAN, Pulsar, and cloud sources.
+- No stdlib `logging` module used by the plugin itself; the only
+  consumer is the `tuya-connector-python` handler described above.
+- The bulk conversion introduced exactly one
+  `SyntaxError: positional argument follows keyword argument` in
+  `UpdateDevice()`; it was fixed in the same release by converting the
+  offending line to `Error(...)`. See *Known Issues* for the pattern
+  to search for after future bulk edits.
+
+**Aromatherapy #200 follow-up**
+
 - `Light` unit (2) no longer follows the main `Power` state. The device
   can have the light on while the humidifier itself is off, so the
   Light tile now tracks its own DP only.
@@ -732,8 +669,7 @@ block and the status-update block drifting apart.
   reports. The raw value is never written into `sValue` again.
 - `Set Color` on the RGB unit no longer sends `work_mode` (this
   firmware interprets `work_mode = 'colour'` as "switch off"). It sets
-  a steady `lightmode` first, using the new `find_steady_lightmode()`
-  helper.
+  a steady `lightmode` first, using `find_steady_lightmode()`.
 - `Light On` (Unit 2) now also sets the steady lightmode, so the light
   does not start in the cycling multicolour mode it defaults to.
 - `update_select_device()` early-returns when the device does not
@@ -741,22 +677,22 @@ block and the status-update block drifting apart.
   flips back to `white` on every poll just because DP 109 is
   write-only on this firmware.
 
-### In master, not yet released (structured logging)
-- `Log()`, `Debug()`, and `Error()` helpers: structured logging with
-  grep-able prefix `[device=<id> name="<name>" ip=<ip> event=<event>]`.
-  All fields are optional. Helpers forward to `DomoticzEx.Log/Debug/Error`
-  internally.
-- `_log_local_message()`, `_log_local_error()`, `_log_pulsar_message()`,
-  `_log_realtime_capable_devices()`, `_local_note_success()`,
-  `_local_note_failure()`, `_wake_device()`, `start_local_listeners()`,
-  `LocalCovered()`, and `CloudFallback()` now use the structured helpers.
-- All device-bound log lines can now be filtered by device ID, event type,
-  or IP address using grep, making it easier to trace activity for a specific
-  device across LAN, Pulsar, and cloud sources.
-- No stdlib `logging` module used; all output goes through DomoticzEx to
-  ensure it appears in the Domoticz log.
+**Sleeping device wake-up**
 
-### In master, not yet released (LAN failure detection)
+- `_wake_device(dev_id)`: sends a UDP discovery broadcast before the
+  first TCP connect of a device that recently failed, to pull a
+  sleeping Tuya WiFi module back online. Throttled per device by
+  `LOCAL_WAKE_MIN_INTERVAL`. Constants
+  `LOCAL_WAKE_BEFORE_CONNECT`, `LOCAL_WAKE_MIN_INTERVAL`.
+- Called from `LocalListener.listen()` (before the `tinytuya.Device`
+  call when `self.error` or not connected) and from the single-query
+  fallback in `onHandleThread()` when
+  `_local_failures[dev_id]['errors']` is not empty.
+- State: `_local_last_wake[dev_id]`, cleared in
+  `stop_local_listeners()`.
+
+**LAN failure detection**
+
 - `_local_note_success()` / `_local_note_failure()`: per-device
   detection of a device that keeps failing without a single successful
   reply in between. Logs a single ERROR warning `... is not recovering:
@@ -768,7 +704,7 @@ block and the status-update block drifting apart.
 - Throttles the noise from devices that hiccup occasionally, while
   still telling the user clearly when something is really wrong.
 
-### Latest released (Version 3.2.0)
+### Previous released (Version 3.2.0)
 - **Cloud usage counters**: per-day tracking of API calls and Pulsar
   messages, persisted in the plugin configuration, with day / week /
   month totals.
@@ -779,7 +715,7 @@ block and the status-update block drifting apart.
   the account maximum, and a month forecast (average/day, expected
   month total, expected shortage date). Warnings repeat as ERROR lines.
 - **Hourly INFO summary** of the day/week/month totals.
-- **Extended logging**:
+- **Extended logging** (pre-structured):
   - `_log_local_message()` logs every LAN message (status reply, push,
     heartbeat) with device name, IP, DP code and value.
   - `_log_local_error()` translates TinyTuya error codes
@@ -797,7 +733,7 @@ block and the status-update block drifting apart.
   HTTP request to Tuya is counted, with a fallback to counting public
   methods on older tinytuya versions.
 
-### Previous notable releases
+### Older notable releases
 - `3.1.9`: Add Thermor Niseko HVAC support (PR #221, thanks
   @Chrominator): optional units 30–34 for turbo, quiet, sleep,
   energy_save, healthy; half-degree temperature scale for
@@ -972,12 +908,20 @@ folder and restart.
 ### Logging testing
 1. Trigger a LAN status read on a device with a known error (e.g. power
    it off and force a poll): a single ERROR line with the translated
-   TinyTuya code and hint must appear.
+   TinyTuya code and hint must appear, prefixed with the structured
+   fields.
 2. Force the same error again within the hour: nothing new on ERROR,
    the repeat goes to Debug.
 3. Watch a Pulsar-triggered device (door contact, motion sensor): a
    `Pulsar message from ...` INFO line appears even when the plugin
    decides to ignore it because the device is reachable locally.
+4. Check a command to a device with a known LAN IP: the resulting
+   `event=command` line must carry `device=`, `name=` and `ip=`. A
+   call site that forgot `device=` shows only `event=command` — that is
+   a bug in the call site, not the wrapper.
+5. Try a name with spaces (e.g. a device renamed to "Voordeur sensor"
+   in Domoticz) and confirm it appears as `name="Voordeur sensor"` with
+   the quotes, so the `key=value` pairing stays intact.
 
 ### Syntax Verification
 Always run `python3 -m py_compile plugin.py` after changes
@@ -1081,6 +1025,18 @@ Always run `python3 -m py_compile plugin.py` after changes
 - `_count_cloud_calls(cloud)` - wraps `Cloud._tuyaplatform()`
 
 ### Logging
+- `Log(device=None, unit=None, name=None, ip=None, event=None, message="")`
+  - INFO-level structured log line
+- `Debug(device=None, unit=None, name=None, ip=None, event=None, message="")`
+  - DEBUG-level structured log line
+- `Error(device=None, unit=None, name=None, ip=None, event=None, message="")`
+  - ERROR-level structured log line
+- `_log_quote(value)` - quote a value with whitespace or quotes
+- `_log_resolve(device, name, ip)` - auto-fill name/ip from device ID
+- `_log_fields(device=None, unit=None, name=None, ip=None, event=None)`
+  - build the bracketed prefix
+- `_log_status(text)` - Status-level log with a `Log(event="cloud-usage")`
+  fallback
 - `_device_name(dev_id)` - resolve a raw id to a readable name
 - `_format_value(value, max_len=80)` - readable DP value
 - `_describe_local_dps(dev_id, dps)` - readable DP list
@@ -1098,12 +1054,12 @@ Always run `python3 -m py_compile plugin.py` after changes
 - `rgb_to_hsv_v2` / `hsv_to_rgb_v2` - 0-1000 scale, only for
   `colour_data_v2` devices
 - `brightness_to_pct` / `pct_to_brightness` - read min/max from schema
-- `decode_colour_data(raw)` - **new**. Accepts a Tuya `colour_data`
-  value in JSON or hex-string form and returns a Domoticz colour dict,
-  or `None` when the value cannot be interpreted. Callers must handle
+- `decode_colour_data(raw)` - Accepts a Tuya `colour_data` value in
+  JSON or hex-string form and returns a Domoticz colour dict, or
+  `None` when the value cannot be interpreted. Callers must handle
   `None` by leaving the tile untouched.
-- `find_steady_lightmode(function)` - **new**. Finds the "steady" value
-  in a `lightmode` enum (`steady` / `static` / `normal` / `constant`,
+- `find_steady_lightmode(function)` - Finds the "steady" value in a
+  `lightmode` enum (`steady` / `static` / `normal` / `constant`,
   falling back to index 2). Returns `None` when the device has no
   `lightmode` DP.
 
@@ -1148,7 +1104,14 @@ Always run `python3 -m py_compile plugin.py` after changes
 ### `cannot access local variable 'state'`
 - Bug in the "is not recovering" helpers. `_local_failures.setdefault`
   must be the first statement of `_local_note_failure()` and
-  `_local_note_success()`. Fixed in the wake-up patch.
+  `_local_note_success()`. Fixed in 3.2.1.
+
+### `SyntaxError: positional argument follows keyword argument`
+- Bug introduced by a bulk edit in 3.2.1, fixed in the same release.
+  The cause is a leftover log-level constant passed positionally after
+  keyword arguments, e.g. `Log(event=…, message=…, DomoticzEx.ERROR)`.
+  Fix: use `Error(...)` instead. Search the file for
+  `, DomoticzEx.ERROR)` if the plugin refuses to load.
 
 ### Light does not change colour
 - On generic lights: check whether the plugin sends

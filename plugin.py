@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.0</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.1</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -174,9 +174,9 @@ class _DomoticzPulsarLogHandler(_logging.Handler):
         except Exception:
             msg = record.getMessage()
         if record.levelno >= _logging.ERROR:
-            DomoticzEx.Error(f"Pulsar (lib): {msg}")
+            Error(event='error', message=f"Pulsar (lib): {msg}")
         else:
-            DomoticzEx.Debug(f"Pulsar (lib): {msg}")
+            Debug(event='debug', message=f"Pulsar (lib): {msg}")
 
 
 def _configure_pulsar_logging():
@@ -322,9 +322,9 @@ def _usage_load():
                         mine['msg'] += int(bucket.get('msg', 0))
         _usage_last_day = datetime.date.today().isoformat()
         _usage_last_log = time.time()
-        DomoticzEx.Log(f"Tuya cloud usage (restored after start) - {_usage_summary()}")
+        Log(event='cloud-usage', message=f"Tuya cloud usage (restored after start) - {_usage_summary()}")
     except Exception as e:
-        DomoticzEx.Error(f"Cloud usage: could not restore counters: {e}")
+        Error(event='cloud-usage', message=f"Cloud usage: could not restore counters: {e}")
 
 
 def _usage_save(force=False):
@@ -345,7 +345,7 @@ def _usage_save(force=False):
         _usage_last_save = now
         setConfigItem(USAGE_KEY, snapshot)
     except Exception as e:
-        DomoticzEx.Error(f"Cloud usage: could not save counters: {e}")
+        Error(event='cloud-usage', message=f"Cloud usage: could not save counters: {e}")
 
 
 _locale_lock = threading.Lock()
@@ -378,29 +378,94 @@ def _log_status(text):
     (getattr(DomoticzEx, 'Status', None) or DomoticzEx.Log)(text)
 
 
-def _log_fields(device=None, name=None, ip=None, event=None):
-    parts = []
+# --- Structured logging -----------------------------------------------------
+# Every log line the plugin produces goes through these three wrappers, so
+# each message carries the same fixed fields in the same order:
+#
+#     [device=X unit=U name="Y" ip=Z event=E] <message>
+#
+#   device : Tuya device ID (= Domoticz DeviceID)
+#   unit   : Domoticz unit number, when the message concerns one unit
+#   name   : human-readable device name (auto-resolved from device ID)
+#   ip     : LAN IP, when known (auto-resolved from the local-scan cache)
+#   event  : short tag for what happened (startup, command, recovered, ...)
+#
+# This makes the Domoticz log greppable/parseable: filter on device=, ip=,
+# event=... regardless of which part of the plugin produced the line.
+#
+# name and ip are filled in automatically from the device ID when the caller
+# does not supply them, so call sites only need to pass what they really know.
+# Values containing spaces, tabs or quotes are quoted, so a single log line
+# never breaks the key=value pairing.
+
+def _log_quote(value):
+    """Quote a log value if it contains whitespace or quotes, so one log
+    line can never break the key=value pairing."""
+    text = str(value)
+    if any(ch in text for ch in ' \t"'):
+        return '"' + text.replace('"', '\\"') + '"'
+    return text
+
+
+def _log_resolve(device, name, ip):
+    """Fill in name/ip from the device ID when the caller omitted them.
+    Never raises: logging must not be able to break the caller."""
+    if not device:
+        return name, ip
+    try:
+        if not name:
+            resolved = _device_name(device)
+            # _device_name falls back to the raw ID when it knows nothing;
+            # in that case omit the field instead of duplicating device=
+            name = resolved if resolved and resolved != device else None
+        if not ip:
+            try:
+                ip = (localtuya.get(device) or {}).get('ip') or None
+            except NameError:
+                ip = None
+            if not ip:
+                try:
+                    ip = getConfigItem(device, 'ip') or None
+                except Exception:
+                    ip = None
+    except Exception:
+        pass
+    return name, ip
+
+
+def _log_fields(device=None, unit=None, name=None, ip=None, event=None):
+    """Build the bracketed key=value prefix. Fields are always emitted in
+    the same order, so every structured log line stays parseable."""
+    fields = []
     if device:
-        parts.append(f"device={device}")
+        fields.append(f"device={_log_quote(device)}")
+    if unit is not None:
+        fields.append(f"unit={unit}")
     if name:
-        parts.append(f'name="{name}"')
+        fields.append(f"name={_log_quote(name)}")
     if ip:
-        parts.append(f"ip={ip}")
+        fields.append(f"ip={_log_quote(ip)}")
     if event:
-        parts.append(f"event={event}")
-    return f"[{' '.join(parts)}] " if parts else ""
+        fields.append(f"event={_log_quote(event)}")
+    return f"[{' '.join(fields)}] " if fields else ""
 
 
-def Log(device=None, name=None, ip=None, event=None, message=""):
-    DomoticzEx.Log(_log_fields(device, name, ip, event) + str(message))
+def Log(device=None, unit=None, name=None, ip=None, event=None, message=""):
+    """Structured INFO log line."""
+    name, ip = _log_resolve(device, name, ip)
+    DomoticzEx.Log(_log_fields(device, unit, name, ip, event) + str(message))
 
 
-def Debug(device=None, name=None, ip=None, event=None, message=""):
-    DomoticzEx.Debug(_log_fields(device, name, ip, event) + str(message))
+def Debug(device=None, unit=None, name=None, ip=None, event=None, message=""):
+    """Structured DEBUG log line."""
+    name, ip = _log_resolve(device, name, ip)
+    DomoticzEx.Debug(_log_fields(device, unit, name, ip, event) + str(message))
 
 
-def Error(device=None, name=None, ip=None, event=None, message=""):
-    DomoticzEx.Error(_log_fields(device, name, ip, event) + str(message))
+def Error(device=None, unit=None, name=None, ip=None, event=None, message=""):
+    """Structured ERROR log line."""
+    name, ip = _log_resolve(device, name, ip)
+    DomoticzEx.Error(_log_fields(device, unit, name, ip, event) + str(message))
 
 
 def _usage_forecast(kind):
@@ -524,7 +589,7 @@ def _usage_midnight_report(ended_day):
             if warn:
                 warnings.append(text)
     for text in warnings:
-        DomoticzEx.Error(f"WARNING Tuya cloud credits: {text}")
+        Error(event='cloud-usage', message=f"WARNING Tuya cloud credits: {text}")
 
 
 def _usage_create_devices():
@@ -546,16 +611,16 @@ def _usage_create_devices():
             DomoticzEx.Unit(Name=f"{hw_name} API Credits", DeviceID=USAGE_DEVICE_ID,
                              Unit=USAGE_UNIT_API, Type=243, Subtype=31,
                              Options={'Custom': '1;Calls'}, Used=1).Create()
-            DomoticzEx.Log(f"Created device '{hw_name} API Credits' "
+            Log(event='cloud-usage', message=f"Created device '{hw_name} API Credits' "
                             f"(DeviceID={USAGE_DEVICE_ID}, Unit={USAGE_UNIT_API})")
         if createDevice(USAGE_DEVICE_ID, USAGE_UNIT_MSG):
             DomoticzEx.Unit(Name=f"{hw_name} Message Credits", DeviceID=USAGE_DEVICE_ID,
                              Unit=USAGE_UNIT_MSG, Type=243, Subtype=31,
                              Options={'Custom': '1;Msg'}, Used=1).Create()
-            DomoticzEx.Log(f"Created device '{hw_name} Message Credits' "
+            Log(event='cloud-usage', message=f"Created device '{hw_name} Message Credits' "
                             f"(DeviceID={USAGE_DEVICE_ID}, Unit={USAGE_UNIT_MSG})")
     except Exception as e:
-        DomoticzEx.Error(f"Cloud usage: could not create credits devices: {e}")
+        Error(event='cloud-usage', message=f"Cloud usage: could not create credits devices: {e}")
 
 
 def _usage_update_devices(force=False):
@@ -575,7 +640,7 @@ def _usage_update_devices(force=False):
         UpdateDomoticz(USAGE_DEVICE_ID, USAGE_UNIT_API, month_api, 0, 0, AlwaysUpdate=1)
         UpdateDomoticz(USAGE_DEVICE_ID, USAGE_UNIT_MSG, month_msg, 0, 0, AlwaysUpdate=1)
     except Exception as e:
-        DomoticzEx.Error(f"Cloud usage: could not update credits devices: {e}")
+        Error(event='cloud-usage', message=f"Cloud usage: could not update credits devices: {e}")
 
 
 def _usage_tick():
@@ -586,16 +651,16 @@ def _usage_tick():
         today = datetime.date.today().isoformat()
         if _usage_last_day and _usage_last_day != today:
             _usage_midnight_report(_usage_last_day)
-            DomoticzEx.Log(f"Tuya cloud usage - {_usage_summary()}")
+            Log(event='cloud-usage', message=f"Tuya cloud usage - {_usage_summary()}")
             _usage_last_log = time.time()
         _usage_last_day = today
         if time.time() - _usage_last_log >= USAGE_LOG_INTERVAL:
             _usage_last_log = time.time()
-            DomoticzEx.Log(f"Tuya cloud usage - {_usage_summary()}")
+            Log(event='cloud-usage', message=f"Tuya cloud usage - {_usage_summary()}")
         _usage_update_devices()
         _usage_save()
     except Exception as e:
-        DomoticzEx.Error(f"Cloud usage: tick failed: {e}")
+        Error(event='cloud-usage', message=f"Cloud usage: tick failed: {e}")
 
 
 def _count_cloud_calls(cloud):
@@ -614,7 +679,7 @@ def _count_cloud_calls(cloud):
                 return original(*args, **kwargs)
             cloud._tuyaplatform = counted
         else:
-            DomoticzEx.Log("Cloud usage: this tinytuya version has no _tuyaplatform(), counting public calls (approximate)")
+            Log(event='cloud-usage', message="Cloud usage: this tinytuya version has no _tuyaplatform(), counting public calls (approximate)")
             for name in ('cloudrequest', 'getdevices', 'getstatus', 'getproperties', 'getdps',
                          'getfunctions', 'sendcommand', 'getconnectstatus', 'getdevicelog'):
                 method = getattr(cloud, name, None)
@@ -627,7 +692,7 @@ def _count_cloud_calls(cloud):
                     setattr(cloud, name, make(method))
         cloud._usage_counted = True
     except Exception as e:
-        DomoticzEx.Error(f"Cloud usage: could not enable call counting: {e}")
+        Error(event='cloud-usage', message=f"Cloud usage: could not enable call counting: {e}")
 
 
 def _format_value(value, max_len=80):
@@ -884,7 +949,7 @@ def _pulsar_on_message(msg):
     try:
         data = json.loads(msg)
     except Exception as e:
-        DomoticzEx.Log(f"Pulsar message received but could not be parsed ({e}): {_format_value(msg, 200)}")
+        Log(event='pulsar', message=f"Pulsar message received but could not be parsed ({e}): {_format_value(msg, 200)}")
         return
 
     # Log every incoming Pulsar message at INFO level, before anything else
@@ -901,13 +966,13 @@ def _pulsar_on_message(msg):
                 {'code': p.get('code'), 'value': p.get('value')}
                 for p in biz_data.get('properties', [])
             ]
-            DomoticzEx.Debug(f"Pulsar: bizCode={data.get('bizCode')} devId={dev_id} ({_device_name(dev_id)}) properties={status_list}")
+            Debug(event='pulsar', message=f"Pulsar: bizCode={data.get('bizCode')} devId={dev_id} ({_device_name(dev_id)}) properties={status_list}")
         else:
             # Legacy style message
             dev_id = data.get('devId')
             status_list = data.get('status', [])
     except Exception as e:
-        DomoticzEx.Debug(f"Pulsar: could not interpret message contents ({e}): {data}")
+        Debug(event='pulsar', message=f"Pulsar: could not interpret message contents ({e}): {data}")
         return
 
     if not dev_id:
@@ -916,12 +981,12 @@ def _pulsar_on_message(msg):
     # Check if device is locally reachable - if so, ignore Pulsar updates
     try:
         if dev_id in localtuya and localtuya[dev_id].get('ip', '') != '':
-            DomoticzEx.Debug(f"Pulsar: ignoring push event for locally reachable device {_device_name(dev_id)} ({dev_id}) at {localtuya[dev_id].get('ip')}")
+            Debug(event='pulsar', message=f"Pulsar: ignoring push event for locally reachable device {_device_name(dev_id)} ({dev_id}) at {localtuya[dev_id].get('ip')}")
             return
     except Exception as e:
-        DomoticzEx.Debug(f"Pulsar: error checking local reachability for device {dev_id}: {e}")
+        Debug(event='pulsar', message=f"Pulsar: error checking local reachability for device {dev_id}: {e}")
 
-    DomoticzEx.Debug(f"Pulsar: push event received for device {_device_name(dev_id)} ({dev_id})")
+    Debug(event='pulsar', message=f"Pulsar: push event received for device {_device_name(dev_id)} ({dev_id})")
 
     # --- Fast path: doorcontact sensors -------------------------------
     # For simple boolean sensors (category 'mcs' -> dev_type 'doorcontact',
@@ -945,7 +1010,7 @@ def _pulsar_on_message(msg):
             if item.get('code') == 'doorcontact_state':
                 is_open = bool(item.get('value'))
                 UpdateDomoticz(dev_id, 1, bool(is_open), int(is_open), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (doorcontact) -> {'open' if is_open else 'closed'}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (doorcontact) -> {'open' if is_open else 'closed'}")
                 return
 
     # PIR / motion sensors: several categories (e.g. 'pir', but also 'tdq'
@@ -963,7 +1028,7 @@ def _pulsar_on_message(msg):
             if item.get('code') in ('pir', 'pir_state'):
                 motion_detected = str(item.get('value')) != 'none'
                 UpdateDomoticz(dev_id, 48, bool(motion_detected), int(motion_detected), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (motion) -> {'detected' if motion_detected else 'clear'}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (motion) -> {'detected' if motion_detected else 'clear'}")
                 return
 
     # --- Fast path: Doorbell (category 'sp') ----------------------------
@@ -1010,17 +1075,17 @@ def _pulsar_on_message(msg):
                                 try:
                                     level = mode_list.index(str(value)) * 10
                                     UpdateDomoticz(dev_id, unit, level, 1, 0)
-                                    DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (doorbell nightvision) -> {value}")
+                                    Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (doorbell nightvision) -> {value}")
                                 except ValueError:
-                                    DomoticzEx.Debug(f"Pulsar: unknown nightvision mode value '{value}' for {_device_name(dev_id)}")
+                                    Debug(event='pulsar', message=f"Pulsar: unknown nightvision mode value '{value}' for {_device_name(dev_id)}")
                                 break
                     except Exception as e:
-                        DomoticzEx.Debug(f"Pulsar: error processing nightvision_mode for {_device_name(dev_id)}: {e}")
+                        Debug(event='pulsar', message=f"Pulsar: error processing nightvision_mode for {_device_name(dev_id)}: {e}")
                 else:
                     # Boolean switch
                     is_on = bool(value)
                     UpdateDomoticz(dev_id, unit, bool(is_on), int(is_on), 0)
-                    DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (doorbell {code}) -> {is_on}")
+                    Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (doorbell {code}) -> {is_on}")
 
                 # Don't return immediately - process all doorbell DPs in this message
 
@@ -1047,7 +1112,7 @@ def _pulsar_on_message(msg):
                 unit = video_doorbell_map[code]
                 is_on = bool(value)
                 UpdateDomoticz(dev_id, unit, bool(is_on), int(is_on), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (video doorbell {code}) -> {is_on}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (video doorbell {code}) -> {is_on}")
 
     # --- Fast path: Smoke detector (category 'qt' / 'ywbj') --------------
     # Smoke detectors typically have a simple boolean status (alarm/normal)
@@ -1082,19 +1147,19 @@ def _pulsar_on_message(msg):
 
                 # Update Unit 1 (switch) with alarm status
                 UpdateDomoticz(dev_id, 1, bool(is_alarm), int(is_alarm), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smoke detector {code}) -> {'alarm' if is_alarm else 'normal'}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smoke detector {code}) -> {'alarm' if is_alarm else 'normal'}")
 
                 # Also update Unit 2 (alarm status text) if it exists
                 if checkDevice(dev_id, 2):
                     status_text = 'Alarm' if is_alarm else 'Normal'
                     UpdateDomoticz(dev_id, 2, status_text, int(is_alarm), 0)
-                    DomoticzEx.Debug(f"Pulsar: updated Unit 2 for {_device_name(dev_id)} ({dev_id}) -> {status_text}")
+                    Debug(event='pulsar', message=f"Pulsar: updated Unit 2 for {_device_name(dev_id)} ({dev_id}) -> {status_text}")
 
             # Handle PIR detection (some smoke detectors have PIR)
             elif code == 'PIR':
                 is_detected = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 1, bool(is_detected), int(is_detected), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smoke detector PIR) -> {'detected' if is_detected else 'clear'}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smoke detector PIR) -> {'detected' if is_detected else 'clear'}")
 
             # Handle battery status - update battery level for all units
             elif code in battery_codes:
@@ -1122,9 +1187,9 @@ def _pulsar_on_message(msg):
                             if Devices[dev_id].Units[unit].BatteryLevel != battery_level:
                                 Devices[dev_id].Units[unit].BatteryLevel = battery_level
                                 Devices[dev_id].Units[unit].Update()
-                        DomoticzEx.Debug(f"Pulsar: updated battery for {_device_name(dev_id)} ({dev_id}) -> {battery_level}%")
+                        Debug(event='pulsar', message=f"Pulsar: updated battery for {_device_name(dev_id)} ({dev_id}) -> {battery_level}%")
                 except Exception as e:
-                    DomoticzEx.Debug(f"Pulsar: error updating battery for {_device_name(dev_id)}: {e}")
+                    Debug(event='pulsar', message=f"Pulsar: error updating battery for {_device_name(dev_id)}: {e}")
 
     # --- Fast path: Water leak sensor (category 'sj') --------------------
     # Water leak sensors have a simple boolean status (leak/normal)
@@ -1144,7 +1209,7 @@ def _pulsar_on_message(msg):
 
                 # Update Unit 1 (switch) with leak status
                 UpdateDomoticz(dev_id, 1, bool(is_leak), int(is_leak), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (water leak {code}) -> {'leak' if is_leak else 'normal'}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (water leak {code}) -> {'leak' if is_leak else 'normal'}")
 
             # Handle battery status
             elif code in battery_codes:
@@ -1171,9 +1236,9 @@ def _pulsar_on_message(msg):
                             if Devices[dev_id].Units[unit].BatteryLevel != battery_level:
                                 Devices[dev_id].Units[unit].BatteryLevel = battery_level
                                 Devices[dev_id].Units[unit].Update()
-                        DomoticzEx.Debug(f"Pulsar: updated battery for {_device_name(dev_id)} ({dev_id}) -> {battery_level}%")
+                        Debug(event='pulsar', message=f"Pulsar: updated battery for {_device_name(dev_id)} ({dev_id}) -> {battery_level}%")
                 except Exception as e:
-                    DomoticzEx.Debug(f"Pulsar: error updating battery for {_device_name(dev_id)}: {e}")
+                    Debug(event='pulsar', message=f"Pulsar: error updating battery for {_device_name(dev_id)}: {e}")
 
     # --- Fast path: Smart Lock (category 'ms' / 'jtmspro') --------------
     # Smart locks have lock/unlock state, alarm status, and battery level
@@ -1189,7 +1254,7 @@ def _pulsar_on_message(msg):
                 is_locked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 # Unit 1: nValue=0 means locked (closed), nValue=1 means unlocked (open)
                 UpdateDomoticz(dev_id, 1, bool(not is_locked), int(not is_locked), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock {code}) -> {'locked' if is_locked else 'unlocked'}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock {code}) -> {'locked' if is_locked else 'unlocked'}")
 
             # Alarm lock status (Unit 2 - selector)
             elif code == 'alarm_lock':
@@ -1207,58 +1272,58 @@ def _pulsar_on_message(msg):
                             try:
                                 level = mode_list.index(str(value)) * 10
                                 UpdateDomoticz(dev_id, 2, level, 1, 0)
-                                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock alarm_lock) -> {value}")
+                                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock alarm_lock) -> {value}")
                             except ValueError:
-                                DomoticzEx.Debug(f"Pulsar: unknown alarm_lock value '{value}' for {_device_name(dev_id)}")
+                                Debug(event='pulsar', message=f"Pulsar: unknown alarm_lock value '{value}' for {_device_name(dev_id)}")
                             break
                 except Exception as e:
-                    DomoticzEx.Debug(f"Pulsar: error processing alarm_lock for {_device_name(dev_id)}: {e}")
+                    Debug(event='pulsar', message=f"Pulsar: error processing alarm_lock for {_device_name(dev_id)}: {e}")
 
             # Unlock methods (Units 3-11 - switches) - maintain compatibility with existing units
             elif code == 'unlock_ble':
                 is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 3, bool(is_unlocked), int(is_unlocked), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_ble) -> {is_unlocked}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_ble) -> {is_unlocked}")
 
             elif code == 'unlock_card':
                 is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 4, bool(is_unlocked), int(is_unlocked), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_card) -> {is_unlocked}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_card) -> {is_unlocked}")
 
             elif code == 'unlock_fingerprint':
                 is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 5, bool(is_unlocked), int(is_unlocked), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_fingerprint) -> {is_unlocked}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_fingerprint) -> {is_unlocked}")
 
             elif code == 'unlock_password':
                 is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 6, bool(is_unlocked), int(is_unlocked), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_password) -> {is_unlocked}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_password) -> {is_unlocked}")
 
             elif code == 'unlock_app':
                 is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 7, bool(is_unlocked), int(is_unlocked), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_app) -> {is_unlocked}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_app) -> {is_unlocked}")
 
             elif code == 'unlock_key':
                 is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 8, bool(is_unlocked), int(is_unlocked), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_key) -> {is_unlocked}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_key) -> {is_unlocked}")
 
             elif code == 'unlock_face':
                 is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 9, bool(is_unlocked), int(is_unlocked), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_face) -> {is_unlocked}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_face) -> {is_unlocked}")
 
             elif code == 'unlock_hand':
                 is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 10, bool(is_unlocked), int(is_unlocked), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_hand) -> {is_unlocked}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_hand) -> {is_unlocked}")
 
             elif code == 'unlock_temporary':
                 is_unlocked = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 11, bool(is_unlocked), int(is_unlocked), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_temporary) -> {is_unlocked}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_temporary) -> {is_unlocked}")
 
             # Handle battery status
             elif code in battery_codes:
@@ -1285,9 +1350,9 @@ def _pulsar_on_message(msg):
                             if Devices[dev_id].Units[unit].BatteryLevel != battery_level:
                                 Devices[dev_id].Units[unit].BatteryLevel = battery_level
                                 Devices[dev_id].Units[unit].Update()
-                        DomoticzEx.Debug(f"Pulsar: updated battery for {_device_name(dev_id)} ({dev_id}) -> {battery_level}%")
+                        Debug(event='pulsar', message=f"Pulsar: updated battery for {_device_name(dev_id)} ({dev_id}) -> {battery_level}%")
                 except Exception as e:
-                    DomoticzEx.Debug(f"Pulsar: error updating battery for {_device_name(dev_id)}: {e}")
+                    Debug(event='pulsar', message=f"Pulsar: error updating battery for {_device_name(dev_id)}: {e}")
 
     # --- Fast path: Human Presence Sensor (category 'hps') --------------
     # Human presence sensors have presence state, sensitivity, and battery level
@@ -1302,7 +1367,7 @@ def _pulsar_on_message(msg):
             if code == 'presence_state':
                 is_present = bool(value) if isinstance(value, (int, float)) else str(value) != '0'
                 UpdateDomoticz(dev_id, 1, bool(is_present), int(is_present), 0)
-                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence presence_state) -> {'present' if is_present else 'absent'}")
+                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence presence_state) -> {'present' if is_present else 'absent'}")
 
             # Sensitivity (Unit 2 - selector)
             elif code == 'sensitivity':
@@ -1320,12 +1385,12 @@ def _pulsar_on_message(msg):
                             try:
                                 level = mode_list.index(str(value)) * 10
                                 UpdateDomoticz(dev_id, 2, level, 1, 0)
-                                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence sensitivity) -> {level}")
+                                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence sensitivity) -> {level}")
                             except ValueError:
-                                DomoticzEx.Debug(f"Pulsar: unknown sensitivity value '{value}' for {_device_name(dev_id)}")
+                                Debug(event='pulsar', message=f"Pulsar: unknown sensitivity value '{value}' for {_device_name(dev_id)}")
                             break
                 except Exception as e:
-                    DomoticzEx.Debug(f"Pulsar: error processing sensitivity for {_device_name(dev_id)}: {e}")
+                    Debug(event='pulsar', message=f"Pulsar: error processing sensitivity for {_device_name(dev_id)}: {e}")
 
             # Near detection (Unit 3 - scale)
             elif code == 'near_detection':
@@ -1335,9 +1400,9 @@ def _pulsar_on_message(msg):
                     if scaled_value > 100:
                         scaled_value = 100
                     UpdateDomoticz(dev_id, 3, str(scaled_value), 0, 0)
-                    DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence near_detection) -> {scaled_value}")
+                    Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence near_detection) -> {scaled_value}")
                 except Exception as e:
-                    DomoticzEx.Debug(f"Pulsar: error processing near_detection for {_device_name(dev_id)}: {e}")
+                    Debug(event='pulsar', message=f"Pulsar: error processing near_detection for {_device_name(dev_id)}: {e}")
 
             # Far detection (Unit 4 - scale)
             elif code == 'far_detection':
@@ -1347,9 +1412,9 @@ def _pulsar_on_message(msg):
                     if scaled_value > 100:
                         scaled_value = 100
                     UpdateDomoticz(dev_id, 4, str(scaled_value), 0, 0)
-                    DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence far_detection) -> {scaled_value}")
+                    Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence far_detection) -> {scaled_value}")
                 except Exception as e:
-                    DomoticzEx.Debug(f"Pulsar: error processing far_detection for {_device_name(dev_id)}: {e}")
+                    Debug(event='pulsar', message=f"Pulsar: error processing far_detection for {_device_name(dev_id)}: {e}")
 
             # Checking result (Unit 5 - selector)
             elif code == 'checking_result':
@@ -1368,12 +1433,12 @@ def _pulsar_on_message(msg):
                                 level = mode_list.index(str(value)) * 10
                                 UpdateDomoticz(dev_id, 5, level, 1, 0)
                                 result_text = mode_list[int(level/10)] if int(level/10) < len(mode_list) else str(value)
-                                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence checking_result) -> {result_text}")
+                                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence checking_result) -> {result_text}")
                             except ValueError:
-                                DomoticzEx.Debug(f"Pulsar: unknown checking_result value '{value}' for {_device_name(dev_id)}")
+                                Debug(event='pulsar', message=f"Pulsar: unknown checking_result value '{value}' for {_device_name(dev_id)}")
                             break
                 except Exception as e:
-                    DomoticzEx.Debug(f"Pulsar: error processing checking_result for {_device_name(dev_id)}: {e}")
+                    Debug(event='pulsar', message=f"Pulsar: error processing checking_result for {_device_name(dev_id)}: {e}")
 
             # Target distance closest (Unit 6 - scale)
             elif code == 'target_dis_closest':
@@ -1383,9 +1448,9 @@ def _pulsar_on_message(msg):
                     if scaled_value > 100:
                         scaled_value = 100
                     UpdateDomoticz(dev_id, 6, str(scaled_value), 0, 0)
-                    DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence target_dis_closest) -> {scaled_value}")
+                    Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence target_dis_closest) -> {scaled_value}")
                 except Exception as e:
-                    DomoticzEx.Debug(f"Pulsar: error processing target_dis_closest for {_device_name(dev_id)}: {e}")
+                    Debug(event='pulsar', message=f"Pulsar: error processing target_dis_closest for {_device_name(dev_id)}: {e}")
 
             # Presence state selector (Unit 7 - selector)
             elif code == 'presence_state_selector':
@@ -1403,12 +1468,12 @@ def _pulsar_on_message(msg):
                             try:
                                 level = mode_list.index(str(value)) * 10
                                 UpdateDomoticz(dev_id, 7, level, 1, 0)
-                                DomoticzEx.Debug(f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence presence_state_selector) -> {value}")
+                                Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (human_presence presence_state_selector) -> {value}")
                             except ValueError:
-                                DomoticzEx.Debug(f"Pulsar: unknown presence_state value '{value}' for {_device_name(dev_id)}")
+                                Debug(event='pulsar', message=f"Pulsar: unknown presence_state value '{value}' for {_device_name(dev_id)}")
                             break
                 except Exception as e:
-                    DomoticzEx.Debug(f"Pulsar: error processing presence_state selector for {_device_name(dev_id)}: {e}")
+                    Debug(event='pulsar', message=f"Pulsar: error processing presence_state selector for {_device_name(dev_id)}: {e}")
 
             # Handle battery status
             elif code in battery_codes:
@@ -1435,20 +1500,20 @@ def _pulsar_on_message(msg):
                             if Devices[dev_id].Units[unit].BatteryLevel != battery_level:
                                 Devices[dev_id].Units[unit].BatteryLevel = battery_level
                                 Devices[dev_id].Units[unit].Update()
-                        DomoticzEx.Debug(f"Pulsar: updated battery for {_device_name(dev_id)} ({dev_id}) -> {battery_level}%")
+                        Debug(event='pulsar', message=f"Pulsar: updated battery for {_device_name(dev_id)} ({dev_id}) -> {battery_level}%")
                 except Exception as e:
-                    DomoticzEx.Debug(f"Pulsar: error updating battery for {_device_name(dev_id)}: {e}")
+                    Debug(event='pulsar', message=f"Pulsar: error updating battery for {_device_name(dev_id)}: {e}")
 
     # -------------------------------------------------------------------
 
     def _run_targeted_update():
         if not _handle_lock.acquire(timeout=10):
-            DomoticzEx.Debug(f"Pulsar: poll busy, dropping event for {_device_name(dev_id)} ({dev_id}) (next heartbeat will catch up)")
+            Debug(event='pulsar', message=f"Pulsar: poll busy, dropping event for {_device_name(dev_id)} ({dev_id}) (next heartbeat will catch up)")
             return
         try:
             onHandleThread(False, False, target_dev_id=dev_id)
         except Exception as e:
-            DomoticzEx.Error(f"Pulsar: error handling push event for {_device_name(dev_id)} ({dev_id}): {e}")
+            Error(event='pulsar', message=f"Pulsar: error handling push event for {_device_name(dev_id)} ({dev_id}): {e}")
         finally:
             _handle_lock.release()
 
@@ -1463,21 +1528,19 @@ def start_pulsar_listener():
     global pulsar_client
 
     if not PULSAR_AVAILABLE:
-        DomoticzEx.Log(
-            "Pulsar realtime updates disabled: 'tuya-connector-python' package not installed. "
+        Log(event='pulsar', message="Pulsar realtime updates disabled: 'tuya-connector-python' package not installed. "
             "Install with: pip3 install tuya-connector-python --break-system-packages. "
-            "Falling back to poll-only mode."
-        )
+            "Falling back to poll-only mode.")
         return
 
     region = Parameters.get('Mode1', 'eu')
     endpoint = PULSAR_REGION_ENDPOINTS.get(region)
     if not endpoint:
-        DomoticzEx.Error(f"Pulsar: unknown region '{region}', realtime updates disabled")
+        Error(event='pulsar', message=f"Pulsar: unknown region '{region}', realtime updates disabled")
         return
 
     _configure_pulsar_logging()
-    DomoticzEx.Log(f"Pulsar realtime listener starting (region={region})...")
+    Log(event='pulsar', message=f"Pulsar realtime listener starting (region={region})...")
 
     try:
         pulsar_client = TuyaOpenPulsar(
@@ -1488,10 +1551,10 @@ def start_pulsar_listener():
         )
         pulsar_client.add_message_listener(_pulsar_on_message)
         pulsar_client.start()
-        DomoticzEx.Log(f"Pulsar realtime listener started (region={region})")
+        Log(event='pulsar', message=f"Pulsar realtime listener started (region={region})")
         _log_realtime_capable_devices()
     except Exception as e:
-        DomoticzEx.Error(f"Pulsar: failed to start realtime listener: {e}")
+        Error(event='pulsar', message=f"Pulsar: failed to start realtime listener: {e}")
         pulsar_client = None
 
 
@@ -1589,15 +1652,15 @@ def stop_pulsar_listener():
     connection running."""
     global pulsar_client
     if pulsar_client is not None:
-        DomoticzEx.Log("Pulsar realtime listener stopping...")
+        Log(event='pulsar', message="Pulsar realtime listener stopping...")
         try:
             pulsar_client.stop()
-            DomoticzEx.Log("Pulsar realtime listener stopped")
+            Log(event='pulsar', message="Pulsar realtime listener stopped")
         except AttributeError as e:
             # Handle case where internal Pulsar state is already corrupted
-            DomoticzEx.Error(f"Pulsar: internal state error while stopping listener: {e}")
+            Error(event='pulsar', message=f"Pulsar: internal state error while stopping listener: {e}")
         except Exception as e:
-            DomoticzEx.Error(f"Pulsar: error while stopping listener: {e}")
+            Error(event='pulsar', message=f"Pulsar: error while stopping listener: {e}")
         finally:
             # Clear the reference even if stop() failed to prevent further errors
             pulsar_client = None
@@ -1886,7 +1949,7 @@ class BasePlugin:
     def onStart(self):
         if Parameters['Mode6'] != '0':
             DomoticzEx.Debugging(int(Parameters['Mode6']))
-            # DomoticzEx.Log('Debugger started, use 'telnet 0.0.0.0 4444' to connect')
+            # Log(event='startup', message='Debugger started, use 'telnet 0.0.0.0 4444' to connect')
             # import rpdb
             # rpdb.set_trace()
             DumpConfigToLog()
@@ -1977,7 +2040,7 @@ class BasePlugin:
 
         try:
             if Error is not None:
-                DomoticzEx.Error(Error['Payload'])
+                Error(event='error', message=Error['Payload'])
             else:
                 # Control device and update status in DomoticzEx
                 dev_type = getConfigItem(DeviceID, 'category')
@@ -2151,10 +2214,10 @@ class BasePlugin:
 
                 # Multi-LED ondersteuning voor draw_tool (buiten Unit == 1 check)
                 if dev_type in ('light', 'fanlight', 'pirlight') and Unit >= 11:
-                    DomoticzEx.Debug(f"Multi-LED check: Unit {Unit}, draw_tool in functions: {searchCode('draw_tool', function)}")
+                    Debug(event='debug', message=f"Multi-LED check: Unit {Unit}, draw_tool in functions: {searchCode('draw_tool', function)}")
                     if searchCode('draw_tool', function):
                         led_index = Unit - 11
-                        DomoticzEx.Log(f"Multi-LED detected: LED {led_index}, command {Command}")
+                        Log(event='log', message=f"Multi-LED detected: LED {led_index}, command {Command}")
                         if Command == 'Off':
                             max_value = get_draw_tool_max_value(DeviceID)
                             white_type = detect_white_channel_type(DeviceID)
@@ -2337,7 +2400,7 @@ class BasePlugin:
                         if searchCode('work_mode', function):
                             switch = 'work_mode'
                             mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
-                            DomoticzEx.Debug(f"Aromatherapy scene: Level={Level}, mode={mode}, sending={mode[int(Level / 10)]}")
+                            Debug(event='debug', message=f"Aromatherapy scene: Level={Level}, mode={mode}, sending={mode[int(Level / 10)]}")
                             SendCommandTuya(DeviceID, switch, mode[int(Level / 10)])
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0)
                     elif Command == 'Set Color' and Unit == 6:
@@ -3075,7 +3138,7 @@ class BasePlugin:
         if Devices:
             def _run_poll(do_cloud):
                 if not _handle_lock.acquire(blocking=False):
-                    DomoticzEx.Debug('onHeartbeat: poll already running, skipping this cycle')
+                    Debug(event='debug', message='onHeartbeat: poll already running, skipping this cycle')
                     return
                 try:
                     onHandleThread(False, True)
@@ -3085,7 +3148,7 @@ class BasePlugin:
                     _handle_lock.release()
 
             do_cloud = (time.time() - last_update >= synctime and not fulllocal)
-            DomoticzEx.Debug(f"Heartbeat check for sync {time.time() - last_update} >= {synctime} and fulllocal={fulllocal}")
+            Debug(event='debug', message=f"Heartbeat check for sync {time.time() - last_update} >= {synctime} and fulllocal={fulllocal}")
             threading.Thread(target=_run_poll, args=(do_cloud,), daemon=True).start()
 
 global _plugin
@@ -3265,7 +3328,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
             if not fulllocal:
                 # Cloud init
-                DomoticzEx.Log('Cloud mode: fetching device data from Tuya cloud')
+                Log(event='cloud-init', message='Cloud mode: fetching device data from Tuya cloud')
                 if 'tuya' not in globals():
                     try:
                         tuya = tinytuya.Cloud(
@@ -3348,19 +3411,19 @@ def onHandleThread(startup, local, target_dev_id=None):
                         # arrives with dp_ids the plugin has to drop as unknown
                         for dp_id, code in DeviceModelMapping(dev_id).items():
                             if dp_id not in dps_map[dev_id]['by_id']:
-                                DomoticzEx.Debug(f"Device model adds dp_id {dp_id} = {code} for {dev_name} ({dev_id})")
+                                Debug(event='debug', message=f"Device model adds dp_id {dp_id} = {code} for {dev_name} ({dev_id})")
                                 dps_map[dev_id]['by_id'][dp_id] = code
                                 dps_map[dev_id]['by_code'].setdefault(code, dp_id)
-                        DomoticzEx.Debug(f"Fetched properties for {dev_name} ({dev_id}): {len(properties.get(dev_id, {}).get('functions', []))} functions, {len(properties.get(dev_id, {}).get('status', []))} status items")
+                        Debug(event='debug', message=f"Fetched properties for {dev_name} ({dev_id}): {len(properties.get(dev_id, {}).get('functions', []))} functions, {len(properties.get(dev_id, {}).get('status', []))} status items")
                     except Exception as e:
-                        DomoticzEx.Error(f"Failed to fetch properties for {dev_name} ({dev_id}): {e}")
+                        Error(event='error', message=f"Failed to fetch properties for {dev_name} ({dev_id}): {e}")
             elif fulllocal:
-                DomoticzEx.Log('Full local mode: loading device data from files')
+                Log(event='fulllocal', message='Full local mode: loading device data from files')
                 with open(Parameters['HomeFolder'] + '/tuya-raw.json') as dFile:
                     raw = json.load(dFile)
 
                 devs = raw.get('result', [])
-                DomoticzEx.Debug(f"Loading {len(devs)} devices from tuya-raw.json")
+                Debug(event='debug', message=f"Loading {len(devs)} devices from tuya-raw.json")
 
                 with open(Parameters['HomeFolder'] + '/snapshot.json') as eFile:
                     raw = json.load(eFile)
@@ -3370,7 +3433,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                     dev_id = dev['id']
 
                     if not dev.get('mapping'):
-                        DomoticzEx.Error(f"!! Warning Mapping data is missing for {dev.get('name', 'Unknown')} ({dev_id}) !!")
+                        Error(event='error', message=f"!! Warning Mapping data is missing for {dev.get('name', 'Unknown')} ({dev_id}) !!")
                         continue
 
                     # ensure properties entry exists
@@ -3435,10 +3498,10 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     localtuya[dev_id] = dev
 
-                    # DomoticzEx.Debug(f"Convert {json.dumps(devs, indent=2)}")
-                    # DomoticzEx.Debug(f"Localtuya {localtuya}")
-                    # DomoticzEx.Debug(f"Loaded device {dev} from snapshot")
-                    # DomoticzEx.Debug(f"Loaded device {dev_id} with properties {properties[dev_id]} and result {result[dev_id]}")
+                    # Debug(event='debug', message=f"Convert {json.dumps(devs, indent=2)}")
+                    # Debug(event='debug', message=f"Localtuya {localtuya}")
+                    # Debug(event='debug', message=f"Loaded device {dev} from snapshot")
+                    # Debug(event='debug', message=f"Loaded device {dev_id} with properties {properties[dev_id]} and result {result[dev_id]}")
 
             # Active testdata loop
             if testdata:
@@ -3459,15 +3522,15 @@ def onHandleThread(startup, local, target_dev_id=None):
 
 
                     if not properties[dev_id].get('functions'):
-                        DomoticzEx.Error(f"!! Warning Functions data is missing for {dev.get('name', 'Unknown')} ({dev_id}) !!")
+                        Error(event='error', message=f"!! Warning Functions data is missing for {dev.get('name', 'Unknown')} ({dev_id}) !!")
 
                     if not properties[dev_id].get('status'):
-                        DomoticzEx.Error(f"!! Warning Status data is missing for {dev.get('name', 'Unknown')} ({dev_id}) !!")
+                        Error(event='error', message=f"!! Warning Status data is missing for {dev.get('name', 'Unknown')} ({dev_id}) !!")
             # Initial local scan
             if not testdata and not fulllocal:
                 scan_start = time.time()
                 try:
-                    DomoticzEx.Log('Initial Tuya IP scan, Please wait...')
+                    Log(event='ip-scan', message='Initial Tuya IP scan, Please wait...')
                     localtuya = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
                     last_ip_scan = time.time()
                     _log_local_scan_results(localtuya, devs, 'Initial Tuya IP scan', elapsed=time.time() - scan_start)
@@ -3479,7 +3542,7 @@ def onHandleThread(startup, local, target_dev_id=None):
         if (not startup and not testdata and ip_scan_interval > 0 and time.time() - last_ip_scan > ip_scan_interval) and not fulllocal :
             scan_start = time.time()
             try:
-                DomoticzEx.Log('Periodic Tuya IP scan, Please wait...')
+                Log(event='ip-scan', message='Periodic Tuya IP scan, Please wait...')
                 localtuya = tinytuya.deviceScan(verbose=False, maxretry=None, byID=True)
                 last_ip_scan = time.time()
                 _log_local_scan_results(localtuya, devs, 'Periodic Tuya IP scan', elapsed=time.time() - scan_start)
@@ -3515,7 +3578,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                 # Try to ping battery device
                 if dev_id in localtuya and localtuya[dev_id].get('ip', '') != '':
                     try:
-                        DomoticzEx.Debug(f"Pinging battery device {dev.get('name', 'Unknown')} ({dev_id}) at {localtuya[dev_id].get('ip')}")
+                        Debug(event='debug', message=f"Pinging battery device {dev.get('name', 'Unknown')} ({dev_id}) at {localtuya[dev_id].get('ip')}")
                         d = tinytuya.Device(
                             dev_id,
                             localtuya[dev_id].get('ip'),
@@ -3532,14 +3595,14 @@ def onHandleThread(startup, local, target_dev_id=None):
                         if isinstance(ping_result, dict) and ping_result:
                             _log_local_message(dev_id, 'status reply to wake-up ping', ping_result)
                         if ping_result and isinstance(ping_result, dict) and 'dps' in ping_result:
-                            DomoticzEx.Log(f"Battery device {dev.get('name', 'Unknown')} ({dev_id}) responded - woken up successfully")
+                            Log(event='log', message=f"Battery device {dev.get('name', 'Unknown')} ({dev_id}) responded - woken up successfully")
                             # Update result cache with fresh status
                             if 'result' in str(ping_result) or 'dps' in ping_result:
                                 result[dev_id] = ping_result
                         else:
-                            DomoticzEx.Debug(f"Battery device {dev.get('name', 'Unknown')} ({dev_id}) no valid response")
+                            Debug(event='debug', message=f"Battery device {dev.get('name', 'Unknown')} ({dev_id}) no valid response")
                     except Exception as e:
-                        DomoticzEx.Debug(f"Ping to battery device {dev.get('name', 'Unknown')} ({dev_id}) failed: {e}")
+                        Debug(event='debug', message=f"Ping to battery device {dev.get('name', 'Unknown')} ({dev_id}) failed: {e}")
 
         # Main loop
 
@@ -3555,7 +3618,7 @@ def onHandleThread(startup, local, target_dev_id=None):
             connect_type = dev.get('connect_type', 'wifi')
             protocol = dev.get('protocol', 'wifi')
             if 'zigbee' in str(connect_type).lower() or 'zigbee' in str(protocol).lower():
-                DomoticzEx.Error(f"!! Device '{dev.get('name', 'Unknown')}' ({dev.get('id', 'Unknown')}) is Zigbee - NOT SUPPORTED. Only WiFi devices are supported.")
+                Error(event='error', message=f"!! Device '{dev.get('name', 'Unknown')}' ({dev.get('id', 'Unknown')}) is Zigbee - NOT SUPPORTED. Only WiFi devices are supported.")
                 continue
 
             # Default values (offline-safe)
@@ -3586,11 +3649,11 @@ def onHandleThread(startup, local, target_dev_id=None):
                 if is_ir_device:
                     # IR controllers have no local status to read. Keep whatever
                     # the cloud last gave them; do not touch the LAN.
-                    DomoticzEx.Debug(f"IR device {dev['name']} id {dev['id']}: skipping local status, IR controllers have no local state")
+                    Debug(event='debug', message=f"IR device {dev['name']} id {dev['id']}: skipping local status, IR controllers have no local state")
                     ResultValue, online = CloudFallback(dev_id, dev['name'], now)
 
                 elif testdata:
-                    DomoticzEx.Debug(f"Testdata mode: loading status for device {dev['name']} id {dev['id']}")
+                    Debug(event='debug', message=f"Testdata mode: loading status for device {dev['name']} id {dev['id']}")
                     with open(Parameters['HomeFolder'] + '/debug_result.json') as rFile:
                         rData = json.load(rFile)
                         ResultValue = rData['result']
@@ -3599,12 +3662,12 @@ def onHandleThread(startup, local, target_dev_id=None):
                 elif local:
                     listener = local_listeners.get(dev_id)
                     if listener is not None and listener.connected:
-                        DomoticzEx.Debug(f"Local connection to device {dev['name']} id {dev['id']} is open, using what it reported")
+                        Debug(event='debug', message=f"Local connection to device {dev['name']} id {dev['id']} is open, using what it reported")
                         ResultValue = MergeLocalDps(dev_id, listener.values(), ResultValue)
                         online = True
 
                     elif dev_id in localtuya and localtuya[dev_id].get('ip', '') != '':
-                        DomoticzEx.Debug(f"Local connection to device {dev['name']} id {dev['id']} using IP {localtuya[dev_id].get('ip', 'unknown')} and version {localtuya[dev_id].get('version', 'unknown')}")
+                        Debug(event='debug', message=f"Local connection to device {dev['name']} id {dev['id']} using IP {localtuya[dev_id].get('ip', 'unknown')} and version {localtuya[dev_id].get('version', 'unknown')}")
                         # If this device recently failed to answer, give it a
                         # UDP nudge first: the first connect after a failure
                         # has a high chance of hitting the TCP listener while
@@ -3621,7 +3684,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                             online = True
                             ResultValue = MergeLocalDps(dev_id, status['dps'], ResultValue)
                         else:
-                            DomoticzEx.Debug(f"[LOCAL] No valid status for device {dev['name']} id {dev['id']}, falling back to cloud")
+                            Debug(event='debug', message=f"[LOCAL] No valid status for device {dev['name']} id {dev['id']}, falling back to cloud")
                             # Fall back to cloud instead of online=False. This is
                             # specifically for protocol 3.4 devices to show correct
                             # online/offline status. Rate-limited by CloudFallback()
@@ -3636,7 +3699,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         # 3.4 devices to show correct online/offline status.
                         # Rate-limited by CloudFallback() so a device with no
                         # local connection is not read on every heartbeat.
-                        DomoticzEx.Debug(f"No local connection possible for {dev['name']} id {dev['id']}, falling back to cloud")
+                        Debug(event='debug', message=f"No local connection possible for {dev['name']} id {dev['id']}, falling back to cloud")
                         ResultValue, online = CloudFallback(dev_id, dev['name'], now)
 
                 elif ((not local and not startup) or (not fulllocal)):
@@ -3646,7 +3709,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         ResultValue = result.get(dev_id) or []
                         online = True
                     else:
-                        DomoticzEx.Debug(f"Cloud connection to device {dev['name']} id {dev['id']} synctime {now - cloud_status_time.get(dev_id, 0)}")
+                        Debug(event='debug', message=f"Cloud connection to device {dev['name']} id {dev['id']} synctime {now - cloud_status_time.get(dev_id, 0)}")
                         try:
                             cloud = tuya.getstatus(dev_id)
                             ResultValue = cloud.get('result') or []
@@ -3655,25 +3718,25 @@ def onHandleThread(startup, local, target_dev_id=None):
                         except Exception:
                             online = False
                 else:
-                    DomoticzEx.Debug(f"Skipping status fetch for device {dev['name']} id {dev['id']} in full local mode")
+                    Debug(event='debug', message=f"Skipping status fetch for device {dev['name']} id {dev['id']} in full local mode")
                     online = False
 
-                # DomoticzEx.Debug(f"Device {dev["name"]} is online = {online}')
-                # DomoticzEx.Debug(f"Device {dev["name"]} id {dev["id"]} FunctionProperties={properties[dev["id"]]["functions"]}')
-                # DomoticzEx.Debug(f"Device {dev["name"]} id {dev["id"]} StatusProperties={properties[dev["id"]]["status"]}')
-                # DomoticzEx.Debug(f"Device {dev["name"]} id {dev["id"]} ResultValue={result[dev["id"]]}')
-                # DomoticzEx.Debug(f"Device {dev["name"]} id {dev["id"]} DPSMap={dps_map[dev_id]}')
+                # Debug(event='debug', message=f"Device {dev["name"]} is online = {online}')
+                # Debug(event='debug', message=f"Device {dev["name"]} id {dev["id"]} FunctionProperties={properties[dev["id"]]["functions"]}')
+                # Debug(event='debug', message=f"Device {dev["name"]} id {dev["id"]} StatusProperties={properties[dev["id"]]["status"]}')
+                # Debug(event='debug', message=f"Device {dev["name"]} id {dev["id"]} ResultValue={result[dev["id"]]}')
+                # Debug(event='debug', message=f"Device {dev["name"]} id {dev["id"]} DPSMap={dps_map[dev_id]}')
 
             except Exception as err:
                 # Device unreachable fallback
                 ResultValue = []
-                DomoticzEx.Error(f"Error line {sys.exc_info()[-1].tb_lineno}")
-                DomoticzEx.Debug(f"handleThread: {err} line {sys.exc_info()[-1].tb_lineno}")
+                Error(event='error', message=f"Error line {sys.exc_info()[-1].tb_lineno}")
+                Debug(event='debug', message=f"handleThread: {err} line {sys.exc_info()[-1].tb_lineno}")
 
             # Create devices
             if startup:
                 # if not Devices and ba:
-                #     DomoticzEx.Log('Device data not initialized, skipping onHandleThread')
+                #     Log(event='handle', message='Device data not initialized, skipping onHandleThread')
                 #     return
                 try:
                     deviceinfo = localtuya.get(dev_id, {'ip': '127.0.0.1', 'version': 'unknown'})
@@ -3682,35 +3745,35 @@ def onHandleThread(startup, local, target_dev_id=None):
                         main_subtype = 4  # Default subtype for RGBWW
 
                         if (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
-                            DomoticzEx.Log('Create device Light RGBWW')
+                            Log(event='create', message='Create device Light RGBWW')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=241, Subtype=4, Switchtype=7, Used=1).Create()
                             main_subtype = 4
                         elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and 'dc' == str(properties[dev_id]['category']) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)):
-                            DomoticzEx.Log('Create device Light Stringlight')
+                            Log(event='create', message='Create device Light Stringlight')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=241, Subtype=4, Switchtype=7, Used=1).Create()
                             main_subtype = 4
                         elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
-                            DomoticzEx.Log('Create device Light RGBW')
+                            Log(event='create', message='Create device Light RGBW')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=241, Subtype=1, Switchtype=7, Used=1).Create()
                             main_subtype = 1
                         elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and not searchCode('work_mode', StatusProperties) and (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
-                            DomoticzEx.Log('Create device Light RGB')
+                            Log(event='create', message='Create device Light RGB')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
                             main_subtype = 2
                         elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (searchCode('temp_value', StatusProperties) or searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
-                            DomoticzEx.Log('Create device Light WWCW')
+                            Log(event='create', message='Create device Light WWCW')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=241, Subtype=8, Switchtype=7, Used=1).Create()
                             main_subtype = 8
                         elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and not searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (searchCode('bright_value', StatusProperties) or searchCode('bright_value_v2', StatusProperties)):
-                            DomoticzEx.Log('Create device Light Dimmer')
+                            Log(event='create', message='Create device Light Dimmer')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
                             main_subtype = 3
                         elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)) and not searchCode('work_mode', StatusProperties) and not (searchCode('colour_data', StatusProperties) or searchCode('colour_data_v2', StatusProperties)) and (not searchCode('temp_value', StatusProperties) or not searchCode('temp_value_v2', StatusProperties)) and (not searchCode('bright_value', StatusProperties) or not searchCode('bright_value_v2', StatusProperties)):
-                            DomoticzEx.Log('Create device Light On/Off')
+                            Log(event='create', message='Create device Light On/Off')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
                             main_subtype = 73
                         elif (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)):
-                            DomoticzEx.Log('Create device Light On/Off (Unknown Light Device)')
+                            Log(event='create', message='Create device Light On/Off (Unknown Light Device)')
                             DomoticzEx.Unit(Name=f"{dev['name']} (Unknown Light Device)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=7, Used=1).Create()
                             main_subtype = 73
                         # elif not (searchCode('switch_led', StatusProperties) or searchCode('led_switch', StatusProperties)):
@@ -3720,7 +3783,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                     if searchCode('led_number_set', StatusProperties):
                         led_count = StatusDeviceTuya('led_number_set')
                         white_type = detect_white_channel_type(dev_id)
-                        DomoticzEx.Log(f"Multi-LED: Detected {led_count} LEDs, type: {white_type}")
+                        Log(event='log', message=f"Multi-LED: Detected {led_count} LEDs, type: {white_type}")
 
                         # Create or update devices for each LED
                         for i in range(1, led_count + 1):
@@ -3730,7 +3793,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                             # Check if device already exists
                             if createDevice(dev_id, unit_number):
                                 # Create new device for this LED
-                                DomoticzEx.Log(f'Create device LED {i} of {led_count}, type: {white_type}')
+                                Log(event='log', message=f'Create device LED {i} of {led_count}, type: {white_type}')
 
                                 # Use same type/subtype as main device
                                 if main_subtype == 73:  # On/Off type
@@ -3754,11 +3817,11 @@ def onHandleThread(startup, local, target_dev_id=None):
                                         Used=1
                                     ).Create()
 
-                        DomoticzEx.Log(f"Multi-LED: Created {led_count} LED devices starting from unit 11, type: {white_type}")
+                        Log(event='log', message=f"Multi-LED: Created {led_count} LED devices starting from unit 11, type: {white_type}")
 
                     if dev_type == 'dimmer':
                         if  createDevice(dev_id, 1) and searchCode('switch_led_1', FunctionProperties) and not searchCode('switch_led_2', FunctionProperties):
-                            DomoticzEx.Log('Create device Dimmer')
+                            Log(event='create', message='Create device Dimmer')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=241, Subtype=3, Switchtype=7, Used=1).Create()
                         # elif not createDevice(dev_id, 1) and not searchCode('switch_led_1', FunctionProperties) and not searchCode('switch_led_2', FunctionProperties):
                         #     deleteDevice(dev_id,1)
@@ -3774,10 +3837,10 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type in ('switch', 'switch/sensor'):
                         if  createDevice(dev_id, 1) and (searchCode('switch_1', FunctionProperties) or searchCode('switch', FunctionProperties) or searchCode('switch_on', FunctionProperties)) and not searchCode('switch_2', FunctionProperties):
-                            DomoticzEx.Log('Create device Switch')
+                            Log(event='create', message='Create device Switch')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if searchCode('switch_2', FunctionProperties):
-                            DomoticzEx.Log('Create device Switch')
+                            Log(event='create', message='Create device Switch')
                             if createDevice(dev_id, 1):
                                 DomoticzEx.Unit(Name=f"{dev['name']} (Switch 1)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                             if createDevice(dev_id, 2):
@@ -3813,11 +3876,11 @@ def onHandleThread(startup, local, target_dev_id=None):
                         if createDevice(dev_id, 22) and (searchCode('power_b', StatusProperties)):
                             DomoticzEx.Unit(Name=f"{dev['name']} Forward B(kWh)", DeviceID=dev_id, Unit=22, Type=243, Subtype=29, Used=1).Create()
                         if (searchCode('switch_led', FunctionProperties) and searchCode('work_mode', FunctionProperties) and searchCode('colour_data', FunctionProperties) and createDevice(dev_id, 2)):
-                            DomoticzEx.Log('Create device Socket RGB LED')
+                            Log(event='create', message='Create device Socket RGB LED')
                             DomoticzEx.Unit(Name=f"{dev['name']} (LED)", DeviceID=dev_id, Unit=2, Type=241, Subtype=1, Switchtype=7, Used=1).Create()
 
                     if dev_type == 'cover' and createDevice(dev_id, 1):
-                        DomoticzEx.Log('Create device Cover')
+                        Log(event='create', message='Create device Cover')
                         if searchCode('position', StatusProperties) or searchCode('percent_control', FunctionProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Switch 1)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=21, Used=1).Create()
                         elif searchCode('control', FunctionProperties) or searchCode('mach_operate', FunctionProperties) or searchCode('status', FunctionProperties):
@@ -3829,7 +3892,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'smartheatpump':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
-                            DomoticzEx.Log('Create device Smartheatpump')
+                            Log(event='create', message='Create device Smartheatpump')
                             DomoticzEx.Unit(Name=f"{dev['name']} (On/Off)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('intemp', StatusProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (INtemp)", DeviceID=dev_id, Unit=2, Type=80, Subtype=5, Used=1).Create()
@@ -3981,7 +4044,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         temp = searchCode('temp_current', StatusProperties) or searchCode('upper_temp', StatusProperties) or searchCode('c_temperature', StatusProperties) or searchCode('TempCurrent', StatusProperties)
                         hum = searchCode('humidity_current', StatusProperties)
                         if createDevice(dev_id, 1):
-                            DomoticzEx.Log('Create device Thermostat/heater/heatpump')
+                            Log(event='create', message='Create device Thermostat/heater/heatpump')
                             if searchCode('switch', FunctionProperties) or searchCode('switch_1', FunctionProperties) or searchCode('Power', FunctionProperties) or searchCode('infared_switch', FunctionProperties):
                                 DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                             else:
@@ -4117,7 +4180,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         temp = searchCode('va_temperature', StatusProperties) or searchCode('temp_current', StatusProperties) or searchCode('local_temp', StatusProperties) or searchCode('Tin', StatusProperties)
                         hum = searchCode('va_humidity', StatusProperties) or searchCode('humidity_value', StatusProperties) or searchCode('local_hum', StatusProperties) or searchCode('humidity', StatusProperties) or searchCode('Hin', StatusProperties)
                         if createDevice(dev_id, 1) and temp:
-                            DomoticzEx.Log('Create Sensor device')
+                            Log(event='log', message='Create Sensor device')
                             DomoticzEx.Unit(Name=f"{dev['name']} (Temperature)", DeviceID=dev_id, Unit=1, Type=80, Subtype=5, Used=0 if hum else 1).Create()
                         if createDevice(dev_id, 2) and hum:
                             DomoticzEx.Unit(Name=f"{dev['name']} (Humidity)", DeviceID=dev_id, Unit=2, Type=81, Subtype=1, Used=0).Create()
@@ -4340,13 +4403,13 @@ def onHandleThread(startup, local, target_dev_id=None):
                             temp_valid = temp and current_temp is not None and current_temp != -40
                             hum_valid = hum and current_hum is not None and current_hum != 0
                             if createDevice(dev_id, unit_base - 2) and temp_valid:
-                                DomoticzEx.Log(f"Create Temperature Sensor device for channel {channel}")
+                                Log(event='log', message=f"Create Temperature Sensor device for channel {channel}")
                                 DomoticzEx.Unit(Name=f"{dev['name']} (CH{channel} Temperature)", DeviceID=dev_id, Unit=unit_base - 2, Type=80, Subtype=5, Used=0 if hum_valid else 1).Create()
                             if createDevice(dev_id, unit_base - 1) and hum_valid:
-                                DomoticzEx.Log(f"Create Humidity Sensor device for channel {channel}")
+                                Log(event='log', message=f"Create Humidity Sensor device for channel {channel}")
                                 DomoticzEx.Unit(Name=f"{dev['name']} (CH{channel} Humidity)", DeviceID=dev_id, Unit=unit_base - 1, Type=81, Subtype=1, Used=0).Create()
                             if createDevice(dev_id, unit_base) and temp_valid and hum_valid:
-                                DomoticzEx.Log(f"Create Combined Sensor device for channel {channel}")
+                                Log(event='log', message=f"Create Combined Sensor device for channel {channel}")
                                 DomoticzEx.Unit(Name=f"{dev['name']} (CH{channel} Temperature + Humidity)", DeviceID=dev_id, Unit=unit_base, Type=82, Subtype=5, Used=1).Create()
                         # if createDevice(dev_id, 47) and searchCode('alarm_switch', FunctionProperties):
                         #     DomoticzEx.Unit(Name=dev['name'] + ' (Alarm)', DeviceID=dev_id, Unit=47, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -4362,14 +4425,14 @@ def onHandleThread(startup, local, target_dev_id=None):
                             DomoticzEx.Unit(Name=dev['name'] + ' (Rain)', DeviceID=dev['id'], Unit=76, Type=85, Subtype=1, Used=1).Create()
 
                     if dev_type in ('smartir') and dev_id not in str(Devices):
-                        DomoticzEx.Log(f"Infrared device (not supported): {dev['name']} ({dev_id})")
-                        DomoticzEx.Error(f"Device '{dev['name']}' is an infrared controller (category 'wnykq'). Infrared devices are not yet supported by this plugin - they require complex IR code learning and transmission capabilities that are beyond the current scope.")
+                        Log(event='log', message=f"Infrared device (not supported): {dev['name']} ({dev_id})")
+                        Error(event='error', message=f"Device '{dev['name']}' is an infrared controller (category 'wnykq'). Infrared devices are not yet supported by this plugin - they require complex IR code learning and transmission capabilities that are beyond the current scope.")
                         DomoticzEx.Unit(Name=dev['name'] + ' (NOT SUPPORTED)', DeviceID=dev_id, Unit=1, Type=243, Subtype=19, Used=0).Create()
                         UpdateDomoticz(dev_id, 1, 'Infrared devices are not supported - requires IR code learning and transmission capabilities', 0, 0)
 
                     if dev_type == 'doorbell':
                         if createDevice(dev['id'], 1) and searchCode('doorbell_active', StatusProperties):
-                            DomoticzEx.Log('Create device Doorbell')
+                            Log(event='create', message='Create device Doorbell')
                             #DomoticzEx.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=243, Subtype=19, Used=1).Create()
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev['id'], Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create() # Switchtype=1 is doorbell
                         if createDevice(dev['id'], 2) and searchCode('floodlight_switch', StatusProperties):
@@ -4431,7 +4494,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'fan':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
-                            DomoticzEx.Log('Create device Fan')
+                            Log(event='create', message='Create device Fan')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('mode', FunctionProperties):
                             for item in FunctionProperties:
@@ -4497,7 +4560,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'fanlight':
                         if createDevice(dev_id, 2) and searchCode('fan_switch', FunctionProperties):
-                            DomoticzEx.Log('Create device Fanlight')
+                            Log(event='create', message='Create device Fanlight')
                             DomoticzEx.Unit(Name=f"{dev['name']} (Fan Power)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=7, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('fan_speed', FunctionProperties):
                             for item in FunctionProperties:
@@ -4530,7 +4593,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'siren':
                         if createDevice(dev_id, 1) and searchCode('AlarmSwitch', FunctionProperties):
-                            DomoticzEx.Log('Create device Siren')
+                            Log(event='create', message='Create device Siren')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=13, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('Alarmtype', FunctionProperties):
                             for item in FunctionProperties:
@@ -4564,7 +4627,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         if createDevice(dev_id, 1) and searchCode('muffling', FunctionProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Muffling)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=8, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('alarm_state', FunctionProperties):
-                            DomoticzEx.Log('Create device Siren')
+                            Log(event='create', message='Create device Siren')
                             for item in FunctionProperties:
                                 if item['code'] == 'alarm_state':
                                     the_values = json.loads(item['values'])
@@ -4597,7 +4660,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'powermeter' and searchCode('Current', StatusProperties):
                         if createDevice(dev_id, 1) :
-                            DomoticzEx.Log('Create Powermeter')
+                            Log(event='log', message='Create Powermeter')
                             DomoticzEx.Unit(Name=f"{dev['name']} (3P A)", DeviceID=dev_id, Unit=1, Type=89, Subtype=1, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('Current', StatusProperties):
                             options = {}
@@ -4624,7 +4687,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'powermeter' and searchCode('phase_a', StatusProperties):
                         if createDevice(dev_id, 1):
-                            DomoticzEx.Log('Create Powermeter')
+                            Log(event='log', message='Create Powermeter')
                             DomoticzEx.Unit(Name=f"{dev['name']} A (A)", DeviceID=dev_id, Unit=1, Type=243, Subtype=23, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('phase_a', StatusProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} A (W)", DeviceID=dev_id, Unit=2, Type=248, Subtype=1, Used=1).Create()
@@ -4639,7 +4702,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'powermeter' and searchCode('phase_b', StatusProperties):
                         if createDevice(dev_id, 11):
-                            DomoticzEx.Log('Create Powermeter')
+                            Log(event='log', message='Create Powermeter')
                             DomoticzEx.Unit(Name=f"{dev['name']} B (A)", DeviceID=dev_id, Unit=11, Type=243, Subtype=23, Used=1).Create()
                         if createDevice(dev_id, 12) and searchCode('phase_b', StatusProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} B (W)", DeviceID=dev_id, Unit=12, Type=248, Subtype=1, Used=1).Create()
@@ -4650,7 +4713,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'powermeter' and searchCode('phase_c', StatusProperties):
                         if createDevice(dev_id, 21):
-                            DomoticzEx.Log('Create Powermeter')
+                            Log(event='log', message='Create Powermeter')
                             DomoticzEx.Unit(Name=f"{dev['name']} C (A)", DeviceID=dev_id, Unit=21, Type=243, Subtype=23, Used=1).Create()
                         if createDevice(dev_id, 22) and searchCode('phase_c', StatusProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} C (W)", DeviceID=dev_id, Unit=22, Type=248, Subtype=1, Used=1).Create()
@@ -4661,7 +4724,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'powermeter' and (searchCode('direction_a', StatusProperties) or searchCode('power_direction_a', StatusProperties)):
                         if createDevice(dev_id, 1) and (searchCode('voltage_a', StatusProperties) or searchCode('f_ac_v', StatusProperties)):
-                            DomoticzEx.Log('Create Powermeter')
+                            Log(event='log', message='Create Powermeter')
                             DomoticzEx.Unit(Name=f"{dev['name']} (V)", DeviceID=dev_id, Unit=1, Type=243, Subtype=8, Used=1).Create()
                         if createDevice(dev_id, 2) and (searchCode('freq', StatusProperties) or searchCode('f_ac_line_freq', StatusProperties)):
                             options = {}
@@ -4708,7 +4771,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'powermeter' and (searchCode('switch_1', StatusProperties) or searchCode('switch', StatusProperties)) and not searchCode('phase_a', StatusProperties):
                         if  createDevice(dev_id, 1) and (searchCode('switch_1', StatusProperties) or searchCode('switch', StatusProperties)):
-                            DomoticzEx.Log('Create Powermeter')
+                            Log(event='log', message='Create Powermeter')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('cur_current', StatusProperties):
                             options = {}
@@ -4723,7 +4786,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'gateway':
                         if createDevice(dev_id, 1):
-                            DomoticzEx.Log('Create device Gateway')
+                            Log(event='create', message='Create device Gateway')
                             if searchCode('master_state', StatusProperties):
                                 DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=243, Subtype=19, Used=1).Create()
                             else:
@@ -4731,12 +4794,12 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'doorcontact':
                         if createDevice(dev_id, 1):
-                            DomoticzEx.Log('Create device Doorcontact')
+                            Log(event='create', message='Create device Doorcontact')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                     if dev_type == 'pirlight':
                         if createDevice(dev_id, 2) and searchCode('switch_pir', FunctionProperties):
-                            DomoticzEx.Log('Create device Pirlight')
+                            Log(event='create', message='Create device Pirlight')
                             DomoticzEx.Unit(Name=f"{dev['name']} (Pir State)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=8, Image=9, Used=1).Create()
                         if createDevice(dev_id, 3) and searchCode('device_mode', FunctionProperties):
                             for item in FunctionProperties:
@@ -4771,13 +4834,13 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'smokedetector':
                         if createDevice(dev_id, 1):
-                            DomoticzEx.Log('Create device Smokedetector')
+                            Log(event='create', message='Create device Smokedetector')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=5, Used=1).Create()
                             DomoticzEx.Unit(Name=f"{dev['name']} (Alarm)", DeviceID=dev_id, Unit=2, Type=243, Subtype=19, Used=1).Create()
 
                     if dev_type == 'garagedooropener':
                         if createDevice(dev_id, 1) and searchCode('switch_1', FunctionProperties):
-                            DomoticzEx.Log('Create device Garage door opener')
+                            Log(event='create', message='Create device Garage door opener')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=5, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('doorcontact_state', StatusProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Contact state)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=11, Used=1).Create()
@@ -4786,7 +4849,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'feeder':
                         if createDevice(dev_id, 1) and searchCode('manual_feed', FunctionProperties):
-                            DomoticzEx.Log('Create device Feeder')
+                            Log(event='create', message='Create device Feeder')
                             for item in FunctionProperties:
                                 if item['code'] == 'manual_feed':
                                     the_values = json.loads(item['values'])
@@ -4832,12 +4895,12 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'waterleak':
                         if createDevice(dev_id, 1):
-                            DomoticzEx.Log('Create device water leak sesor')
+                            Log(event='create', message='Create device water leak sesor')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=243, Subtype=22, Switchtype=0, Image=11, Used=1).Create()
 
                     if dev_type == 'presence':
                         if createDevice(dev_id, 1):
-                            DomoticzEx.Log('Create device PIR sensor')
+                            Log(event='create', message='Create device PIR sensor')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
 
                     if dev_type == 'irrigation':
@@ -4931,7 +4994,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'starlight':
                         if createDevice(dev_id, 1) and searchCode('switch_led', FunctionProperties):
-                            DomoticzEx.Log('Create device Starlight')
+                            Log(event='create', message='Create device Starlight')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=241, Subtype=2, Switchtype=7, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('colour_switch', FunctionProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Colour)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Used=1).Create()
@@ -4942,7 +5005,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'smartlock':
                         if createDevice(dev_id, 1) and (searchCode('lock_motor_state', StatusProperties) or searchCode('rtc_lock', StatusProperties)):
-                            DomoticzEx.Log('Create device smart lock')
+                            Log(event='create', message='Create device smart lock')
                             DomoticzEx.Unit(Name=f"{dev['name']} (State)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('alarm_lock', StatusProperties):
                             for item in StatusProperties:
@@ -4967,7 +5030,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                                                 Type=244, Subtype=73, Switchtype=11, Used=1).Create()
 
                     if dev_type == 'aromatherapy':
-                        DomoticzEx.Log('Create device Aromatherapy')
+                        Log(event='create', message='Create device Aromatherapy')
                         if createDevice(dev_id, 1) and searchCode('Power', FunctionProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']}", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('Light', FunctionProperties):
@@ -5022,7 +5085,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'dehumidifier':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
-                            DomoticzEx.Log('Create device Dehumidifier')
+                            Log(event='create', message='Create device Dehumidifier')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and (searchCode('dehumidify_set_value', FunctionProperties) or searchCode('dehumidify_set_enum', FunctionProperties)):
                             if searchCode('dehumidify_set_value', FunctionProperties):
@@ -5092,7 +5155,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'infrared_ac':
                         if createDevice(dev_id, 1):
-                            DomoticzEx.Log('Create device Infrared AC')
+                            Log(event='create', message='Create device Infrared AC')
                             DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('temp', StatusProperties):
                                 DomoticzEx.Unit(Name=f"{dev['name']} (Thermostat)", DeviceID=dev_id, Unit=2, Type=242, Subtype=1, Used=1).Create()
@@ -5133,7 +5196,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'vacuum':
                         if createDevice(dev_id, 1) and searchCode('power_go', FunctionProperties):
-                            DomoticzEx.Log('Create device Robot vacuum')
+                            Log(event='create', message='Create device Robot vacuum')
                             DomoticzEx.Unit(Name=f"{dev['name']} Running", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('switch_charge', FunctionProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Charge)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -5203,13 +5266,13 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'multifunctionalarm':
                         if createDevice(dev_id, 1):
-                            DomoticzEx.Log(f"Multifunction alarm: {dev['name']}")
+                            Log(event='log', message=f"Multifunction alarm: {dev['name']}")
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=243, Subtype=19, Used=0).Create()
                             UpdateDomoticz(dev_id, 1, 'update wait', 0, 0)
 
                     if dev_type == 'purifier':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
-                            DomoticzEx.Log('Create purifier device')
+                            Log(event='log', message='Create purifier device')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('pm25', StatusProperties):
                             options = {}
@@ -5252,7 +5315,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'smartkettle':
                         if createDevice(dev_id, 1) and searchCode('start', StatusProperties):
-                            DomoticzEx.Log('Create device Smart Kettle')
+                            Log(event='create', message='Create device Smart Kettle')
                             DomoticzEx.Unit(Name=f"{dev['name']} (Start)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('status', StatusProperties):
                             for item in StatusProperties:
@@ -5288,7 +5351,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'mower':
                         if createDevice(dev_id, 1) and searchCode('MachineControlCmd', FunctionProperties):
-                            DomoticzEx.Log('Create device Smart Mower')
+                            Log(event='create', message='Create device Smart Mower')
                             for item in FunctionProperties:
                                 if item['code'] == 'MachineControlCmd':
                                     the_values = json.loads(item['values'])
@@ -5329,7 +5392,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'human_presence':
                         if createDevice(dev_id, 1) and searchCode('presence_state', StatusProperties):
-                            DomoticzEx.Log('Create device Human presence sensor')
+                            Log(event='create', message='Create device Human presence sensor')
                             DomoticzEx.Unit(Name=f"{dev['name']} (Presence)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('sensitivity', FunctionProperties):
                             for item in FunctionProperties:
@@ -5397,7 +5460,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'evcharger':
                         if createDevice(dev_id, 1) and searchCode('switch', StatusProperties):
-                            DomoticzEx.Log('Create EVcharger')
+                            Log(event='log', message='Create EVcharger')
                             DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev_id, Unit=1, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('work_state', StatusProperties):
                                 DomoticzEx.Unit(Name=f"{dev['name']} (Work state)", DeviceID=dev_id, Unit=2, Type=243, Subtype=19, Used=1).Create()
@@ -5420,7 +5483,7 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type in ('light'):
                         if createDevice(dev_id, 1) and searchCode('Light', FunctionProperties) and searchCode('work_mode', FunctionProperties) and (searchCode('colour_data', FunctionProperties) or searchCode('colour_data_v2', FunctionProperties)):
-                            DomoticzEx.Log('Create device Light RGBW')
+                            Log(event='create', message='Create device Light RGBW')
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=241, Subtype=1, Switchtype=7, Used=1).Create()
                         if createDevice(dev_id, 2) and searchCode('Power', FunctionProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Power)", DeviceID=dev_id, Unit=2, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
@@ -5457,17 +5520,17 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                     if dev_type == 'infrared':
                         if createDevice(dev_id, 1):
-                            DomoticzEx.Log(f"Infrared device: {dev['name']}")
+                            Log(event='log', message=f"Infrared device: {dev['name']}")
                             DomoticzEx.Unit(Name=dev['name'], DeviceID=dev_id, Unit=1, Type=243, Subtype=19, Used=0).Create()
                             UpdateDomoticz(dev_id, 1, 'Infrared devices are not yet able to be controlled by the plugin.', 0, 0)
 
                     if createDevice(dev_id, 1) and dev_id not in str(Devices):
-                        DomoticzEx.Log(f"No controls found for device: {dev['name']}")
+                        Log(event='log', message=f"No controls found for device: {dev['name']}")
                         DomoticzEx.Unit(Name=f"{dev['name']} (Unknown Device)", DeviceID=dev_id, Unit=1, Type=243, Subtype=19, Used=1).Create()
                         UpdateDomoticz(dev_id, 1, 'This device is not recognized. Please run the debug_discovery with Python from the tools directory and create an issue report at https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues so that the device can be added.', 0, 0)
 
                 except Exception:
-                    DomoticzEx.Error("Domoticz blocks new devices. Enable 'Accept new Hardware Devices'.")
+                    Error(event='create', message="Domoticz blocks new devices. Enable 'Accept new Hardware Devices'.")
                     return
 
                 setConfigItem(
@@ -5491,7 +5554,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         elif not online and Devices[dev_id].TimedOut == 0:
                             UpdateDomoticz(dev_id, 1, False, 0, 1)
                     except Exception:
-                        DomoticzEx.Log(f"Device {dev_name} offline")
+                        Log(event='log', message=f"Device {dev_name} offline")
                 else:
                     # Battery devices never timeout
                     if Devices[dev_id].TimedOut == 1:
@@ -6103,7 +6166,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                             chill_code = 'feellike_temp' if searchCode('feellike_temp', ResultValue) else 'windchill_index'
                             outdoor = searchCode('temp_current_external', ResultValue) and searchCode(chill_code, ResultValue)
                             if createDevice(dev['id'], 77):
-                                DomoticzEx.Log('Create Wind device')
+                                Log(event='create', message='Create Wind device')
                                 DomoticzEx.Unit(Name=dev['name'] + ' (Wind)', DeviceID=dev['id'], Unit=77, Type=86, Subtype=4 if outdoor else 1, Used=1).Create()
                             bearing, direction = WindDirection(WeatherValue('Wing_direction', ResultValue))
                             if direction:
@@ -6521,30 +6584,30 @@ def onHandleThread(startup, local, target_dev_id=None):
                             # update_text_device('fault', 8)
 
                     except Exception as err:
-                        DomoticzEx.Error(f"Device read failed: {dev.get('name', 'Unknown')} ({dev_id}) line {sys.exc_info()[-1].tb_lineno}")
-                        DomoticzEx.Debug(f"handleThread: {err} line {sys.exc_info()[-1].tb_lineno}")
+                        Error(event='error', message=f"Device read failed: {dev.get('name', 'Unknown')} ({dev_id}) line {sys.exc_info()[-1].tb_lineno}")
+                        Debug(event='debug', message=f"handleThread: {err} line {sys.exc_info()[-1].tb_lineno}")
 
     except Exception as e:
-        DomoticzEx.Error(str(e))
-        DomoticzEx.Error(traceback.format_exc())
+        Error(event='error', message=str(e))
+        Error(event='error', message=traceback.format_exc())
 
 # Generic helper functions
 def DumpConfigToLog():
     for x in Parameters:
         if Parameters[x] != "":
-            DomoticzEx.Debug(f"'{x}':'{Parameters[x]}'")
-    DomoticzEx.Debug(f"Device count: {len(Devices)}")
+            Debug(event='config', message=f"'{x}':'{Parameters[x]}'")
+    Debug(event='config', message=f"Device count: {len(Devices)}")
     for DeviceName in Devices:
         Device = Devices[DeviceName]
-        DomoticzEx.Debug(f"Device Name:     '{getattr(Device, 'Name', Device.DeviceID)}'")
-        DomoticzEx.Debug(f"--->Unit Count:      '{len(Device.Units)}'")
+        Debug(event='config', message=f"Device Name:     '{getattr(Device, 'Name', Device.DeviceID)}'")
+        Debug(event='config', message=f"--->Unit Count:      '{len(Device.Units)}'")
         for UnitNo in Device.Units:
             Unit = Device.Units[UnitNo]
-            DomoticzEx.Debug(f"--->Unit:           {UnitNo}")
-            DomoticzEx.Debug(f"--->Unit Name:     '{Unit.Name}'")
-            DomoticzEx.Debug(f"--->Unit nValue:    {Unit.nValue}")
-            DomoticzEx.Debug(f"--->Unit sValue:   '{Unit.sValue}'")
-            DomoticzEx.Debug(f"--->Unit LastLevel: {Unit.LastLevel}")
+            Debug(event='config', message=f"--->Unit:           {UnitNo}")
+            Debug(event='config', message=f"--->Unit Name:     '{Unit.Name}'")
+            Debug(event='config', message=f"--->Unit nValue:    {Unit.nValue}")
+            Debug(event='config', message=f"--->Unit sValue:   '{Unit.sValue}'")
+            Debug(event='config', message=f"--->Unit LastLevel: {Unit.LastLevel}")
     return
 
 def WindDirection(raw):
@@ -6580,7 +6643,7 @@ def DeviceModelMapping(dev_id):
             for p in service.get('properties', [])
         }
     except Exception as e:
-        DomoticzEx.Debug(f"No device model for {dev_id}: {e}")
+        Debug(event='debug', message=f"No device model for {dev_id}: {e}")
     return mapping
 
 # Select device type from category
@@ -6604,7 +6667,7 @@ def DeviceType(category, product_id=None, product_name=None):
         # If product_name indicates it's a curtain switch, treat as cover
         if product_name and 'curtain' in str(product_name).lower():
             resultdev = 'cover'
-            DomoticzEx.Debug(f"Category 'qt' with product_name '{product_name}' detected as curtain switch (cover)")
+            Debug(event='devicetype', message=f"Category 'qt' with product_name '{product_name}' detected as curtain switch (cover)")
         else:
             resultdev = 'smokedetector'
     elif category in {'dj', 'dd', 'dc', 'fwl', 'xdd', 'fwd', 'tyndj', 'tyd'}:
@@ -6680,13 +6743,13 @@ def DeviceType(category, product_id=None, product_name=None):
     elif 'infrared_' in category: # keep it last
         resultdev = 'infrared'
 
-    DomoticzEx.Debug(resultdev)
+    Debug(event='devicetype', message=resultdev)
     return resultdev
 
 def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
 
     if not checkDevice(ID, Unit):
-        DomoticzEx.Debug(f"Device {ID} Unit {Unit} doesn't exist. Nothing to update")
+        Debug(event='update', message=f"Device {ID} Unit {Unit} doesn't exist. Nothing to update")
         return
 
     unit = Devices[ID].Units[Unit]
@@ -6728,7 +6791,7 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
     Devices[ID].TimedOut = TimedOut
     unit.Update(Log=True)
 
-    DomoticzEx.Debug(f"Update device: {Name} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}")
+    Debug(event='update', message=f"Update device: {Name} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}")
 
 def StatusDeviceTuya(Function):
     if searchCode(Function, StatusProperties):
@@ -6740,7 +6803,7 @@ def StatusDeviceTuya(Function):
         if reading_dev:
             local_used.setdefault(reading_dev, set()).add(found['code'])
     else:
-        DomoticzEx.Debug(f"StatusDeviceTuya called {Function} not found ")
+        Debug(event='status', message=f"StatusDeviceTuya called {Function} not found ")
         return None
     if isinstance(valueRaw, (int, float)):
         valueT = get_scale(StatusProperties, Function, valueRaw)
@@ -6777,7 +6840,7 @@ def SendCommandTuya(ID, CommandName, Status):
     elif isinstance(Status, (int, float)) and not isinstance(Status, bool):
         actual_status = set_scale(sendfunction, actual_function_name, Status)
 
-    DomoticzEx.Debug(f"SendCommand: {ID} | {actual_function_name} = {actual_status}")
+    Debug(event='command', message=f"SendCommand: {ID} | {actual_function_name} = {actual_status}")
 
     # Get device name from devs list for all logging
     dev_name = next((d.get('name', 'Unknown') for d in devs if d.get('id') == ID), ID)
@@ -6839,11 +6902,11 @@ def SendCommandTuya(ID, CommandName, Status):
                     if not result or 'Error' in result or 'Err' in result:
                         raise Exception(result)
 
-                DomoticzEx.Log(f"[LOCAL] Command sent: dp_id {dp_id} = {actual_status} ({dev_name})")
+                Log(event='command', message=f"[LOCAL] Command sent: dp_id {dp_id} = {actual_status} ({dev_name})")
                 return
 
             except Exception as e:
-                DomoticzEx.Debug(f"[LOCAL FAILED] {dev_name}, fallback to cloud: {e}")
+                Debug(event='command', message=f"[LOCAL FAILED] {dev_name}, fallback to cloud: {e}")
                 # FALLBACK TO CLOUD (still in background)
                 try:
                     if actual_function_name in ('PowerOff', 'PowerOn'):
@@ -6858,12 +6921,12 @@ def SendCommandTuya(ID, CommandName, Status):
                             uri
                         )
 
-                    DomoticzEx.Log(f"[CLOUD] Command sent to Tuya: {dev_name}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
+                    Log(event='command', message=f"[CLOUD] Command sent to Tuya: {dev_name}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
                 except Exception as ce:
-                    DomoticzEx.Error(f"[CLOUD FAILED] {dev_name}: {ce}")
+                    Error(event='command', message=f"[CLOUD FAILED] {dev_name}: {ce}")
 
         threading.Thread(target=_do_send, daemon=True).start()
-        DomoticzEx.Log(f"[LOCAL] Command queued: dp_id {dp_id_preview} = {actual_status} ({dev_name})")
+        Log(event='command', message=f"[LOCAL] Command queued: dp_id {dp_id_preview} = {actual_status} ({dev_name})")
         return
 
     #------ FALLBACK: TUYA CLOUD------
@@ -6879,7 +6942,7 @@ def SendCommandTuya(ID, CommandName, Status):
             uri
         )
 
-    DomoticzEx.Log(f"[CLOUD] Command sent to Tuya: {dev_name}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
+    Log(event='command', message=f"[CLOUD] Command sent to Tuya: {dev_name}, { {'commands': [{'code': actual_function_name, 'value': actual_status}]} }, {uri}")
 
 def pct_to_brightness(device_functions, actual_function_name, pct):
     if device_functions and actual_function_name:
@@ -6888,7 +6951,7 @@ def pct_to_brightness(device_functions, actual_function_name, pct):
                 the_values = json.loads(item['values'])
                 min_value = int(the_values.get('min', 0))
                 max_value = int(the_values.get('max', 1000))
-                # DomoticzEx.Debug(round(min_value + (pct*(max_value - min_value)) / 100))
+                # Debug(event='debug', message=round(min_value + (pct*(max_value - min_value)) / 100))
                 return round(min_value + (pct*(max_value - min_value)) / 100)
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round(22.68 + (int(pct) * ((255 - 22.68) / 100)))
@@ -6938,10 +7001,10 @@ def set_scale(device_functions, actual_function_name, raw):
             resultscale = int(raw * 2)
         if resultscale > max:
             resultscale = int(max)
-            DomoticzEx.Log('Value higher then maximum device')
+            Log(event='log', message='Value higher then maximum device')
         elif resultscale < min:
             resultscale = int(min)
-            DomoticzEx.Log('Value lower then minium device')
+            Log(event='log', message='Value lower then minium device')
     except Exception:
         resultscale = str(raw)
     return resultscale
@@ -6984,7 +7047,7 @@ def get_scale(device_functions, actual_function_name, raw):
             resultscale = float(resultscale * 100)
     except Exception:
         resultscale = raw
-        DomoticzEx.Debug(f"Scale device:{actual_function_name} Value: {resultscale}")
+        Debug(event='debug', message=f"Scale device:{actual_function_name} Value: {resultscale}")
     return resultscale
 
 def get_unit(actual_function_name, device_functions):
@@ -7111,12 +7174,12 @@ def send_draw_tool_command(DeviceID, led_index, r, g, b, brightness, max_value=2
         white = brightness  # Use same brightness for white channel in RGBW mode
 
     encoded_command = encode_draw_tool_command(led_index, r, g, b, brightness, max_value=max_value, white=white)
-    DomoticzEx.Log(f"Multi-LED: Attempting local send for LED {led_index}, type: {white_type}")
+    Log(event='draw-tool', message=f"Multi-LED: Attempting local send for LED {led_index}, type: {white_type}")
     if send_draw_tool_command_local(DeviceID, encoded_command):
-        DomoticzEx.Log(f"Multi-LED: Local send succeeded for LED {led_index}")
+        Log(event='draw-tool', message=f"Multi-LED: Local send succeeded for LED {led_index}")
         return True
 
-    DomoticzEx.Log(f"Multi-LED: Local send failed, fallback to cloud for LED {led_index}")
+    Log(event='draw-tool', message=f"Multi-LED: Local send failed, fallback to cloud for LED {led_index}")
     # Fallback to cloud via SendCommandTuya
     SendCommandTuya(DeviceID, 'draw_tool', encoded_command)
     return False
@@ -7144,7 +7207,7 @@ def send_draw_tool_command_local(DeviceID, encoded_command):
         device._send_receive(payload)
         return True
     except Exception as e:
-        DomoticzEx.Debug(f"Local draw_tool send failed for {DeviceID}: {e}")
+        Debug(event='draw-tool', message=f"Local draw_tool send failed for {DeviceID}: {e}")
         return False
 
 
@@ -7174,15 +7237,15 @@ def encode_draw_tool_command(led_index, r, g, b, brightness, max_value=255, whit
         # Standard RGB format
         hex_string = f"010201{hue_hi:02x}{hue_lo:02x}{sat:02x}{brightness_hex}00008100{led_index:02x}"
 
-    DomoticzEx.Log(f"Draw Tool: LED {led_index}, RGB({r},{g},{b}), Brightness {brightness}, White {white}, HSV({h},{s},{v}), Hex: {hex_string}")
+    Log(event='draw-tool', message=f"Draw Tool: LED {led_index}, RGB({r},{g},{b}), Brightness {brightness}, White {white}, HSV({h},{s},{v}), Hex: {hex_string}")
 
     try:
         byte_data = bytes.fromhex(hex_string)
         encoded = base64.b64encode(byte_data).decode('utf-8')
-        DomoticzEx.Log(f"Draw Tool: Encoded command: {encoded}")
+        Log(event='draw-tool', message=f"Draw Tool: Encoded command: {encoded}")
         return encoded
     except Exception as e:
-        DomoticzEx.Debug(f"Error encoding draw_tool: {e}")
+        Debug(event='draw-tool', message=f"Error encoding draw_tool: {e}")
         return "AQIBAAAAAGQA"
 
 def decode_draw_tool_status(base64_data, expected_led_count):
@@ -7190,7 +7253,7 @@ def decode_draw_tool_status(base64_data, expected_led_count):
     try:
         byte_data = base64.b64decode(base64_data)
         data = bytes(byte_data)
-        DomoticzEx.Debug(f"Draw_tool hex data: {data.hex()}")
+        Debug(event='draw-tool', message=f"Draw_tool hex data: {data.hex()}")
 
         def hsv_to_led(hue, sat, brightness):
             r, g, b = hsv_to_rgb_v2(hue, sat * 10, brightness * 10)
@@ -7229,7 +7292,7 @@ def decode_draw_tool_status(base64_data, expected_led_count):
                     result[spot] = dict(led_info)
 
     except Exception as e:
-        DomoticzEx.Debug(f"Error decoding draw_tool data: {e}")
+        Debug(event='draw-tool', message=f"Error decoding draw_tool data: {e}")
 
     return result
 
@@ -7246,7 +7309,7 @@ def get_led_color(device_id, unit_number):
                         'b': int(parts[2])
                     }
     except Exception as e:
-        DomoticzEx.Debug(f"Error getting LED color: {e}")
+        Debug(event='draw-tool', message=f"Error getting LED color: {e}")
 
     return {'r': 255, 'g': 255, 'b': 255}
 
@@ -7335,10 +7398,10 @@ def deleteDevice(ID, Unit):
             name = Devices[ID].Units[Unit].Name
         except Exception:
             name = getattr(Devices[ID], 'Name', ID)
-        DomoticzEx.Log(f"Deleting device '{name}' Unit {Unit}.")
+        Log(event='device', message=f"Deleting device '{name}' Unit {Unit}.")
         Devices[ID].Units[Unit].Delete()
     else:
-        DomoticzEx.Debug(f"Device with ID {ID} not found. Cannot delete.")
+        Debug(event='device', message=f"Device with ID {ID} not found. Cannot delete.")
 
 def UpdateDevice():
     templates = [
@@ -7366,14 +7429,14 @@ def UpdateDevice():
     for idx, dev in list(DomoticzEx.Devices.items()):
         for tpl in templates:
             if _matches_template(dev, tpl):
-                DomoticzEx.Log(f"Removing device matching template: idx={idx} Name='{dev.Name}'")
+                Log(event='device', message=f"Removing device matching template: idx={idx} Name='{dev.Name}'")
                 try:
                     DomoticzEx.Device(Unit=dev.Unit, DeviceID=dev.DeviceID).Delete()
                 except Exception:
                     try:
                         DomoticzEx.Device(idx).Delete()
                     except Exception as e:
-                        DomoticzEx.Log(f"Failed to remove device idx {idx}: {e}", DomoticzEx.ERROR)
+                        Error(event='device', message=f"Failed to remove device idx {idx}: {e}")
                 break
     return
 
@@ -7416,14 +7479,14 @@ def getConfigItem(Key=None, Values=None):
     try:
         Config = DomoticzEx.Configuration()
         if (Key != None):
-            # DomoticzEx.Debug(Config[Key][Values])
+            # Debug(event='config', message=Config[Key][Values])
             Value = Config[Key][Values]  # only return requested key if there was one
         else:
             Value = Config      # return the whole configuration if no key
     except KeyError:
         Value = {}
     except Exception as inst:
-        DomoticzEx.Error(f"DomoticzEx.Configuration read failed: {inst}")
+        Error(event='config', message=f"DomoticzEx.Configuration read failed: {inst}")
     return Value
 
 def setConfigItem(Key=None, Value=None):
@@ -7436,7 +7499,7 @@ def setConfigItem(Key=None, Value=None):
             Config = Value  # set whole configuration if no key specified
         Config = DomoticzEx.Configuration(Config)
     except Exception as inst:
-        DomoticzEx.Error(f"DomoticzEx.Configuration operation failed: {inst}")
+        Error(event='config', message=f"DomoticzEx.Configuration operation failed: {inst}")
     return Config
 
 # Refresh button (Mode5): a push button on each listed device that reads just that device from the
@@ -7456,14 +7519,14 @@ def RefreshDevice(DeviceID):
     # regular polling clock (last_update) stays where it was
     global devs, last_update
     if globals().get('Error') is not None:
-        DomoticzEx.Error(Error['Payload'])
+        Error(event='refresh', message=Error['Payload'])
         return
     if globals().get('tuya') is None or 'devs' not in globals():
-        DomoticzEx.Error('Refresh: Tuya Cloud is not initialised yet')
+        Error(event='refresh', message='Refresh: Tuya Cloud is not initialised yet')
         return
     one = [dev for dev in devs if dev['id'] == DeviceID]
     if not one:
-        DomoticzEx.Error('Refresh: device ' + str(DeviceID) + ' is not in the Tuya device list')
+        Error(event='refresh', message='Refresh: device ' + str(DeviceID) + ' is not in the Tuya device list')
         return
     all_devs, polled = devs, last_update
     devs = one
