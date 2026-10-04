@@ -1659,7 +1659,7 @@ def _wake_device(dev_id):
         # receiving the packet is what wakes the device up.
         tinytuya.deviceScan(verbose=False, maxretry=1, byID=True)
     except Exception as e:
-        DomoticzEx.Debug(f"Wake-up broadcast for {_device_name(dev_id)} ({dev_id}) failed: {e}")
+        Debug(device=dev_id, name=_device_name(dev_id), event="wake-up", message=f"broadcast failed: {e}")
 
 class LocalListener(threading.Thread):
     # Keeps one LAN connection to a device and collects the DPs it reports. Runs outside the plugin
@@ -1751,7 +1751,8 @@ def start_local_listeners():
         if version == 3.1:
             if local_state.get(dev_id) is not False:
                 local_state[dev_id] = False
-                DomoticzEx.Log(f"Skipping local listener for {dev.get('name', dev_id)} (v3.1: single-connection protocol)")
+                Log(device=dev_id, name=dev.get('name', dev_id), event="skip listener",
+                    message="v3.1: single-connection protocol")
             continue
         # IR controllers do not speak the normal Tuya LAN protocol for status.
         # Opening a persistent connection to them only produces 905/904 errors.
@@ -1761,7 +1762,8 @@ def start_local_listeners():
             if DeviceType(category, None, product_name) in ('smartir', 'infrared', 'infrared_ac'):
                 if local_state.get(dev_id) is not False:
                     local_state[dev_id] = False
-                    DomoticzEx.Log(f"Skipping local listener for {dev.get('name', dev_id)} (IR controller: no local status)")
+                    Log(device=dev_id, name=dev.get('name', dev_id), event="skip listener",
+                        message="IR controller: no local status")
                 continue
         except Exception:
             pass
@@ -1772,9 +1774,11 @@ def start_local_listeners():
         if listener.connected != local_state.get(dev_id):
             local_state[dev_id] = listener.connected
             if listener.connected:
-                DomoticzEx.Log(f"Local connection to {dev.get('name', dev_id)} established")
+                Log(device=dev_id, name=dev.get('name', dev_id), ip=(localtuya.get(dev_id) or {}).get('ip'),
+                    event="connection established", message="")
             else:
-                DomoticzEx.Log(f"Local connection to {dev.get('name', dev_id)} lost: {listener.error}")
+                Log(device=dev_id, name=dev.get('name', dev_id), ip=(localtuya.get(dev_id) or {}).get('ip'),
+                    event="connection lost", message=listener.error or "unknown error")
 
 def stop_local_listeners():
     # Domoticz cannot unload the plugin while these threads are still running
@@ -1840,11 +1844,14 @@ def LocalCovered(dev_id, dev_name):
         local_skipped[dev_id] = missing
         reason = 'the local connection is gone' if missing is None else f"the cloud still brings {', '.join(missing)}"
         if missing == []:
-            DomoticzEx.Log(f"{dev_name} sends every value its units read over the LAN, leaving it out of the cloud poll")
+            Log(device=dev_id, name=dev_name, event="local coverage",
+                message="sends every value its units read over the LAN, leaving it out of the cloud poll")
         elif previous == []:
-            DomoticzEx.Log(f"{dev_name} is back in the cloud poll: {reason}")
+            Log(device=dev_id, name=dev_name, event="local coverage",
+                message=f"is back in the cloud poll: {reason}")
         else:
-            DomoticzEx.Debug(f"{dev_name} is read from the cloud: {reason}")
+            Debug(device=dev_id, name=dev_name, event="local coverage",
+                  message=f"is read from the cloud: {reason}")
     return missing
 
 def CloudFallback(dev_id, dev_name, now):
@@ -1856,10 +1863,8 @@ def CloudFallback(dev_id, dev_name, now):
     last = cloud_status_time.get(dev_id, 0)
     if now - last < synctime:
         # Not due yet: keep what we have and stay online
-        DomoticzEx.Debug(
-            f"Cloud fallback skipped for {dev_name} id {dev_id}: "
-            f"{int(now - last)}s since last cloud read, interval is {synctime}s"
-        )
+        Debug(device=dev_id, name=dev_name, event="cloud fallback",
+              message=f"skipped: {int(now - last)}s since last cloud read, interval is {synctime}s")
         return held, True
 
     try:
@@ -1868,7 +1873,7 @@ def CloudFallback(dev_id, dev_name, now):
         cloud_status_time[dev_id] = now
         return ResultValue, True
     except Exception as e:
-        DomoticzEx.Debug(f"Cloud fallback failed for {dev_name} id {dev_id}: {e}")
+        Debug(device=dev_id, name=dev_name, event="cloud fallback", message=f"failed: {e}")
         # Failed call does not move the timestamp, so the next heartbeat
         # will try again. Keep held values so the device is not wiped.
         return held, False
