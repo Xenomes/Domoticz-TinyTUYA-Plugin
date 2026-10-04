@@ -1891,20 +1891,20 @@ class BasePlugin:
             # rpdb.set_trace()
             DumpConfigToLog()
 
-        DomoticzEx.Log(f"Domoticz version: {Parameters['DomoticzVersion']}")
-        DomoticzEx.Log(f"TinyTUYA {Parameters['Version']} plugin started")
-        DomoticzEx.Log(f"TinyTuya Version: {tinytuya.version}")
+        Log(event="startup", message=f"Domoticz version: {Parameters['DomoticzVersion']}")
+        Log(event="startup", message=f"TinyTUYA {Parameters['Version']} plugin started")
+        Log(event="startup", message=f"TinyTuya Version: {tinytuya.version}")
 
         global testdata, Error, fulllocal
 
         if os.path.isfile(Parameters['HomeFolder'] + '/debug_devices.json'):
             testdata = True
             fulllocal = False
-            DomoticzEx.Error('!!! Warning Plugin overruled by local json files !!!')
+            Error(event="startup", message='!!! Warning Plugin overruled by local json files !!!')
         elif os.path.isfile(Parameters['HomeFolder'] + '/tuya-raw.json'):
             testdata = False
             fulllocal = True
-            DomoticzEx.Debug('Plugin is full local mode from tuya-raw.json')
+            Debug(event="startup", message='Plugin is full local mode from tuya-raw.json')
         else:
             testdata = False
             fulllocal = False
@@ -1919,20 +1919,20 @@ class BasePlugin:
         # tuya-connector-python package isn't installed, or if it's not
         # a cloud-mode setup)
         if not testdata and not fulllocal:
-            DomoticzEx.Log("Initializing Pulsar realtime listener...")
+            Log(event="startup", message="Initializing Pulsar realtime listener...")
             start_pulsar_listener()
         else:
-            DomoticzEx.Log("Pulsar realtime listener skipped (testdata/fulllocal mode active)")
+            Log(event="startup", message="Pulsar realtime listener skipped (testdata/fulllocal mode active)")
 
     def onStop(self):
-        DomoticzEx.Log('onStop called')
+        Log(event="shutdown", message='onStop called')
 
         stop_pulsar_listener()
         stop_local_listeners()
 
         # Keep the cloud usage counters across the restart
         _usage_save(force=True)
-        DomoticzEx.Log(f"Tuya cloud usage (at stop) - {_usage_summary()}")
+        Log(event="shutdown", message=f"Tuya cloud usage (at stop) - {_usage_summary()}")
 
         # Give background threads time to exit cleanly
         time.sleep(0.5)
@@ -1944,29 +1944,30 @@ class BasePlugin:
                 if 'This device is not recognized.' in Devices[dev].Units[1].sValue:
                     Devices[dev].Units[1].Delete()
         except Exception as e:
-            DomoticzEx.Error(f"Error during device cleanup: {e}")
+            Error(event="shutdown", message=f"Error during device cleanup: {e}")
 
         # Start the shutdown process
         start_time = time.time()
 
-        DomoticzEx.Log('Exiting plugin.')
+        Log(event="shutdown", message='Exiting plugin.')
 
     def onConnect(self, Connection, Status, Description):
-        DomoticzEx.Log('onConnect called')
+        Log(event="connect", message='onConnect called')
 
     def onMessage(self, Connection, Data):
-        DomoticzEx.Log('onMessage called')
+        Log(event="message", message='onMessage called')
 
     def onCommand(self, DeviceID, Unit, Command, Level, Color):
         # device for the DomoticzEx
         dev = Devices[DeviceID].Units[Unit]
         # Prefer the device-level name if available, otherwise fall back to unit name or ID
         dev_name = Devices[DeviceID].Name if DeviceID in Devices and hasattr(Devices[DeviceID], 'Name') else getattr(dev, 'Name', DeviceID)
-        DomoticzEx.Debug(f"onCommand called for Device '{dev_name}' Unit {Unit}: Parameter '{Command}', Level: {Level}, Color: {Color}")
-        DomoticzEx.Debug(f"Device Name: {dev_name}")
-        DomoticzEx.Debug(f"nValue: {dev.nValue}")
-        DomoticzEx.Debug(f"sValue: {dev.sValue} Type {type(dev.sValue)}")
-        DomoticzEx.Debug(f"LastLevel: {dev.LastLevel}")
+        Debug(device=DeviceID, name=dev_name, event="command",
+              message=f"called for Unit {Unit}: Parameter '{Command}', Level: {Level}, Color: {Color}")
+        Debug(device=DeviceID, name=dev_name, event="command", message=f"Device Name: {dev_name}")
+        Debug(device=DeviceID, name=dev_name, event="command", message=f"nValue: {dev.nValue}")
+        Debug(device=DeviceID, name=dev_name, event="command", message=f"sValue: {dev.sValue} Type {type(dev.sValue)}")
+        Debug(device=DeviceID, name=dev_name, event="command", message=f"LastLevel: {dev.LastLevel}")
 
         # Push button from Mode5: read this one device from the cloud now
         if Unit == REFRESH_UNIT:
@@ -3058,18 +3059,18 @@ class BasePlugin:
                 #         UpdateDomoticz(DeviceID, 4, Level, 1, 0)
 
         except Exception as e:
-            DomoticzEx.Error(f"onCommand ERROR: {str(e)}")
+            Error(device=DeviceID, name=dev_name, event="command", message=f"onCommand ERROR: {str(e)}")
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
-        DomoticzEx.Log(f"Notification: {Name}, {Subject}, {Text}, {Status}, {Priority}, {Sound}, {ImageFile}")
+        Log(event="notification", message=f"Notification: {Name}, {Subject}, {Text}, {Status}, {Priority}, {Sound}, {ImageFile}")
 
     def onDeviceRemoved(self, DeviceID, Unit):
-        DomoticzEx.Log('onDeviceDeleted called')
+        Log(event="device", message='onDeviceDeleted called')
 
     def onDisconnect(self, Connection):
-        DomoticzEx.Log('onDisconnect called')
+        Log(event="disconnect", message='onDisconnect called')
 
     def onHeartbeat(self):
-        DomoticzEx.Debug('onHeartbeat called')
+        Debug(event="heartbeat", message='onHeartbeat called')
         _usage_tick()
         if Devices:
             def _run_poll(do_cloud):
@@ -3151,10 +3152,10 @@ def _log_local_scan_results(localtuya, devs, label, elapsed=None, scan_error=Non
             hint = "a network/socket error occurred -- check that this host has a working network interface and that UDP broadcast is not blocked by the OS firewall"
         elif isinstance(scan_error, TimeoutError) or 'timed out' in err_text.lower() or 'timeout' in err_text.lower():
             hint = "the scan timed out without any response -- check that this host is on the same subnet/VLAN as the Tuya devices, since UDP broadcast does not cross routers/VLANs, and that UDP ports 6666/6667/6668 are not blocked by a firewall"
-        DomoticzEx.Error(f"{label} failed{duration_str}: [{err_type}] {err_text}")
+        Error(event="ip-scan", message=f"{label} failed{duration_str}: [{err_type}] {err_text}")
         if hint:
-            DomoticzEx.Error(f"{label}: likely cause -- {hint}")
-        DomoticzEx.Error(f"{label}: falling back to Tuya Cloud control for all devices until the next scan succeeds.")
+            Error(event="ip-scan", message=f"{label}: likely cause -- {hint}")
+        Error(event="ip-scan", message=f"{label}: falling back to Tuya Cloud control for all devices until the next scan succeeds.")
         localtuya = localtuya or {}
 
     found_count = len(localtuya)
@@ -3198,30 +3199,30 @@ def _log_local_scan_results(localtuya, devs, label, elapsed=None, scan_error=Non
             unmatched_entries.append(f"{dev_id} at {ip} [protocol v{version}]")
 
     if unmatched_entries:
-        DomoticzEx.Log(f"{label} completed{duration_str}: found {found_count} device(s) on the local network ({len(found_entries)} linked to this account, {len(unmatched_entries)} not linked to this account)")
+        Log(event="ip-scan", message=f"{label} completed{duration_str}: found {found_count} device(s) on the local network ({len(found_entries)} linked to this account, {len(unmatched_entries)} not linked to this account)")
     else:
-        DomoticzEx.Log(f"{label} completed{duration_str}: found {found_count} device(s) on the local network")
+        Log(event="ip-scan", message=f"{label} completed{duration_str}: found {found_count} device(s) on the local network")
 
     if found_entries:
         for entry in found_entries:
-            DomoticzEx.Log(f"  - OK, found locally: {entry}")
+            Log(event="ip-scan", message=f"  - OK, found locally: {entry}")
 
     if unmatched_entries:
-        DomoticzEx.Log(f"{label}: {len(unmatched_entries)} device(s) found locally that are not linked to this Tuya account/hardware instance (e.g. belong to another Tuya account, or their ID changed after a re-pair/reset):")
+        Log(event="ip-scan", message=f"{label}: {len(unmatched_entries)} device(s) found locally that are not linked to this Tuya account/hardware instance (e.g. belong to another Tuya account, or their ID changed after a re-pair/reset):")
         for entry in unmatched_entries:
-            DomoticzEx.Log(f"  - UNLINKED: {entry}")
+            Log(event="ip-scan", message=f"  - UNLINKED: {entry}")
 
     if not_found_entries:
-        DomoticzEx.Log(f"{label}: {len(not_found_entries)} WiFi device(s) known to the Tuya account were NOT found by the local scan (will use Tuya Cloud instead):")
+        Log(event="ip-scan", message=f"{label}: {len(not_found_entries)} WiFi device(s) known to the Tuya account were NOT found by the local scan (will use Tuya Cloud instead):")
         for entry in not_found_entries:
-            DomoticzEx.Log(f"  - NOT FOUND: {entry}")
-        DomoticzEx.Log(f"{label}: a device is typically not found when it is powered off/offline, when it sits on a different subnet/VLAN than this Domoticz host (UDP broadcast does not cross routers), when 'Local network control' is disabled for it in the Tuya app, or when a firewall blocks UDP ports 6666/6667/6668. This is expected for devices that are simply offline right now.")
+            Log(event="ip-scan", message=f"  - NOT FOUND: {entry}")
+        Log(event="ip-scan", message=f"{label}: a device is typically not found when it is powered off/offline, when it sits on a different subnet/VLAN than this Domoticz host (UDP broadcast does not cross routers), when 'Local network control' is disabled for it in the Tuya app, or when a firewall blocks UDP ports 6666/6667/6668. This is expected for devices that are simply offline right now.")
 
     if zigbee_skipped:
-        DomoticzEx.Debug(f"{label}: {len(zigbee_skipped)} Zigbee device(s) correctly skipped (not reachable via local Tuya UDP scan): {', '.join(zigbee_skipped)}")
+        Debug(event="ip-scan", message=f"{label}: {len(zigbee_skipped)} Zigbee device(s) correctly skipped (not reachable via local Tuya UDP scan): {', '.join(zigbee_skipped)}")
 
     if found_count == 0 and not_found_entries and not found_entries:
-        DomoticzEx.Error(f"{label}: zero devices found on the local network at all. If this keeps happening for every scan, it usually points to a network-level problem rather than devices being offline: UDP ports 6666/6667/6668 blocked by a firewall on this host, Domoticz running in a Docker/VM network namespace that does not receive broadcast traffic, or this host being on a different subnet/VLAN than the Tuya devices.")
+        Error(event="ip-scan", message=f"{label}: zero devices found on the local network at all. If this keeps happening for every scan, it usually points to a network-level problem rather than devices being offline: UDP ports 6666/6667/6668 blocked by a firewall on this host, Domoticz running in a Docker/VM network namespace that does not receive broadcast traffic, or this host being on a different subnet/VLAN than the Tuya devices.")
 
 
 
@@ -3235,7 +3236,7 @@ def onHandleThread(startup, local, target_dev_id=None):
     try:
         # INIT (startup only)
         if startup and not local:
-            DomoticzEx.Log('Initializing Tuya plugin')
+            Log(event="startup", message='Initializing Tuya plugin')
 
             last_update = 0
             last_ip_scan = 0
@@ -3278,13 +3279,13 @@ def onHandleThread(startup, local, target_dev_id=None):
                         _usage_count('api')
                         _count_cloud_calls(tuya)
                     except Exception as e:
-                        DomoticzEx.Error(f"Tuya initialization failed: {e}")
+                        Error(event="cloud-init", message=f"Tuya initialization failed: {e}")
                         return
 
                 # Stop script immediately if Tuya reports an error
                 if hasattr(tuya, 'error') and tuya.error:
                     error_msg = tuya.error.get('Payload', tuya.error)
-                    DomoticzEx.Error(f"Tuya API error: {error_msg}")
+                    Error(event="cloud-init", message=f"Tuya API error: {error_msg}")
                     return
 
                 tuya.use_old_device_list = True
@@ -3301,7 +3302,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         # instead of raising, so detect and retry on that too.
                         if isinstance(result_devs, dict):
                             last_error = result_devs.get('Payload', result_devs.get('Error', result_devs))
-                            DomoticzEx.Error(f"Tuya cloud returned an error (attempt {attempt + 1}/4), retrying... ({last_error})")
+                            Error(event="cloud-init", message=f"Tuya cloud returned an error (attempt {attempt + 1}/4), retrying... ({last_error})")
                             time.sleep(1)
                             continue
                         if result_devs:
@@ -3309,15 +3310,15 @@ def onHandleThread(startup, local, target_dev_id=None):
                             break
                     except Exception as e:
                         last_error = e
-                        DomoticzEx.Error(f"getdevices() raised an exception (attempt {attempt + 1}/4), retrying... ({e})")
+                        Error(event="cloud-init", message=f"getdevices() raised an exception (attempt {attempt + 1}/4), retrying... ({e})")
                         time.sleep(1)
 
                 if not devs:
                     raise Exception(f'No device data returned from Tuya cloud: {last_error}')
 
-                DomoticzEx.Log(f'Successfully fetched {len(devs)} device(s) from Tuya cloud')
+                Log(event="cloud-init", message=f'Successfully fetched {len(devs)} device(s) from Tuya cloud')
                 for dev in devs:
-                    DomoticzEx.Log(f"  - Device: {dev.get('name', 'Unknown')} (ID: {dev.get('id', 'Unknown')})")
+                    Log(event="cloud-init", message=f"  - Device: {dev.get('name', 'Unknown')} (ID: {dev.get('id', 'Unknown')})")
 
                 # Fetch schemas
                 for dev in devs:
