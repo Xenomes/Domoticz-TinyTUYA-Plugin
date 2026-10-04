@@ -327,23 +327,44 @@ could not be verified. Users set them by hand once in Setup → Devices.
 - `_dp_code(dev_id, dp_id)` — translates a DP id to the function code via
   `dps_map`, or `None` if unknown.
 - `_describe_local_dps(dev_id, dps)` — `'switch_1 (DP 1) = true, ...'`.
+- `_log_fields(device=None, name=None, ip=None, event=None)` — builds the
+  structured prefix `[device=<id> name="<name>" ip=<ip> event=<event>]`
+  for grep-able log lines. All fields are optional.
+- `Log(device=None, name=None, ip=None, event=None, message="")` — INFO-level
+  structured log line. Use for normal flow: LAN messages, Pulsar messages,
+  device state changes, cloud fallbacks. Calls `DomoticzEx.Log()` internally.
+- `Debug(device=None, name=None, ip=None, event=None, message="")` — DEBUG-level
+  structured log line. Same fields as `Log()`; only visible when Mode6
+  debugging is enabled. Calls `DomoticzEx.Debug()` internally.
+- `Error(device=None, name=None, ip=None, event=None, message="")` — ERROR-level
+  structured log line. Use for unreachable devices, protocol errors, cloud
+  failures, misconfiguration. Calls `DomoticzEx.Error()` internally.
 - `_log_local_error(dev_id, source, reply)` — if the reply contains
   `Err`/`Error`: a clear ERROR line with the translated meaning from
   `_LOCAL_ERRORS` (901/902/904/905/914) and a hint. Repeats within
-  `_LOCAL_ERROR_REPEAT = 3600` seconds go to Debug.
+  `_LOCAL_ERROR_REPEAT = 3600` seconds go to Debug. Now uses the
+  structured `Error()` and `Debug()` helpers.
 - `_log_local_message(dev_id, source, reply)` — INFO line for every
   message arriving over the LAN (status reply, push, heartbeat).
-  Calls `_log_local_error()` first.
+  Calls `_log_local_error()` first. Now uses the structured `Log()` helper.
 - `_log_pulsar_message(data)` — INFO line for every Pulsar message, in
-  both the legacy and IoT Core shapes, before any processing.
+  both the legacy and IoT Core shapes, before any processing. Now uses
+  the structured `Log()` helper.
 - `_log_realtime_capable_devices()` — startup overview of devices
   covered by the Pulsar fast path (door contacts, motion sensors,
   doorbells), with OK / MISMATCH (not yet in Domoticz) / MISMATCH
-  (orphaned in Domoticz).
+  (orphaned in Domoticz). Now uses the structured `Log()` and `Debug()`
+  helpers.
 - `_device_name(dev_id)` — best-effort human-readable name; tries the
   Tuya device list first, then `Devices[dev_id].Units[1].Name`, then the ID.
 - `_sys_date(d, kind)` — formats a date using the locale of the system
   Domoticz runs on. Falls back to ISO when only C/POSIX is available.
+
+**Important:** Do NOT use the standard library `logging` module for plugin
+logging. Domoticz captures the plugin's output on its own, and the stdlib
+logger writes to a different stream. Always use the structured `Log()`,
+`Debug()`, and `Error()` helpers (or directly `DomoticzEx.Log/Debug/Error`)
+to ensure messages appear in the Domoticz log.
 
 ### "Is not recovering" detection
 
@@ -406,9 +427,10 @@ The version number lives in **two places** in the XML header of
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
 
-**Aromatherapy follow-up for #200 and the wake-up patch are in `master`
-but not yet released:** the header is still on `3.2.0`. The next release
-that includes them should bump both places to `3.2.1`.
+**Aromatherapy follow-up for #200, the wake-up patch, LAN failure detection,
+and structured logging are in `master` but not yet released:** the header is
+still on `3.2.0`. The next release that includes them should bump both
+places to `3.2.1`.
 
 ## GitHub Labels
 
@@ -544,6 +566,12 @@ block and the status-update block drifting apart.
   third value anywhere.
 
 ### Logging helpers
+- Use the structured `Log()`, `Debug()`, and `Error()` helpers for all
+  device-bound log lines. They build a grep-able prefix
+  `[device=<id> name="<name>" ip=<ip> event=<event>]` and forward to
+  `DomoticzEx.Log/Debug/Error` internally.
+- All fields in the structured helpers are optional. A line without
+  device context (e.g. account-wide summaries) can omit those fields.
 - `_log_local_message()` and `_log_pulsar_message()` must never raise:
   logging must not be able to break a connection. Wrap the body in
   try/except if the surrounding code can throw.
@@ -712,6 +740,21 @@ block and the status-update block drifting apart.
   report the requested code, so the Scene (work_mode) tile no longer
   flips back to `white` on every poll just because DP 109 is
   write-only on this firmware.
+
+### In master, not yet released (structured logging)
+- `Log()`, `Debug()`, and `Error()` helpers: structured logging with
+  grep-able prefix `[device=<id> name="<name>" ip=<ip> event=<event>]`.
+  All fields are optional. Helpers forward to `DomoticzEx.Log/Debug/Error`
+  internally.
+- `_log_local_message()`, `_log_local_error()`, `_log_pulsar_message()`,
+  `_log_realtime_capable_devices()`, `_local_note_success()`,
+  `_local_note_failure()`, `_wake_device()`, `start_local_listeners()`,
+  `LocalCovered()`, and `CloudFallback()` now use the structured helpers.
+- All device-bound log lines can now be filtered by device ID, event type,
+  or IP address using grep, making it easier to trace activity for a specific
+  device across LAN, Pulsar, and cloud sources.
+- No stdlib `logging` module used; all output goes through DomoticzEx to
+  ensure it appears in the Domoticz log.
 
 ### In master, not yet released (LAN failure detection)
 - `_local_note_success()` / `_local_note_failure()`: per-device
