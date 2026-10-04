@@ -378,6 +378,31 @@ def _log_status(text):
     (getattr(DomoticzEx, 'Status', None) or DomoticzEx.Log)(text)
 
 
+def _log_fields(device=None, name=None, ip=None, event=None):
+    parts = []
+    if device:
+        parts.append(f"device={device}")
+    if name:
+        parts.append(f'name="{name}"')
+    if ip:
+        parts.append(f"ip={ip}")
+    if event:
+        parts.append(f"event={event}")
+    return f"[{' '.join(parts)}] " if parts else ""
+
+
+def Log(device=None, name=None, ip=None, event=None, message=""):
+    DomoticzEx.Log(_log_fields(device, name, ip, event) + str(message))
+
+
+def Debug(device=None, name=None, ip=None, event=None, message=""):
+    DomoticzEx.Debug(_log_fields(device, name, ip, event) + str(message))
+
+
+def Error(device=None, name=None, ip=None, event=None, message=""):
+    DomoticzEx.Error(_log_fields(device, name, ip, event) + str(message))
+
+
 def _usage_forecast(kind):
     """Expected month total for 'api' or 'msg', from the days of this month
     that are complete (yesterday and earlier). Returns a dict with used (so far,
