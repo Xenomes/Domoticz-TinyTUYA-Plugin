@@ -145,6 +145,7 @@ import locale
 # Runtime timing
 last_update = 0
 last_ip_scan = 0
+TuyaError = None
 
 # Prevents overlapping heartbeat poll cycles from blocking onCommand
 _handle_lock = threading.Lock()
@@ -1765,10 +1766,18 @@ class LocalListener(threading.Thread):
             next_beat = time.time() + LOCAL_BEAT
             while not self.stopping.is_set():
                 if isinstance(reply, dict) and 'Err' in reply:
-                    self.error = str(reply.get('Error'))
+                    err = str(reply.get('Err', ''))
+                    # A device can push a message TinyTuya does not understand
+                    # without the connection actually being broken. Do not tear
+                    # the socket down for that: log it and keep listening. Only
+                    # the first connect and the periodic status reads need a
+                    # working decoder -- a bad push in between is noise.
+                    transient = (err == '904' and source == 'pushed by device')
+                    self.error = None if transient else str(reply.get('Error'))
                     _log_local_message(self.dev_id, source, reply)
-                    return
-                if isinstance(reply, dict) and isinstance(reply.get('dps'), dict):
+                    if not transient:
+                        return
+                elif isinstance(reply, dict) and isinstance(reply.get('dps'), dict):
                     self.dps.update({str(dp): value for dp, value in reply['dps'].items()})
                     self.connected, self.error = True, None
                     _log_local_message(self.dev_id, source, reply)
@@ -1958,7 +1967,7 @@ class BasePlugin:
         Log(event="startup", message=f"TinyTUYA {Parameters['Version']} plugin started")
         Log(event="startup", message=f"TinyTuya Version: {tinytuya.version}")
 
-        global testdata, Error, fulllocal
+        global testdata, TuyaError, fulllocal
 
         if os.path.isfile(Parameters['HomeFolder'] + '/debug_devices.json'):
             testdata = True
@@ -2039,8 +2048,8 @@ class BasePlugin:
             return
 
         try:
-            if Error is not None:
-                Error(event='error', message=Error['Payload'])
+            if Tuyserror is not None:
+                Error(event='error', message=Tuyserror['Payload'])
             else:
                 # Control device and update status in DomoticzEx
                 dev_type = getConfigItem(DeviceID, 'category')
@@ -3290,7 +3299,7 @@ def _log_local_scan_results(localtuya, devs, label, elapsed=None, scan_error=Non
 
 
 def onHandleThread(startup, local, target_dev_id=None):
-    global tuya, devs, properties, dps_map, result, product_id, Error
+    global tuya, devs, properties, dps_map, result, product_id, TuyaError
     global last_update, last_ip_scan, localtuya, testdata
     global cloud_status_cache, cloud_status_time
     global FunctionProperties, StatusProperties, ResultValue, dev_type, line
@@ -3314,7 +3323,7 @@ def onHandleThread(startup, local, target_dev_id=None):
             cloud_status_cache = {}
             cloud_status_time = {}
             online = True
-            Error = None
+            TuyaError = None
             line = 0
 
             try:
@@ -7518,8 +7527,8 @@ def RefreshDevice(DeviceID):
     # The normal update path for one device only: 2 API calls instead of 2 per device, and the
     # regular polling clock (last_update) stays where it was
     global devs, last_update
-    if globals().get('Error') is not None:
-        Error(event='refresh', message=Error['Payload'])
+    if globals().get('TuyaError') is not None:
+        Error(event='refresh', message=TuyaError['Payload'])
         return
     if globals().get('tuya') is None or 'devs' not in globals():
         Error(event='refresh', message='Refresh: Tuya Cloud is not initialised yet')
