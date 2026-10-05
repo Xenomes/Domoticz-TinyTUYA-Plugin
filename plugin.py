@@ -2048,8 +2048,8 @@ class BasePlugin:
             return
 
         try:
-            if Tuyserror is not None:
-                Error(event='error', message=Tuyserror['Payload'])
+            if Tuyaerror is not None:
+                Error(event='error', message=Tuyaerror['Payload'])
             else:
                 # Control device and update status in DomoticzEx
                 dev_type = getConfigItem(DeviceID, 'category')
@@ -3603,11 +3603,9 @@ def onHandleThread(startup, local, target_dev_id=None):
                         ping_result = d.status()
                         if isinstance(ping_result, dict) and ping_result:
                             _log_local_message(dev_id, 'status reply to wake-up ping', ping_result)
-                        if ping_result and isinstance(ping_result, dict) and 'dps' in ping_result:
-                            Log(event='log', message=f"Battery device {dev.get('name', 'Unknown')} ({dev_id}) responded - woken up successfully")
-                            # Update result cache with fresh status
-                            if 'result' in str(ping_result) or 'dps' in ping_result:
-                                result[dev_id] = ping_result
+                            if ping_result and isinstance(ping_result, dict) and 'dps' in ping_result:
+                                Log(event='log', message=f"Battery device {dev.get('name', 'Unknown')} ({dev_id}) responded - woken up successfully")
+                                MergeLocalDps(dev_id, ping_result['dps'], result.get(dev_id) or [])
                         else:
                             Debug(event='debug', message=f"Battery device {dev.get('name', 'Unknown')} ({dev_id}) no valid response")
                     except Exception as e:
