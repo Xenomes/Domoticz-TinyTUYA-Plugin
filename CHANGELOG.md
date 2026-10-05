@@ -157,3 +157,4 @@
 | 3.1.9 | Add Thermor Niseko HVAC support (turbo/quiet/sleep/energy_save/healthy units, half-degree temp scale) thanks @Chrominator |
 | 3.2.0 | Cloud usage tracking (API calls and Pulsar messages per day, with monthly forecast and warnings), two 'credits' Custom Sensor devices, extended INFO logging of LAN and Pulsar messages including translated TinyTuya error codes, realtime devices overview at startup thanks @Arjan|
 | 3.2.1 | Structured logging |
+| 3.2.2 | Fix the TypeError: 'NoneType' object is not callable error |
