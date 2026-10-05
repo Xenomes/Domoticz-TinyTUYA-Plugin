@@ -2048,8 +2048,8 @@ class BasePlugin:
             return
 
         try:
-            if Tuyaerror is not None:
-                Error(event='error', message=Tuyaerror['Payload'])
+            if TuyaError is not None:
+                Error(event='error', message=TuyaError['Payload'])
             else:
                 # Control device and update status in DomoticzEx
                 dev_type = getConfigItem(DeviceID, 'category')
