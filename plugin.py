@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.2</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.3</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -245,6 +245,17 @@ USAGE_LIMITS = {'api': 30000, 'msg': 140000}
 USAGE_LABELS = {'api': 'API calls', 'msg': 'Pulsar messages'}
 USAGE_MAX_DEVICES = 50
 USAGE_WARN_FRACTION = 0.9
+# Battery-related DP codes, shared by the cloud poll, the Pulsar fast
+# paths and is_battery_device(). Keeping one list means they can never
+# disagree about what counts as a battery device.
+BATTERY_CODES = (
+    'battery_state',
+    'battery',
+    'battery_percentage',
+    'va_battery',
+    'residual_electricity',
+    'BatteryStatus',
+)
 # Fixed DeviceID/Units for the two "credits" indicator devices this plugin
 # creates for itself. 'CloudCredits' can never collide with a real Tuya
 # device id (those are long alphanumeric strings from Tuya)
@@ -979,14 +990,6 @@ def _pulsar_on_message(msg):
     if not dev_id:
         return
 
-    # Check if device is locally reachable - if so, ignore Pulsar updates
-    try:
-        if dev_id in localtuya and localtuya[dev_id].get('ip', '') != '':
-            Debug(event='pulsar', message=f"Pulsar: ignoring push event for locally reachable device {_device_name(dev_id)} ({dev_id}) at {localtuya[dev_id].get('ip')}")
-            return
-    except Exception as e:
-        Debug(event='pulsar', message=f"Pulsar: error checking local reachability for device {dev_id}: {e}")
-
     Debug(event='pulsar', message=f"Pulsar: push event received for device {_device_name(dev_id)} ({dev_id})")
 
     # --- Fast path: doorcontact sensors -------------------------------
@@ -1025,12 +1028,79 @@ def _pulsar_on_message(msg):
     # Note: 'smartir' devices (infrared controllers) are excluded here as
     # they are not supported for realtime updates.
     if dev_type in ('sensor', 'switch/sensor'):
+        temperature = None
+        humidity = None
+        handled = False
+
         for item in status_list:
-            if item.get('code') in ('pir', 'pir_state'):
-                motion_detected = str(item.get('value')) != 'none'
+            code = item.get('code')
+            value = item.get('value')
+
+            # Motion: value != 'none' means detected
+            if code in ('pir', 'pir_state'):
+                motion_detected = str(value) != 'none'
                 UpdateDomoticz(dev_id, 48, bool(motion_detected), int(motion_detected), 0)
                 Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (motion) -> {'detected' if motion_detected else 'clear'}")
                 return
+
+            # Temperature: tenths of a degree, same scaling as the cloud poll
+            if code in ('va_temperature', 'temp_current', 'local_temp', 'Tin'):
+                try:
+                    temperature = float(value) / 10.0
+                except (TypeError, ValueError):
+                    temperature = None
+                handled = True
+                continue
+
+            # Humidity: already an integer percentage
+            if code in ('va_humidity', 'humidity_value', 'humidity', 'local_hum', 'Hin'):
+                try:
+                    humidity = int(value)
+                except (TypeError, ValueError):
+                    humidity = None
+                handled = True
+                continue
+
+            # Battery: same mapping the cloud poll uses
+            if code in BATTERY_CODES:
+                battery_level = None
+                if code == 'battery_state':
+                    battery_level = {'high': 100, 'middle': 50, 'low': 5}.get(value)
+                elif code == 'battery':
+                    try:
+                        battery_level = int(value) * 10
+                    except (TypeError, ValueError):
+                        battery_level = None
+                elif code in ('va_battery', 'battery_percentage', 'residual_electricity', 'BatteryStatus'):
+                    try:
+                        battery_level = int(value)
+                    except (TypeError, ValueError):
+                        battery_level = None
+
+                if battery_level is not None and 0 <= battery_level <= 100:
+                    for unit in Devices[dev_id].Units:
+                        if Devices[dev_id].Units[unit].BatteryLevel != battery_level:
+                            Devices[dev_id].Units[unit].BatteryLevel = battery_level
+                            Devices[dev_id].Units[unit].Update()
+                    Debug(event='pulsar', message=f"Pulsar: updated battery for {_device_name(dev_id)} ({dev_id}) -> {battery_level}%")
+                handled = True
+                continue
+
+        # Write temperature and/or humidity to the units the startup block made
+        if temperature is not None and checkDevice(dev_id, 1):
+            UpdateDomoticz(dev_id, 1, temperature, 0, 0)
+            Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (temperature) -> {temperature}")
+
+        if humidity is not None and checkDevice(dev_id, 2):
+            UpdateDomoticz(dev_id, 2, humidity, humidity, 0)
+            Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (humidity) -> {humidity}")
+
+        if temperature is not None and humidity is not None and checkDevice(dev_id, 3):
+            UpdateDomoticz(dev_id, 3, f"{temperature};{humidity};0", 0, 0)
+            Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (T+H) -> {temperature}/{humidity}")
+
+        if handled:
+            return
 
     # --- Fast path: Doorbell (category 'sp') ----------------------------
     # Doorbell devices have several boolean switches that we can update
@@ -1130,9 +1200,6 @@ def _pulsar_on_message(msg):
             'battery_percentage': 0,    # Battery percentage (handled separately)
         }
 
-        # Battery codes to check
-        battery_codes = ['battery_state', 'battery', 'battery_percentage', 'va_battery', 'residual_electricity']
-
         for item in status_list:
             code = item.get('code')
             value = item.get('value')
@@ -1163,7 +1230,7 @@ def _pulsar_on_message(msg):
                 Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smoke detector PIR) -> {'detected' if is_detected else 'clear'}")
 
             # Handle battery status - update battery level for all units
-            elif code in battery_codes:
+            elif code in BATTERY_CODES:
                 try:
                     battery_level = None
                     if code == 'battery_state':
@@ -1195,7 +1262,6 @@ def _pulsar_on_message(msg):
     # --- Fast path: Water leak sensor (category 'sj') --------------------
     # Water leak sensors have a simple boolean status (leak/normal)
     if dev_type == 'waterleak':
-        battery_codes = ['battery_state', 'battery', 'battery_percentage', 'va_battery', 'residual_electricity']
 
         for item in status_list:
             code = item.get('code')
@@ -1213,7 +1279,7 @@ def _pulsar_on_message(msg):
                 Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (water leak {code}) -> {'leak' if is_leak else 'normal'}")
 
             # Handle battery status
-            elif code in battery_codes:
+            elif code in BATTERY_CODES:
                 try:
                     battery_level = None
                     if code == 'battery_state':
@@ -1244,7 +1310,6 @@ def _pulsar_on_message(msg):
     # --- Fast path: Smart Lock (category 'ms' / 'jtmspro') --------------
     # Smart locks have lock/unlock state, alarm status, and battery level
     if dev_type == 'smartlock':
-        battery_codes = ['battery_state', 'battery', 'battery_percentage', 'va_battery', 'residual_electricity']
 
         for item in status_list:
             code = item.get('code')
@@ -1327,7 +1392,7 @@ def _pulsar_on_message(msg):
                 Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (smartlock unlock_temporary) -> {is_unlocked}")
 
             # Handle battery status
-            elif code in battery_codes:
+            elif code in BATTERY_CODES:
                 try:
                     battery_level = None
                     if code == 'battery_state':
@@ -1358,7 +1423,6 @@ def _pulsar_on_message(msg):
     # --- Fast path: Human Presence Sensor (category 'hps') --------------
     # Human presence sensors have presence state, sensitivity, and battery level
     if dev_type == 'human_presence':
-        battery_codes = ['battery_state', 'battery', 'battery_percentage', 'va_battery', 'residual_electricity']
 
         for item in status_list:
             code = item.get('code')
@@ -1477,7 +1541,7 @@ def _pulsar_on_message(msg):
                     Debug(event='pulsar', message=f"Pulsar: error processing presence_state selector for {_device_name(dev_id)}: {e}")
 
             # Handle battery status
-            elif code in battery_codes:
+            elif code in BATTERY_CODES:
                 try:
                     battery_level = None
                     if code == 'battery_state':
@@ -1508,6 +1572,14 @@ def _pulsar_on_message(msg):
     # -------------------------------------------------------------------
 
     def _run_targeted_update():
+        # If a LAN listener is already connected for this device, the
+        # listener will deliver the same data on its own cycle. Running
+        # a targeted cloud update would only duplicate work.
+        listener = local_listeners.get(dev_id)
+        if listener is not None and listener.connected:
+            Debug(event='pulsar', message=f"Pulsar: skipping targeted update for {_device_name(dev_id)} ({dev_id}), LAN listener is connected")
+            return
+
         if not _handle_lock.acquire(timeout=10):
             Debug(event='pulsar', message=f"Pulsar: poll busy, dropping event for {_device_name(dev_id)} ({dev_id}) (next heartbeat will catch up)")
             return
@@ -7450,34 +7522,9 @@ def UpdateDevice():
 def is_battery_device(StatusProperties):
     """Check if device has battery-related properties with type safety."""
     if isinstance(StatusProperties, str):
-        # Search directly in the string
-        battery_codes = [
-            'battery_state',
-            'battery',
-            'va_battery',
-            'battery_percentage',
-            'residual_electricity'
-        ]
-        return any(code in StatusProperties.lower() for code in battery_codes)
-
+        return any(code in StatusProperties.lower() for code in BATTERY_CODES)
     elif isinstance(StatusProperties, (dict, list)):
-        # Handle dictionary or list (Tuya's StatusProperties is in practice
-        # almost always a list of {'code':..., 'value':...} dicts -- the
-        # original code only checked for dict here, so it silently fell
-        # through to `return False` for every real device, meaning is_battery_device()
-        # never correctly recognized a battery device. searchCode() already
-        # handles lists correctly, so this one-word fix is enough.
-        return any(
-            searchCode(code, StatusProperties)
-            for code in (
-                'battery_state',
-                'battery',
-                'va_battery',
-                'battery_percentage',
-                'residual_electricity'
-            )
-        )
-
+        return any(searchCode(code, StatusProperties) for code in BATTERY_CODES)
     return False
 
 # Configuration Helpers

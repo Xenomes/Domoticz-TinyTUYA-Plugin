@@ -1,151 +1,97 @@
+# AGENTS.md
 
-For `m=3` (ColorModeRGB), **only `r`, `g`, `b` are valid**. Extra
-fields (`t`, `cw`, `ww`) can make Domoticz reject the colour update and
-leave the wheel at its previous value.
+> Architecture and conventions for agents working on the TinyTUYA Domoticz plugin.
 
-Always use `rgb_to_hsv` (0-255 scale) for Tuya `colour_data`, not the
-`_v2` variant (0-1000 scale). Tuya reports `colour_data` with `s` and
-`v` in 0-255 for most devices.
+## Repository overview
 
-**Reading** a Tuya `colour_data` value is a separate problem: the
-device can report it as JSON (`{'h':.., 's':.., 'v':..}`) **or** as a
-raw hex string (e.g. `DC0A00000200DC`). Never write the raw value into
-`sValue`; always decode it first with `decode_colour_data()` (see
-*Colour helpers*).
+`plugin.py` is the single file that contains all plugin logic. There is no
+package structure; every helper lives at module level in that file.
 
-### Curtain Switch Support (Issue #208, #216)
-- Category 'qt' devices with "curtain" in product_name are treated as covers
-- Status mapping: 1=Open, 2=Close, 3=Stop
-- Command mapping: open→1, close→2, stop→3
-- Other 'qt' devices remain smoke detectors
+The plugin runs as a DomoticzEx Python hardware plugin. Domoticz loads it
+once per configured hardware instance, so every instance gets its own
+Python process. Module-level globals are therefore naturally isolated
+between instances — do not add cross-instance state or shared files.
 
-### SmartLock Support (Issue #205)
-- Unit 1: Lock state (lock_motor_state/rtc_lock)
-- Unit 2: Alarm status (alarm_lock selector)
-- Units 3-11: Unlock methods (BLE, Card, Fingerprint, Password, App,
-  Key, Face, Hand, Temporary), created and updated through a single
-  loop driven by a tuple of `(unit, code, label)` pairs
-- Compatibility maintained for existing unit numbers
+## Runtime model
 
-### Aromatherapy Support (Issue #200)
+- Domoticz calls `onStart`, `onStop`, `onHeartbeat`, `onCommand`,
+  `onConnect`, `onMessage`, `onDisconnect`, `onNotification`.
+- `onHeartbeat` is called every few seconds. It does **not** do the
+  heavy work directly: it spawns a background thread that runs
+  `onHandleThread()` for the local path and, when the cloud poll
+  interval has elapsed, for the cloud path. A module-level
+  `_handle_lock` prevents two poll cycles from running at the same
+  time.
+- `onCommand` runs on the Domoticz main thread. The actual LAN or
+  cloud socket write is performed on a background thread so a slow
+  device cannot block Domoticz.
+- LAN connections are persistent (`LocalListener`) and run in their
+  own threads, one per device. They never touch the Domoticz API
+  directly: `onHandleThread()` reads their most recent values with
+  `listener.values()`.
+- Pulsar realtime push messages arrive on the `tuya-connector-python`
+  network thread. `_pulsar_on_message()` uses them as a trigger to
+  re-run the plugin's regular status resolution for a single device
+  (via `onHandleThread(..., target_dev_id=dev_id)`), except for a small
+  set of device types that have a direct fast path.
 
-Six units, plus a fallback for firmware variants that behave
-differently from the "generic" Tuya light.
+## Directory layout
 
-| Unit | DP | Notes |
-|---|---|---|
-| 1 | `Power` | main humidifier switch |
-| 2 | `Light` | light switch, **independent of `Power`** |
-| 3 | `lightmode` | selector: effect (1 = multicolour, 2 = steady, ...) |
-| 4 | `dp_mist_grade` | selector: mist intensity |
-| 5 | `work_mode` | selector: scene (white / colour / scene / music) |
-| 6 | `colour_data` | RGB colour, may be JSON or hex (see below) |
+- `plugin.py` — the plugin
+- `README.md`, `CHANGELOG.md`, `AGENTS.md`
+- `tools/` — debug scripts
+- `examples/`, `backup/`, `.devin/`
 
-#### Key facts learned from real devices
+## Device type classification
 
-- **`Light` is independent of `Power`.** The device can have
-  `Light = true` while `Power = false` (light-only mode). The Light
-  unit must follow its **own** DP and **not** be gated on the main
-  Power state. (Earlier attempts coupled them; that caused the Light
-  tile to flip back to off on every poll.)
-- **The RGB unit's `nValue` follows `Light`, not `Power`.** A colour
-  JSON in `sValue` does not imply the unit is on; the tile must be
-  grey unless `Light = true`.
-- **`colour_data` can be a hex string.** Older aromatherapy firmware
-  reports DP 108 as a raw 7-byte hex string (e.g. `DC0A00000200DC`)
-  rather than the JSON form. Decode with `decode_colour_data()`; never
-  write the raw string into `sValue`.
-- **`work_mode = 'colour'` can turn the device off.** On some firmware,
-  sending `work_mode = 'colour'` on DP 109 is interpreted as "switch
-  off". The plugin therefore does **not** send `work_mode` from the RGB
-  Set Color handler on aromatherapy devices. Instead it sets a steady
-  `lightmode` first.
-- **The device starts in `lightmode = 1` (multicolour).** Turning the
-  Light on without setting a lightmode produces a cycling effect.
-  The Light On handler must send a steady lightmode right after
-  `Light = true`. `find_steady_lightmode()` finds the value.
-- **`work_mode` is not echoed back.** On this firmware DP 109 is
-  write-only; it never appears in the status reply. The generic
-  `update_select_device()` would guess a value and flip the tile back
-  on every poll, so it now early-returns when `StatusDeviceTuya()`
-  returns `None` for the requested code.
-- **`colour_data` value on the device may not match what was sent.**
-  On this firmware `colour_data` often stays at its last value while
-  the light cycles or is off, so the RGB tile simply mirrors what the
-  device reports (decoded) and does not try to infer intent.
+`DeviceType(category, product_id=None, product_name=None)` maps the Tuya
+category string to an internal device type. Some categories are
+ambiguous and are resolved by `product_id` or `product_name` (see
+*Known Issues*).
 
-#### What the plugin does on Set Color (Unit 6)
+## Data structures
 
-1. Find the steady lightmode (`find_steady_lightmode()`) and send it.
-2. Build the `colour_data` payload from Domoticz' `Color` dict and send
-   it.
-3. **Do not send `work_mode`.**
+- `devs` — the Tuya device list as returned by the cloud, or loaded
+  from `tuya-raw.json` in full-local mode.
+- `properties[dev_id]` — dict with `functions` and `status` lists.
+  Each entry has `code`, `type`, `values` (JSON string with
+  `min`/`max`/`scale`/`step`/`unit`/`label`/`range`).
+- `dps_map[dev_id] = {'by_code': {code: dp_id}, 'by_id': {dp_id: code}}`
+- `result[dev_id]` — the most recent status list, in the same shape
+  the cloud returns (`[{'code': ..., 'value': ...}, ...]`).
+- `localtuya[dev_id] = {'ip': ..., 'version': ..., 'key': ...}` — what
+  the UDP LAN scan found.
+- `cloud_status_time[dev_id]` — timestamp of the last cloud status
+  read, for rate limiting.
 
-#### What the plugin does on Light On (Unit 2)
+## Configuration
 
-1. Send `Light = true`.
-2. Send the steady lightmode, so the light does not start cycling.
+`DomoticzEx.Configuration()` is a persistent key/value store attached
+to the hardware instance. Two kinds of keys are used:
 
-### Socket with RGB LED ring
-- Category 'cz' sockets (e.g. Maxcio plug) expose two independent
-  outputs:
-  - Unit 1: relay, DP `switch_1`
-  - Unit 2: LED ring, DPs `switch_led` + `work_mode` + `bright_value` +
-    `colour_data`, created only when all four are present in the
-    function list
-- `bright_value` on such a device often uses `min: 25`; the helper
-  functions read min and max from the schema, so the plugin adapts
-  automatically.
-- `colour_data` on such a device uses the classic 0–255 range for `s`
-  and `v`, so the plain `rgb_to_hsv` / `hsv_to_rgb` helpers are used.
-- The `Set Color` payload must set `work_mode` before `colour_data`.
-  (This is the *general* rule; the aromatherapy exception above does
-  not apply here.)
-- The old `switch` block in `onCommand` is gated on `Unit == 1` so it
-  does not build a bogus `switch_2` command for the LED unit.
+- `getConfigItem(dev_id, 'key')` etc. — per-device settings, written
+  once during the initial device creation (`setConfigItem(dev_id,
+  {...})`).
+- `getConfigItem(f"{dev_id}-{unit}", 'mode')` — per-selector state.
+- `getConfigItem(USAGE_KEY)` — the cloud usage counter store.
+- `getConfigItem(f"{dev_id}:rain", 'rain_24h')` — the last rain
+  counter value for the weather station.
 
-### RGBIC Light Support (Issue #200)
-- Multi-LED devices with `draw_tool` support (e.g. KSIX BXOUTL1,
-  Faretti esterni giardino)
-- Automatic RGBW/RGBWW detection based on `bright_value` max
-- White channel support for better color rendering
-- Units 11+ for individual LED control
-- `draw_tool` frame layout:
-  - Broadcast (9 bytes): `01 01 01 00 H S V 00 00`, H in colour-code
-    table (0x01 red, 0x7B green, 0xDF blue), S saturation 0–100,
-    V intensity 1–100
-  - Per-LED (12 bytes): `01 02 01 00 H S V 00 00 81 00 SPOT`, SPOT is
-    0-based LED index
-  - Colour code table is not linear RGB; the plugin uses the code
-    values observed from the device, not a formula.
+Do **not** add files. The plugin must remain self-contained and must
+not create anything outside Domoticz's own plugin directory.
 
-### Thermor Niseko HVAC Support (PR #221, thanks @Chrominator)
-- Extends `thermostat`/`heater`/`heatpump` with five optional units
-  that are created only when the device exposes the corresponding DP:
-  - Unit 30: Turbo (`turbo`)
-  - Unit 31: Quiet (`quiet`)
-  - Unit 32: Sleep (`sleep`)
-  - Unit 33: Energy save (`energy_save`)
-  - Unit 34: Health (`healthy`)
-- Commands route through `SendCommandTuya(DeviceID, code, Command == 'On')`
-- Status updates and creation both use a single tuple-driven loop;
-  adding a new unit is one tuple entry, not a new block.
-- `get_scale()` has a device-specific branch for `product_id ==
-  '9xvzf8c0bg33eenj'`: `temp_current` is reported in half degrees, so
-  the value is divided by 2.
+## Version bumping
 
-### Protocol 3.4 Cloud Fallback
-- Specific fallback for protocol 3.4 devices to show correct online/offline status
-- Rate-limited to avoid excessive cloud API calls
-- Prevents devices from incorrectly showing TimedOut=1
+The version number lives in the XML header:
 
-### Local connection coverage (`LocalCovered`)
-- A device whose open local connection already reports every DP that its
-  units read is skipped from the cloud poll. Codes are tracked in
-  `local_used` by `StatusDeviceTuya()` while the poll loop runs.
-- Logs a single line when a device enters or leaves this state.
+    <plugin key="tinytuya" name="TinyTUYA" ... version="3.2.2" ...>
+        ...
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.2</h2><br/>
 
-### Cloud usage counters
+Both places must match. `Parameters['Version']` is populated by
+Domoticz from the header, so nothing else needs to change.
+
+## Cloud usage counters
 
 Purpose: make visible how much of the monthly Tuya budget (API calls +
 Pulsar messages) the plugin itself consumes.
@@ -178,7 +124,7 @@ tools on the same Tuya project are not included, so the Tuya console
 the Domoticz feature is too recent and its internal storage format
 could not be verified. Users set them by hand once in Setup → Devices.
 
-### LAN / Pulsar logging helpers
+## LAN / Pulsar logging helpers
 
 All plugin log output goes through three structured wrappers so every
 line carries the same fixed fields in the same order:
@@ -229,9 +175,10 @@ pairing.
   structured `Log()` helper.
 - `_log_realtime_capable_devices()` — startup overview of devices
   covered by the Pulsar fast path (door contacts, motion sensors,
-  doorbells), with OK / MISMATCH (not yet in Domoticz) / MISMATCH
-  (orphaned in Domoticz). Uses the structured `Log()` and `Debug()`
-  helpers.
+  doorbells, smoke detectors, water leak sensors, smart locks, human
+  presence sensors), with OK / MISMATCH (not yet in Domoticz) /
+  MISMATCH (orphaned in Domoticz). Uses the structured `Log()` and
+  `Debug()` helpers.
 - `_log_status(text)` — logs at Status level when available; falls back
   to `Log(event="cloud-usage", message=text)` on a Domoticz without
   `DomoticzEx.Status`.
@@ -248,7 +195,71 @@ log. The only exception is the `_DomoticzPulsarLogHandler`, which exists
 precisely to route `tuya-connector-python`'s own stdlib logging back into
 the plugin's wrappers.
 
-### "Is not recovering" detection
+## Pulsar realtime fast paths
+
+`_pulsar_on_message()` receives every realtime push from the Tuya IoT
+Message Service. For most devices it simply triggers a targeted
+`onHandleThread(..., target_dev_id=dev_id)` in a background thread, so
+the regular poll path resolves the new state with the exact same code
+that a normal poll would use. That path is always correct but does a
+full LAN or cloud status read.
+
+For a small set of device types the push is used **directly**: the DP
+code is mapped to a known Domoticz unit, the value is converted with
+the same helper the poll path uses, and `UpdateDomoticz()` is called
+in-process with no extra network round-trip. These fast paths are only
+applied when the mapping from DP code to unit is fixed by the device
+type — for these categories the plugin never assigns a unit number
+based on the per-device DP layout, so the mapping cannot drift.
+
+- **Door contacts** (`dev_type == 'doorcontact'`, category `mcs` or
+  `qt`-as-curtain excluded): `doorcontact_state` → Unit 1. Boolean,
+  `True` = open.
+- **Motion sensors** (`dev_type in ('sensor', 'switch/sensor')` with a
+  `pir` or `pir_state` DP): any of those two codes → Unit 48.
+  `value != 'none'` means detected. Other DP codes on the same device
+  (temperature, humidity, battery) are handled in the same fast path
+  block and fall through to the slow path when they do not match.
+- **Doorbells** (`dev_type == 'doorbell'`): a fixed `doorbell_unit_map`
+  routes each DP code to its known unit (1, 3-11). The
+  `nightvision_mode` selector uses its schema values to translate the
+  string value into the Domoticz level. The video doorbell aliases
+  (`doorbell_calling`, `bell_ring`, `doorbell_ring`, `floodlight`,
+  `light_switch`, `pir_sensor`) are handled in a second pass so the
+  original DP names keep working on older firmware.
+- **Smoke detectors** (`dev_type == 'smokedetector'`):
+  `smoke_sensor_status` / `smoke_state` / `alarm_state` → Unit 1
+  (switch, alarm/normal) and Unit 2 (text status). `PIR` → Unit 1.
+  `battery_state` / `battery` / `battery_percentage` update the
+  battery level of every unit.
+- **Water leak sensors** (`dev_type == 'waterleak'`):
+  `watersensor_state` / `leak_state` / `water_leak` / `alarm_state` →
+  Unit 1. Battery handled the same way as the smoke detector.
+- **Smart locks** (`dev_type == 'smartlock'`):
+  `lock_motor_state` / `rtc_lock` / `switch` → Unit 1 (inverted for
+  Domoticz, locked = closed). `alarm_lock` → Unit 2 (selector).
+  The unlock methods (`unlock_ble`, `unlock_card`,
+  `unlock_fingerprint`, `unlock_password`, `unlock_app`, `unlock_key`,
+  `unlock_face`, `unlock_hand`, `unlock_temporary`) → Units 3-11.
+- **Human presence sensors** (`dev_type == 'human_presence'`):
+  `presence_state` → Unit 1, `sensitivity` → Unit 2 (selector),
+  `near_detection` → Unit 3 (scaled), `far_detection` → Unit 4
+  (scaled), `checking_result` → Unit 5 (selector), `target_dis_closest`
+  → Unit 6 (scaled), `presence_state` selector → Unit 10. Battery
+  handled the same way as the smoke detector.
+
+All fast paths apply the **same** value conversion as the regular poll
+path (`brightness_to_pct`, `hsv_to_rgb`, the `battery_state` →
+`high/middle/low` mapping, and so on) so a device cannot end up with a
+value from the fast path that disagrees with the next regular poll.
+
+Any device type that is **not** listed above goes through the slow,
+verified path. Adding a new fast path requires that the DP-to-unit
+mapping is fixed for the whole category and that the value conversion
+is already implemented (or is trivially a boolean or a battery
+percentage).
+
+## "Is not recovering" detection
 
 Purpose: distinguish an occasional LAN hik that recovers by itself from
 a device that has really gone away.
@@ -302,17 +313,17 @@ a device that has really gone away.
 The version number lives in **two places** in the XML header of
 `plugin.py` and must match:
 
-    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.1" ...>
+    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.2" ...>
         ...
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.1</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.2</h2><br/>
 
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
 
-**3.2.1 is released:** the aromatherapy follow-up for #200, the wake-up
-patch, the LAN failure detection, and the structured logging are all
-part of 3.2.1. The header was bumped from 3.2.0 to 3.2.1 in the release
-commit. The next change should bump both places again.
+**3.2.2 is the current working version.** It extends the Pulsar
+realtime fast paths to cover doorbells, smoke detectors, water leak
+sensors, smart locks and human presence sensors (see *Pulsar realtime
+fast paths*). Both version strings in the header already say 3.2.2.
 
 ## GitHub Labels
 
@@ -330,6 +341,7 @@ useful.
 | `protocol-3.4` | Anything related to the v3.4 cloud fallback path |
 | `local-control` | Changes to `LocalListener`, `LocalCovered`, LAN polling or the wake-up |
 | `cloud` | Changes to Pulsar, cloud fallback, or the Tuya IoT API |
+| `pulsar` | Changes to the realtime fast paths or the Pulsar listener |
 | `cloud-usage` | Changes to the usage counters, credits devices or forecast |
 | `logging` | Changes to LAN / Pulsar message logging or error translation |
 | `color` | Changes to colour handling, `colour_data`, `work_mode`, `draw_tool` |
@@ -346,6 +358,7 @@ Common combinations:
 - Shutter / plug / Télé regression: `bug` + `protocol-3.1`
 - Colour wheel not following the device: `bug` + `color`
 - New Thermor Niseko unit: `enhancement` + `device-support`
+- New Pulsar fast path: `enhancement` + `pulsar`
 - New usage counter or forecast change: `enhancement` + `cloud-usage`
 - Log line missing or wrong: `bug` + `logging`
 - Aromatherapy follow-up: `bug` + `device-support` + `color`
@@ -476,6 +489,26 @@ block and the status-update block drifting apart.
   positional argument after a keyword argument — Python raises
   `SyntaxError: positional argument follows keyword argument` at import
   time and the whole plugin fails to load.
+
+### Pulsar fast paths
+- Only add a fast path for a device type where the DP-to-unit mapping is
+  fixed by the category — a door contact always uses Unit 1, a motion
+  sensor always Unit 48, and so on. Device types whose unit numbers
+  depend on the per-device DP layout (switches, lights, covers,
+  thermostats, ...) must always go through the verified slow path.
+- The value conversion in the fast path must be identical to the poll
+  path. Reuse the same helper (`brightness_to_pct`, the `high` /
+  `middle` / `low` battery mapping, `hsv_to_rgb`) — never reimplement.
+- If a fast path cannot confidently interpret a value (unknown selector
+  string, unexpected payload), fall through to the slow path instead of
+  writing a guessed value.
+- A fast path returns immediately after handling its own DP. Do not
+  return from the outer function before all matching DPs in the same
+  message have been processed — doorbell messages carry several DPs at
+  once.
+- `_log_realtime_capable_devices()` must be extended whenever a new
+  device type gains a fast path, so the startup log lists it in the
+  realtime overview.
 
 ### Colour decoding helpers
 - **Never write a raw Tuya colour value into `sValue`.** It may be JSON
@@ -620,9 +653,53 @@ block and the status-update block drifting apart.
 ### Version Differences
 - **3.x:** Hybrid local/cloud control with Pulsar realtime updates,
   cloud usage counters, extended structured logging, wake-up of
-  sleeping modules, and LAN failure detection.
+  sleeping modules, LAN failure detection, and expanded Pulsar fast
+  paths (doorbell, smoke detector, water leak, smart lock, human
+  presence).
 
 ## Recent Work
+
+### Current (Version 3.2.2)
+
+**Pulsar realtime fast paths expanded**
+
+The list of device types that are handled directly from the realtime
+push (no extra network round-trip) is extended beyond door contacts and
+motion sensors to cover:
+
+- **Doorbell** (`sp`) — a fixed unit map routes `doorbell_active`,
+  `floodlight_switch`, `motion_switch`, `basic_indicator`,
+  `decibel_switch`, `basic_private`, `motion_tracking`,
+  `motion_area_switch`, `siren_switch`, `nightvision_mode` (selector)
+  and the video-doorbell aliases (`doorbell_calling`, `bell_ring`,
+  `doorbell_ring`, `floodlight`, `light_switch`, `pir_sensor`) to their
+  Domoticz units in-process. All matching DPs in a single push are
+  processed; the fast path does not return after the first one.
+- **Smoke detector** (`qt` without "curtain", `ywbj`) —
+  `smoke_sensor_status` / `smoke_state` / `alarm_state` update Unit 1
+  (switch) and Unit 2 (text status). `PIR` updates Unit 1. Battery
+  codes update the battery level of every unit.
+- **Water leak sensor** (`sj`) — `watersensor_state` / `leak_state` /
+  `water_leak` / `alarm_state` update Unit 1. Battery handled the same
+  way.
+- **Smart lock** (`ms`, `jtmspro`) — Unit 1 (lock state, inverted for
+  Domoticz), Unit 2 (`alarm_lock` selector), Units 3-11 (unlock
+  methods). Battery handled the same way.
+- **Human presence sensor** (`hps`) — Unit 1 (`presence_state`),
+  Unit 2 (`sensitivity` selector), Unit 3 (`near_detection`),
+  Unit 4 (`far_detection`), Unit 5 (`checking_result` selector),
+  Unit 6 (`target_dis_closest`), Unit 10 (`presence_state` selector).
+  Battery handled the same way.
+
+All fast paths use the same value conversion as the regular poll path,
+so a device cannot end up with a value from the fast path that
+disagrees with the next regular poll. Any device that is not covered by
+one of the fast paths still goes through the verified slow path
+(`onHandleThread(..., target_dev_id=dev_id)`) in a background thread.
+
+`_log_realtime_capable_devices()` now lists all fast-path device types
+in the startup overview, not just door contacts, motion sensors and
+doorbells.
 
 ### Latest released (Version 3.2.1)
 
@@ -850,6 +927,27 @@ folder and restart.
    must reflect the current value (it *is* reported back on this
    firmware).
 
+### Pulsar fast path testing
+For every device type that has a direct fast path (door contact, motion
+sensor, doorbell, smoke detector, water leak sensor, smart lock, human
+presence sensor):
+
+1. Trigger a status change on the physical device (open a door,
+   press the doorbell, spill water on the leak sensor, ...).
+2. The corresponding Domoticz tile must update within a second or two,
+   and the log must show a `Pulsar: fast path applied for <name>
+   (<id>)` line for the DP that changed.
+3. Confirm that the next regular poll does not contradict the fast
+   path value.
+4. On a doorbell, press the button and then trigger motion in quick
+   succession — both units must update from their own pushes, and a
+   single push carrying two DPs must update both.
+5. On a smoke detector, trigger the test button: Unit 1 must switch to
+   "alarm" and Unit 2 must show the text status.
+6. On a smart lock, lock and unlock physically: Unit 1 must follow,
+   and the corresponding unlock-method unit must be set for the method
+   that was used.
+
 ### LAN failure detection testing
 1. Unplug a device that is currently in the local listener's
    `connected` state, or block its port 6668 from the Domoticz host.
@@ -944,6 +1042,11 @@ Always run `python3 -m py_compile plugin.py` after changes
   forecast lines right below it show the expected month total
 - `Pulsar message from ... -- will be ignored` — expected for a device
   that is reachable locally
+- `Pulsar: fast path applied for <name> ...` — a DP from a realtime
+  push was written directly to its Domoticz unit; no extra network
+  round-trip happened. If the tile did **not** update, the fast path
+  either missed the DP (check the code against the list in this file)
+  or the device's category is not what the fast path expects.
 - `[LOCAL] Command queued: dp_id 109 = colour` — on an aromatherapy
   device this is a **bug**: DP 109 must not be sent from the RGB
   handler. If you see this line, the aromatherapy RGB handler is
@@ -1009,6 +1112,18 @@ Always run `python3 -m py_compile plugin.py` after changes
 - `_local_note_success(dev_id)` / `_local_note_failure(dev_id, err, now)`
   - per-device LAN failure tracking, feeds the "is not recovering"
   warning and the "recovered after N failed attempt(s)" INFO line.
+
+### Pulsar realtime
+- `start_pulsar_listener()` / `stop_pulsar_listener()` - lifecycle of
+  the `TuyaOpenPulsar` client for this hardware instance.
+- `_pulsar_on_message(msg)` - receives every realtime push. Logs it
+  (via `_log_pulsar_message`), then applies a fast path for the
+  supported device types or spawns a targeted
+  `onHandleThread(..., target_dev_id=dev_id)` in a background thread.
+- `_log_pulsar_message(data)` - INFO line for every message, before
+  any processing.
+- `_log_realtime_capable_devices()` - startup overview of the devices
+  covered by the fast paths.
 
 ### Cloud usage
 - `_usage_count(kind, amount=1)` - add to today's counter ('api' or 'msg')
@@ -1147,6 +1262,18 @@ Always run `python3 -m py_compile plugin.py` after changes
 - Check whether the plugin sends `switch_2`. If so, the plain `switch`
   handler is running for the LED unit instead of the LED handler.
   Fixed in 3.1.7.
+
+### Pulsar push comes in, but the tile does not update
+- Check the log for a `Pulsar: fast path applied for <name> ...` line.
+  If it is missing, the DP code in the push is not in the fast path's
+  list for that device type. If the DP code is only handled by the slow
+  path, the plugin spawns a targeted `onHandleThread` in the
+  background, which will log the regular status reply.
+- If the device is reachable locally, the fast path still applies (it
+  runs before the "is the device reachable locally" check). If no line
+  appears at all, the push did not carry a DP the plugin knows about;
+  check the preceding `Pulsar message from ...` INFO line for the raw
+  DP codes.
 
 ### Protocol Issues
 - Protocol 3.4 devices may need cloud fallback
