@@ -1576,8 +1576,8 @@ def _pulsar_on_message(msg):
         # listener will deliver the same data on its own cycle. Running
         # a targeted cloud update would only duplicate work.
         listener = local_listeners.get(dev_id)
-        if listener is not None and listener.connected:
-            Debug(event='pulsar', message=f"Pulsar: skipping targeted update for {_device_name(dev_id)} ({dev_id}), LAN listener is connected")
+        if listener is not None and listener.connected and LocalCovered(dev_id, _device_name(dev_id)) == []:
+            Debug(event='pulsar', message=f"Pulsar: skipping targeted update ..., LAN listener covers all DPs")
             return
 
         if not _handle_lock.acquire(timeout=10):
