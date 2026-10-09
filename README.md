@@ -337,6 +337,18 @@ Change them to match your Tuya subscription tier.
 
 ---
 
+## Orphaned devices
+
+On startup, the plugin checks which Domoticz devices for this hardware instance are no longer reported by Tuya (removed from the app, re-paired, factory reset). Those are marked **inactive** in Domoticz, and the plugin stops reading them from the cloud, the LAN, Pulsar, or testdata. You will see a single log line per orphaned device:
+
+```
+[device=<id> name=<name> event="device removed"] no longer reported by Tuya, marked inactive in Domoticz
+```
+
+The device is left in place so you can decide whether to delete it. If you see this for a device you still own, it usually means the physical sensor was re-paired and got a new Tuya device ID — delete the old one and let the plugin discover the new one.
+
+---
+
 ## Logging
 
 From version 3.2.0 the plugin logs every message it sends or receives, so you can see exactly what is
@@ -417,7 +429,7 @@ The three categories mean:
 |---|---|
 | **OK** | Tuya reports it and Domoticz has it: realtime updates apply correctly |
 | **not yet created in Domoticz** | Tuya reports it but Domoticz has not created the device yet, e.g. right after startup before the first poll has run |
-| **orphaned in Domoticz** | Domoticz has a device whose ID Tuya no longer reports at all - typically after a re-pair or factory reset, the old device stops receiving updates and can be removed manually |
+| **orphaned in Domoticz** | Domoticz has a device whose ID Tuya no longer reports at all - typically after a re-pair or factory reset. These are marked inactive (see *Orphaned devices* above) and no longer appear in this overview. |
 
 ### Date format
 

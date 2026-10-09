@@ -84,9 +84,9 @@ not create anything outside Domoticz's own plugin directory.
 
 The version number lives in the XML header:
 
-    <plugin key="tinytuya" name="TinyTUYA" ... version="3.2.2" ...>
+    <plugin key="tinytuya" name="TinyTUYA" ... version="3.2.4" ...>
         ...
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.2</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.4</h2><br/>
 
 Both places must match. `Parameters['Version']` is populated by
 Domoticz from the header, so nothing else needs to change.
@@ -289,11 +289,72 @@ a device that has really gone away.
   referenced `state` before it was created, giving
   `UnboundLocalError: cannot access local variable 'state'`.
 
+## Orphaned devices
+
+Purpose: detect and handle devices that exist in Domoticz for this hardware
+instance but are no longer reported by Tuya (removed from the app, re-paired
+with a new ID, or factory reset).
+
+- **Detection:** After the device-creation loop in `onHandleThread()`,
+  still inside the `if startup and not local:` block, the plugin compares
+  `devs` (Tuya's current device list) with `Devices` (Domoticz's device
+  list for this hardware instance). Any ID in `Devices` that is not in
+  `devs` and is not the plugin's own `USAGE_DEVICE_ID` is considered
+  orphaned. The scan runs **once per startup**, not per device — it is
+  placed after the `for dev in devs:` loop.
+- **Marking inactive:** `_mark_orphaned_device_inactive(dev_id, dev_name)`
+  sets `Used = 0` on every unit of the device via
+  `unit.Update(Log=False, UpdateProperties=True)`, so Domoticz stops
+  treating it as a live sensor and stops generating "did not update"
+  warnings. The device is **not** deleted — the user can decide whether
+  to remove it manually.
+- **Why `UpdateProperties=True`:** setting `unit.Used = 0` alone does
+  not persist the flag to the Domoticz database. Only
+  `UpdateProperties=True` writes `Used` (together with `Name`,
+  `SignalLevel`, `BatteryLevel`, `Image`, `Type`, `SubType`,
+  `SwitchType`, `Description`, `Color`) to the database. Available from
+  Domoticz 2024.4.16100. This was the root cause of the "orphaned device
+  sub-units remain active" bug: without `UpdateProperties=True`, the
+  helper silently logged success on every heartbeat while the units
+  stayed `Used=1`.
+- **Remembering:** `orphaned_devices` is a module-level set that stores
+  all orphaned IDs. It is filled once during startup and cleared in
+  `onStop()`. Every update path checks this set before touching a device.
+- **Guard points:** The following functions check `dev_id in orphaned_devices`
+  and skip the device early:
+  - Main polling loop (`for dev in devs:` in `onHandleThread`)
+  - Pulsar handler (`_pulsar_on_message`)
+  - Pulsar realtime overview (`_log_realtime_capable_devices`)
+  - IP scan result logger (`_log_local_scan_results`)
+  - `RefreshDevice()`
+  - `onCommand()`
+- **Logging:** One clear log line per orphaned device at startup using
+  the structured logging wrappers, listing the unit numbers that were
+  flipped to inactive:
+
+  ```
+  [device=<id> name=<name> event="device removed"] no longer reported by Tuya, marked inactive in Domoticz (units: 1, 2, 3)
+  ```
+
+  The event tag is `"device removed"` for easy grepping. Units that were
+  already `Used=0` are skipped silently; only the freshly marked units
+  appear in the list.
+- **Constants:** None needed; this is pure bookkeeping with a set.
+- **Bug to avoid:** when a device is re-added in the Tuya app with the
+  **same ID** (unlikely but possible if it was just a network hiccup),
+  the plugin will stop treating it as orphaned on the next restart, but
+  the units will still be marked `Used=0` in Domoticz. The user must
+  re-enable them manually. This is intentional — we cannot safely guess
+  whether the user wants the old device back.
+
 ## Build and Verification
 
 ### Syntax Check
 
     python3 -m py_compile plugin.py
+
+The new log line to grep for when testing orphaned device handling is
+`event="device removed"`.
 
 ### Git Operations
 
@@ -313,17 +374,32 @@ a device that has really gone away.
 The version number lives in **two places** in the XML header of
 `plugin.py` and must match:
 
-    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.2" ...>
+    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.4" ...>
         ...
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.2</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.4</h2><br/>
 
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
 
-**3.2.2 is the current working version.** It extends the Pulsar
-realtime fast paths to cover doorbells, smoke detectors, water leak
-sensors, smart locks and human presence sensors (see *Pulsar realtime
-fast paths*). Both version strings in the header already say 3.2.2.
+**3.2.4 is the current working version.** It fixes the orphaned-device
+handling: devices that exist in Domoticz but are no longer reported by
+Tuya are now correctly marked inactive at every unit, in a single pass
+at startup.
+
+Changes since 3.2.3:
+
+- `_mark_orphaned_device_inactive()` now passes
+  `UpdateProperties=True` to `unit.Update()`. Without it, the `Used`
+  flag is not written to the Domoticz database, so the units stayed
+  `Used=1` and the dashboard tiles remained visible.
+- The orphaned scan was moved out of the `for dev in devs:` loop and
+  given an `orphaned_devices` guard, so it runs once per startup instead
+  of once per device per heartbeat.
+- The helper now logs the list of unit numbers it actually marked
+  (`units: 1, 2, 3`), so a partially-inactive device is visible in the
+  log instead of silently staying half-processed.
+
+Both version strings in the header must be bumped to 3.2.4 together.
 
 ## GitHub Labels
 
@@ -460,6 +536,28 @@ block and the status-update block drifting apart.
   and (if applicable) `_usage_forecast_lines()` — do not hardcode a
   third value anywhere.
 
+### Orphaned devices
+- `orphaned_devices` is a module-level set that stores device IDs that
+  exist in Domoticz but are no longer reported by Tuya.
+- `_mark_orphaned_device_inactive(dev_id, dev_name)` marks every unit
+  of a device as Unused (Used=0) in Domoticz. It must use
+  `unit.Update(Log=False, UpdateProperties=True)` — without
+  `UpdateProperties=True` the `Used` flag is not persisted to the
+  database and the units stay active.
+- The orphaned scan runs **once per startup**, **after** the
+  `for dev in devs:` loop, not inside it. Placing it inside the loop
+  makes it run once per device per heartbeat, which spams the log and
+  re-processes already-handled devices.
+- The scan must include an `if existing_id in orphaned_devices: continue`
+  guard so a device that is already in the set is not re-processed.
+- Every new update path must check `dev_id in orphaned_devices` and skip
+  the device early. Current guard points: main polling loop, Pulsar
+  handler, Pulsar realtime overview, IP scan result logger,
+  `RefreshDevice()`, and `onCommand()`.
+- The set is filled once during startup (after the device loop) and
+  cleared in `onStop()`.
+- See *Orphaned devices* for the full description and the log line format.
+
 ### Logging helpers
 - Use the structured `Log()`, `Debug()`, and `Error()` helpers for all
   device-bound log lines. They build a grep-able prefix
@@ -506,6 +604,10 @@ block and the status-update block drifting apart.
   return from the outer function before all matching DPs in the same
   message have been processed — doorbell messages carry several DPs at
   once.
+- Every new update path (LAN listener, cloud poll, Pulsar fast path,
+  testdata, manual refresh) must check `dev_id in orphaned_devices` and
+  skip the device early. See *Orphaned devices* for the full guard point
+  list.
 - `_log_realtime_capable_devices()` must be extended whenever a new
   device type gains a fast path, so the startup log lists it in the
   realtime overview.
@@ -645,6 +747,38 @@ block and the status-update block drifting apart.
   testdata mode are meaningless for hardware.
 - To return to normal operation, delete all three files and restart.
 
+### Orphaned device sub-units remain active in Domoticz
+- Symptom: the plugin logs
+  `[device=<id> ... event="device removed"] no longer reported by Tuya,
+  marked inactive in Domoticz` on every heartbeat, but the units stay
+  visible on the dashboard and are still `Used=1` in Setup → Devices.
+- Cause 1: `_mark_orphaned_device_inactive()` used
+  `unit.Update(Log=False)` without `UpdateProperties=True`. Setting
+  `unit.Used = 0` alone does not persist the flag; only
+  `UpdateProperties=True` writes it to the database.
+- Cause 2: the orphaned scan was placed **inside** the `for dev in devs:`
+  loop in `onHandleThread()`, so it ran once per device per heartbeat.
+- Fix:
+  - Use `unit.Update(Log=False, UpdateProperties=True)`.
+  - Move the scan block **after** the `for dev in devs:` loop, still
+    inside `if startup and not local:`.
+  - Add the guard `if existing_id in orphaned_devices: continue`.
+  - Log the list of unit numbers that were actually marked, so the
+    user can verify that all sub-units were handled:
+    `... marked inactive in Domoticz (units: 1, 2, 3)`.
+- Verify in the database:
+
+  ```
+  SELECT Unit, Name, Used FROM DeviceStatus
+   WHERE DeviceID='<orphaned-id>';
+  ```
+
+  All rows must have `Used=0` after the fix. If a tile is still visible
+  with `Used=0` in the database, check the `Favorite` column — a
+  favourited device stays on the dashboard regardless of `Used`.
+- Verify the log: the `event="device removed"` line must appear **once**
+  at startup, not on every heartbeat.
+
 ## Branch Information
 
 ### Main Branches
@@ -659,7 +793,62 @@ block and the status-update block drifting apart.
 
 ## Recent Work
 
-### Current (Version 3.2.2)
+### Current (Version 3.2.4)
+
+**Orphaned device sub-units fixed**
+
+Devices that exist in Domoticz but are no longer reported by Tuya are
+now correctly marked inactive at **every** unit, in a single pass at
+startup. Two defects in the 3.2.3 implementation kept sub-units of a
+removed Tuya device visible in Domoticz:
+
+- `_mark_orphaned_device_inactive()` used `unit.Update(Log=False)`,
+  which does not persist the `Used` flag. Changed to
+  `unit.Update(Log=False, UpdateProperties=True)`. This is the flag
+  that writes `Used` (and other unit attributes) to the database;
+  available from Domoticz 2024.4.16100.
+- The orphaned scan ran inside the `for dev in devs:` loop, so it
+  executed once per device per heartbeat. Moved it after the loop and
+  added an `if existing_id in orphaned_devices: continue` guard, so it
+  runs once per startup.
+- The helper now logs the list of unit numbers it actually marked
+  (`units: 1, 2, 3`), so a partially-inactive device is visible in the
+  log instead of silently staying half-processed.
+
+Verified on Domoticz 2026.4 build 18474: the three units of the
+orphaned `vdevo179157410360265` device were marked inactive with a
+single log line at startup, and the dashboard tile disappeared.
+
+### Latest released (Version 3.2.3)
+
+**Orphaned device detection added**
+
+Devices that exist in Domoticz for this hardware instance but are no
+longer reported by Tuya (removed from the app, re-paired with a new ID,
+or factory reset) are detected at startup and marked inactive:
+
+- `_mark_orphaned_device_inactive(dev_id, dev_name)` sets `Used = 0` on
+  every unit of the device.
+- `orphaned_devices` is a module-level set filled once during startup
+  and cleared in `onStop()`. Every update path checks it and skips the
+  device early: the main polling loop, the Pulsar handler, the Pulsar
+  realtime overview, the IP scan result logger, `RefreshDevice()` and
+  `onCommand()`.
+- One clear log line per orphaned device at startup, tagged
+  `event="device removed"`.
+
+This release had two defects that were fixed in 3.2.4:
+
+- `_mark_orphaned_device_inactive()` used `unit.Update(Log=False)`
+  without `UpdateProperties=True`, so the `Used` flag was not written
+  to the database and the units stayed active.
+- The orphaned scan ran inside the `for dev in devs:` loop, so it
+  executed once per device per heartbeat instead of once per startup.
+
+See *Orphaned devices* and *Known Issues* for the full description of
+the fix.
+
+### Latest released (Version 3.2.2)
 
 **Pulsar realtime fast paths expanded**
 
@@ -1060,6 +1249,13 @@ Always run `python3 -m py_compile plugin.py` after changes
   variable 'state'` — **bug**: `state` is read before
   `_local_failures.setdefault()` in `_local_note_failure()` or
   `_local_note_success()`. `setdefault` must be the first statement.
+- `event="device removed"` met `(units: N, N, N)` — de orphaned-scan
+  markeerde deze unitnummers als inactief. Als de regel op **elke**
+  heartbeat terugkomt in plaats van één keer bij startup, staat de
+  scan nog binnen de `for dev in devs:` loop.
+- `event="device removed"` zonder `(units: ...)` erachter — oude
+  plugin-versie (vóór de 3.2.3-correctie) die de unit-lijst nog niet
+  logde. Werk bij naar de huidige `plugin.py`.
 
 ## Dependencies
 
@@ -1274,6 +1470,25 @@ Always run `python3 -m py_compile plugin.py` after changes
   appears at all, the push did not carry a DP the plugin knows about;
   check the preceding `Pulsar message from ...` INFO line for the raw
   DP codes.
+
+### Orphaned device is still visible on the dashboard
+- The plugin marks every unit of the orphaned device as `Used=0`
+  (`UpdateProperties=True`) at startup. If the tile is still visible
+  after that, check in Setup → Devices whether the unit still has a
+  checkbox tick. If it does, the plugin version is older than 3.2.3
+  with the `UpdateProperties=True` fix.
+- If the unit is inactive but the tile still shows on the dashboard,
+  the device is probably marked as a favourite (star icon). Un-star it
+  in the device's Edit dialog.
+- To verify in the database:
+
+  ```
+  SELECT Unit, Name, Used, Favorite FROM DeviceStatus
+   WHERE DeviceID='<orphaned-id>';
+  ```
+
+  All rows should have `Used=0`. The `Favorite` column is independent
+  of `Used` and must be cleared through the UI.
 
 ### Protocol Issues
 - Protocol 3.4 devices may need cloud fallback

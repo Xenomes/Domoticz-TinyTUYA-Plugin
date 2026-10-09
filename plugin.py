@@ -150,6 +150,12 @@ TuyaError = None
 # Prevents overlapping heartbeat poll cycles from blocking onCommand
 _handle_lock = threading.Lock()
 
+# Device IDs that exist in Domoticz for this hardware instance but are no
+# longer reported by Tuya. Filled once during startup, then checked in
+# every update path (cloud poll, LAN listener, Pulsar fast path, testdata)
+# so an orphaned device is never read again after being marked inactive.
+orphaned_devices = set()
+
 # --- Tuya Pulsar (realtime push) support -----------------------------------
 # Optional dependency: pip3 install tuya-connector-python --break-system-packages
 # If it's not installed, the plugin silently falls back to poll-only behaviour
@@ -990,6 +996,11 @@ def _pulsar_on_message(msg):
     if not dev_id:
         return
 
+    if dev_id in orphaned_devices:
+        Debug(event='pulsar',
+              message=f"Pulsar: ignoring push for orphaned device {_device_name(dev_id)} ({dev_id})")
+        return
+
     Debug(event='pulsar', message=f"Pulsar: push event received for device {_device_name(dev_id)} ({dev_id})")
 
     # --- Fast path: doorcontact sensors -------------------------------
@@ -1683,6 +1694,8 @@ def _log_realtime_capable_devices():
         active = []
         missing_in_domoticz = []
         for dev_id, (name, unit, label) in realtime_devices.items():
+            if dev_id in orphaned_devices:
+                continue
             entry = f"{name} ({dev_id}) [{label}]"
             if checkDevice(dev_id, unit):
                 active.append(entry)
@@ -1693,10 +1706,12 @@ def _log_realtime_capable_devices():
         # but its ID no longer appears anywhere in Tuya's current device
         # list at all (any device type, not just the ones covered by the
         # fast path -- an ID that vanished from Tuya's side is abnormal
-        # regardless of type).
+        # regardless of type). Devices already marked inactive are skipped.
         orphaned = []
         try:
             for existing_id in Devices:
+                if existing_id in orphaned_devices:
+                    continue
                 if existing_id not in tuya_ids:
                     try:
                         existing_name = Devices[existing_id].Units[1].Name
@@ -2080,6 +2095,8 @@ class BasePlugin:
     def onStop(self):
         Log(event="shutdown", message='onStop called')
 
+        global orphaned_devices
+        orphaned_devices.clear()
         stop_pulsar_listener()
         stop_local_listeners()
 
@@ -2111,6 +2128,9 @@ class BasePlugin:
         Log(event="message", message='onMessage called')
 
     def onCommand(self, DeviceID, Unit, Command, Level, Color):
+        if DeviceID in orphaned_devices:
+            Debug(event="command", message=f"Skipping command for orphaned device {DeviceID}")
+            return
         # device for the DomoticzEx
         dev = Devices[DeviceID].Units[Unit]
         # Prefer the device-level name if available, otherwise fall back to unit name or ID
@@ -3337,7 +3357,8 @@ def _log_local_scan_results(localtuya, devs, label, elapsed=None, scan_error=Non
             version = dev_info.get('version', 'unknown')
             found_entries.append(f"{dev_name} ({dev_id}) at {ip} [protocol v{version}]")
         else:
-            not_found_entries.append(f"{dev_name} ({dev_id})")
+            if dev_id not in orphaned_devices:
+                not_found_entries.append(f"{dev_name} ({dev_id})")
 
     # Devices the scan found on the network but that don't match any known
     # ID for this Tuya account/hardware instance -- without this, the
@@ -3695,6 +3716,8 @@ def onHandleThread(startup, local, target_dev_id=None):
         # Main loop
 
         for dev in devs:
+            if dev.get('id') in orphaned_devices:
+                continue
             # When triggered by a Pulsar push event, only process that one
             # device instead of the full device list -- everything below
             # this point is untouched, so the realtime path always agrees
@@ -5632,6 +5655,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                         'version': deviceinfo.get('version', '3.3')
                     }
                 )
+
             if Devices:
                 battery = is_battery_device(StatusProperties)
 
@@ -6675,6 +6699,30 @@ def onHandleThread(startup, local, target_dev_id=None):
                         Error(event='error', message=f"Device read failed: {dev.get('name', 'Unknown')} ({dev_id}) line {sys.exc_info()[-1].tb_lineno}")
                         Debug(event='debug', message=f"handleThread: {err} line {sys.exc_info()[-1].tb_lineno}")
 
+        # Orphaned devices: present in Domoticz for this hardware
+        # instance, but no longer reported by Tuya at all. Mark them
+        # inactive (Used=0) so they stop being polled, and remember
+        # their IDs so no update path touches them again. Runs once
+        # after the device loop, not per device.
+        try:
+            tuya_ids = {d.get('id') for d in devs}
+            for existing_id in list(Devices):
+                if existing_id == USAGE_DEVICE_ID:
+                    continue          # plugin's own credits device
+                if existing_id in tuya_ids:
+                    continue
+                if existing_id in orphaned_devices:
+                    continue          # already handled, do not repeat
+                try:
+                    existing_name = Devices[existing_id].Units[1].Name
+                except Exception:
+                    existing_name = existing_id
+                orphaned_devices.add(existing_id)
+                _mark_orphaned_device_inactive(existing_id, existing_name)
+        except Exception as e:
+            Error(event="startup",
+                  message=f"Orphaned device scan failed: {e}")
+
     except Exception as e:
         Error(event='error', message=str(e))
         Error(event='error', message=traceback.format_exc())
@@ -7491,6 +7539,39 @@ def deleteDevice(ID, Unit):
     else:
         Debug(event='device', message=f"Device with ID {ID} not found. Cannot delete.")
 
+def _mark_orphaned_device_inactive(dev_id, dev_name):
+    """A device exists in Domoticz for this hardware instance but Tuya no
+    longer reports it (removed from the app, re-paired with a new ID, or
+    factory reset). Mark every unit of the device as Unused so Domoticz
+    stops showing it as active, and stop trying to update it from any
+    source. The device is left in place (not deleted) so the user can
+    decide whether to remove it manually."""
+    try:
+        if dev_id not in Devices:
+            return
+        device = Devices[dev_id]
+        marked = []
+        for unit_no in list(device.Units):
+            unit = device.Units[unit_no]
+            if getattr(unit, 'Used', 1) == 0:
+                continue
+            unit.Used = 0
+            # The Used flag (and Name, SignalLevel, BatteryLevel, Image,
+            # Type, SubType, SwitchType, Description, Color) is only
+            # persisted when UpdateProperties=True is passed to Update();
+            # setting the attribute alone does not reach the database.
+            unit.Update(Log=False, UpdateProperties=True)
+            marked.append(str(unit_no))
+        if marked:
+            Log(device=dev_id, name=dev_name, event="device removed",
+                message=f"no longer reported by Tuya, marked inactive in Domoticz (units: {', '.join(marked)})")
+        else:
+            Debug(device=dev_id, name=dev_name, event="device removed",
+                  message="already inactive in Domoticz, nothing to do")
+    except Exception as e:
+        Error(device=dev_id, name=dev_name, event="device removed",
+              message=f"could not mark device inactive: {e}")
+
 def UpdateDevice():
     templates = [
         {'name_suffix': ' (dehumidify)', 'unit': 2, 'dtype': 244, 'subtype': 62, 'switchtype': 18, 'image': 11},
@@ -7578,6 +7659,9 @@ def CreateRefreshUnits():
             DomoticzEx.Unit(Name=dev['name'] + ' (Refresh)', DeviceID=dev['id'], Unit=REFRESH_UNIT, Type=244, Subtype=73, Switchtype=9, Used=1).Create()
 
 def RefreshDevice(DeviceID):
+    if DeviceID in orphaned_devices:
+        Debug(event="refresh", message=f"Skipping refresh for orphaned device {DeviceID}")
+        return
     # The normal update path for one device only: 2 API calls instead of 2 per device, and the
     # regular polling clock (last_update) stays where it was
     global devs, last_update
