@@ -1099,8 +1099,17 @@ def _pulsar_on_message(msg):
             UpdateDomoticz(dev_id, 3, f"{temperature};{humidity};0", 0, 0)
             Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (T+H) -> {temperature}/{humidity}")
 
-        if handled:
-            return
+        # Any sensor/switch-sensor push we got here carried at least one DP
+        # this plugin knows how to write (temperature, humidity or battery):
+        # the units are updated, so do NOT fall through to the targeted cloud
+        # update below. That update runs CloudFallback(), which returns the
+        # held value whenever the synctime timer has not yet elapsed, and
+        # that stale value would overwrite the fresh one we just wrote --
+        # which is exactly the "value reverts a few seconds later" the users
+        # reported. Battery sensors in particular are almost never within
+        # their cloud-poll window when a push arrives, so the fallback would
+        # practically always republish the old value.
+        return
 
     # --- Fast path: Doorbell (category 'sp') ----------------------------
     # Doorbell devices have several boolean switches that we can update
