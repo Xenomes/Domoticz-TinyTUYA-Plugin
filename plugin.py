@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.4" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.3</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.4</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -1097,17 +1097,21 @@ def _pulsar_on_message(msg):
                 handled = True
                 continue
 
-        # Write temperature and/or humidity to the units the startup block made
+        # Write temperature and/or humidity to the units the startup block made.
+        # AlwaysUpdate=1 is required: unit.sValue is the in-memory copy, which
+        # can drift from the database (e.g. after an external update). A Pulsar
+        # push is by definition a fresh value, so it must always be written.
         if temperature is not None and checkDevice(dev_id, 1):
-            UpdateDomoticz(dev_id, 1, temperature, 0, 0)
+            Debug(event='pulsar', message=f"Pulsar: fast path BEFORE for {_device_name(dev_id)} ({dev_id}) unit 1: mem={Devices[dev_id].Units[1].sValue!r}, new={temperature!r}, TimedOut={Devices[dev_id].TimedOut}")
+            UpdateDomoticz(dev_id, 1, temperature, 0, 0, AlwaysUpdate=1)
             Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (temperature) -> {temperature}")
 
         if humidity is not None and checkDevice(dev_id, 2):
-            UpdateDomoticz(dev_id, 2, humidity, humidity, 0)
+            UpdateDomoticz(dev_id, 2, humidity, humidity, 0, AlwaysUpdate=1)
             Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (humidity) -> {humidity}")
 
         if temperature is not None and humidity is not None and checkDevice(dev_id, 3):
-            UpdateDomoticz(dev_id, 3, f"{temperature};{humidity};0", 0, 0)
+            UpdateDomoticz(dev_id, 3, f"{temperature};{humidity};0", 0, 0, AlwaysUpdate=1)
             Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (T+H) -> {temperature}/{humidity}")
 
         # Any sensor/switch-sensor push we got here carried at least one DP
@@ -3826,8 +3830,10 @@ def onHandleThread(startup, local, target_dev_id=None):
                             ResultValue = cloud.get('result') or []
                             online = True
                             cloud_status_time[dev_id] = now
-                        except Exception:
+                            _cloud_orphan_candidates.pop(dev_id, None)
+                        except Exception as e:
                             online = False
+                            _note_cloud_error(dev_id, dev['name'], e)
                 else:
                     Debug(event='debug', message=f"Skipping status fetch for device {dev['name']} id {dev['id']} in full local mode")
                     online = False
@@ -6927,7 +6933,7 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
     Devices[ID].TimedOut = TimedOut
     unit.Update(Log=True)
 
-    Debug(event='update', message=f"Update device: {Name} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}")
+    Log(event='update', message=f"Update device: {Name} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}")
 
 def StatusDeviceTuya(Function):
     if searchCode(Function, StatusProperties):
@@ -7538,6 +7544,43 @@ def deleteDevice(ID, Unit):
         Devices[ID].Units[Unit].Delete()
     else:
         Debug(event='device', message=f"Device with ID {ID} not found. Cannot delete.")
+
+# Track per-device cloud errors, so a device that Tuya no longer knows
+# about can be marked orphaned without an extra getdevices() call.
+_cloud_orphan_candidates = {}
+CLOUD_ORPHAN_CONFIRM = 3        # number of consecutive "device not exist" before marking orphaned
+CLOUD_ORPHAN_WINDOW = 900       # seconds; errors older than this are forgotten
+
+def _note_cloud_error(dev_id, dev_name, exc):
+    """A tuya.getstatus() call raised. If the error looks like 'device does
+    not exist', count it. After CLOUD_ORPHAN_CONFIRM consecutive hits inside
+    CLOUD_ORPHAN_WINDOW, mark the device orphaned. Any other error, or a
+    successful call in between, clears the counter."""
+    try:
+        text = str(exc).lower()
+        is_missing = any(marker in text for marker in (
+            'device not exist',
+            'device not found',
+            'device does not exist',
+            'permission deny',
+            '1106',
+            '2009',
+        ))
+        if not is_missing:
+            # Not an orphan signal, forget any earlier counts for this device
+            _cloud_orphan_candidates.pop(dev_id, None)
+            return
+        now = time.time()
+        first_seen, count = _cloud_orphan_candidates.get(dev_id, (now, 0))
+        if now - first_seen > CLOUD_ORPHAN_WINDOW:
+            first_seen, count = now, 0
+        count += 1
+        _cloud_orphan_candidates[dev_id] = (first_seen, count)
+        if count >= CLOUD_ORPHAN_CONFIRM and dev_id not in orphaned_devices:
+            orphaned_devices.add(dev_id)
+            _mark_orphaned_device_inactive(dev_id, dev_name)
+    except Exception:
+        pass
 
 def _mark_orphaned_device_inactive(dev_id, dev_name):
     """A device exists in Domoticz for this hardware instance but Tuya no
