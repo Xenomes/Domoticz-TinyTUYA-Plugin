@@ -166,8 +166,6 @@ try:
     PULSAR_AVAILABLE = True
 except ImportError:
     PULSAR_AVAILABLE = False
-
-
 class _DomoticzPulsarLogHandler(_logging.Handler):
     """Forwards tuya-connector-python's own internal logging (connection
     established / closed / auth errors / reconnect attempts) into the
@@ -184,7 +182,6 @@ class _DomoticzPulsarLogHandler(_logging.Handler):
             Error(event='error', message=f"Pulsar (lib): {msg}")
         else:
             Debug(event='debug', message=f"Pulsar (lib): {msg}")
-
 
 def _configure_pulsar_logging():
     """Route the tuya-connector-python library's own log output into
@@ -217,8 +214,6 @@ PULSAR_REGION_ENDPOINTS = {
 # process, this global is automatically isolated per instance -- no
 # cross-instance state, no shared files, no naming collisions.
 pulsar_client = None
-
-
 def _device_name(dev_id):
     """Best-effort human-readable name for a Tuya dev_id, for log lines
     that otherwise only show the raw ID. Tries the Tuya-side device list
@@ -232,7 +227,6 @@ def _device_name(dev_id):
         return Devices[dev_id].Units[1].Name
     except Exception:
         return dev_id
-
 
 # --- Cloud usage counters ---------------------------------------------------
 # Counts how many requests this plugin sends to the Tuya cloud ("API calls") and
@@ -276,8 +270,6 @@ _usage_dirty = False
 _usage_last_save = 0
 _usage_last_log = 0
 _usage_last_day = None
-
-
 def _usage_count(kind, amount=1):
     """Add to today's counter ('api' or 'msg'). Cheap and thread-safe; the
     actual saving to the configuration is done from the heartbeat."""
@@ -290,7 +282,6 @@ def _usage_count(kind, amount=1):
             _usage_dirty = True
     except Exception:
         pass
-
 
 def _usage_totals():
     """{'day': (api, msg), 'week': (api, msg), 'month': (api, msg)} for the
@@ -318,12 +309,10 @@ def _usage_totals():
             totals[period][1] += msg
     return totals
 
-
 def _usage_summary():
     t = _usage_totals()
     return (f"API calls: today {t['day'][0]}, this week {t['week'][0]}, this month {t['month'][0]} | "
             f"Pulsar messages: today {t['day'][1]}, this week {t['week'][1]}, this month {t['month'][1]}")
-
 
 def _usage_load():
     """Restore the counters saved before the last stop/restart."""
@@ -343,7 +332,6 @@ def _usage_load():
         Log(event='cloud-usage', message=f"Tuya cloud usage (restored after start) - {_usage_summary()}")
     except Exception as e:
         Error(event='cloud-usage', message=f"Cloud usage: could not restore counters: {e}")
-
 
 def _usage_save(force=False):
     """Write the counters to the plugin configuration (throttled unless forced)."""
@@ -365,9 +353,7 @@ def _usage_save(force=False):
     except Exception as e:
         Error(event='cloud-usage', message=f"Cloud usage: could not save counters: {e}")
 
-
 _locale_lock = threading.Lock()
-
 
 def _sys_date(d, kind='day'):
     """Date in the format of the system Domoticz runs on (the locale set in its
@@ -390,11 +376,9 @@ def _sys_date(d, kind='day'):
     except Exception:
         return iso
 
-
 def _log_status(text):
     """Log at Status level; a Domoticz without Status() gets a normal line."""
     (getattr(DomoticzEx, 'Status', None) or DomoticzEx.Log)(text)
-
 
 # --- Structured logging -----------------------------------------------------
 # Every log line the plugin produces goes through these three wrappers, so
@@ -424,7 +408,6 @@ def _log_quote(value):
         return '"' + text.replace('"', '\\"') + '"'
     return text
 
-
 def _log_resolve(device, name, ip):
     """Fill in name/ip from the device ID when the caller omitted them.
     Never raises: logging must not be able to break the caller."""
@@ -450,7 +433,6 @@ def _log_resolve(device, name, ip):
         pass
     return name, ip
 
-
 def _log_fields(device=None, unit=None, name=None, ip=None, event=None):
     """Build the bracketed key=value prefix. Fields are always emitted in
     the same order, so every structured log line stays parseable."""
@@ -467,24 +449,20 @@ def _log_fields(device=None, unit=None, name=None, ip=None, event=None):
         fields.append(f"event={_log_quote(event)}")
     return f"[{' '.join(fields)}] " if fields else ""
 
-
 def Log(device=None, unit=None, name=None, ip=None, event=None, message=""):
     """Structured INFO log line."""
     name, ip = _log_resolve(device, name, ip)
     DomoticzEx.Log(_log_fields(device, unit, name, ip, event) + str(message))
-
 
 def Debug(device=None, unit=None, name=None, ip=None, event=None, message=""):
     """Structured DEBUG log line."""
     name, ip = _log_resolve(device, name, ip)
     DomoticzEx.Debug(_log_fields(device, unit, name, ip, event) + str(message))
 
-
 def Error(device=None, unit=None, name=None, ip=None, event=None, message=""):
     """Structured ERROR log line."""
     name, ip = _log_resolve(device, name, ip)
     DomoticzEx.Error(_log_fields(device, unit, name, ip, event) + str(message))
-
 
 def _usage_forecast(kind):
     """Expected month total for 'api' or 'msg', from the days of this month
@@ -526,7 +504,6 @@ def _usage_forecast(kind):
             reached = today + datetime.timedelta(days=int((limit - used) // avg))
     return {'limit': limit, 'used': used, 'avg': avg, 'projected': projected, 'reached': reached}
 
-
 def _usage_forecast_lines():
     """[(text, is_warning), ...] for the API-call and message forecast."""
     lines = []
@@ -551,7 +528,6 @@ def _usage_forecast_lines():
                 lines.append((f"{body} - OK", False))
     return lines
 
-
 def _usage_device_line():
     """(text, is_warning) for the number of devices against the account maximum."""
     try:
@@ -568,7 +544,6 @@ def _usage_device_line():
     if count > USAGE_MAX_DEVICES * USAGE_WARN_FRACTION:
         return (f"{text} - WARNING: almost at the maximum, {USAGE_MAX_DEVICES - count} free", True)
     return (f"{text} - {USAGE_MAX_DEVICES - count} free", False)
-
 
 def _usage_midnight_report(ended_day):
     """Everything logged when a day has ended: the final total of that day, the
@@ -609,7 +584,6 @@ def _usage_midnight_report(ended_day):
     for text in warnings:
         Error(event='cloud-usage', message=f"WARNING Tuya cloud credits: {text}")
 
-
 def _usage_create_devices():
     """Create the two 'credits' Custom Sensor devices for this hardware
     instance if they do not exist yet (e.g. after an upgrade, or if they were
@@ -640,7 +614,6 @@ def _usage_create_devices():
     except Exception as e:
         Error(event='cloud-usage', message=f"Cloud usage: could not create credits devices: {e}")
 
-
 def _usage_update_devices(force=False):
     """Push the running month-to-date totals (today included) to the two
     credits devices. Runs every USAGE_DEVICE_UPDATE_INTERVAL seconds so the
@@ -660,7 +633,6 @@ def _usage_update_devices(force=False):
     except Exception as e:
         Error(event='cloud-usage', message=f"Cloud usage: could not update credits devices: {e}")
 
-
 def _usage_tick():
     """Called from onHeartbeat: save changes, report the final total of a day
     that just ended, and log the periodic summary."""
@@ -679,7 +651,6 @@ def _usage_tick():
         _usage_save()
     except Exception as e:
         Error(event='cloud-usage', message=f"Cloud usage: tick failed: {e}")
-
 
 def _count_cloud_calls(cloud):
     """Make a tinytuya.Cloud object count its requests. Every HTTP request to
@@ -712,7 +683,6 @@ def _count_cloud_calls(cloud):
     except Exception as e:
         Error(event='cloud-usage', message=f"Cloud usage: could not enable call counting: {e}")
 
-
 def _format_value(value, max_len=80):
     """Readable rendering of a DP value for log lines. Long values (e.g.
     base64 blobs from LED strips or cameras) are shortened."""
@@ -729,7 +699,6 @@ def _format_value(value, max_len=80):
         text = f"{text[:max_len]}... ({len(text)} chars)"
     return text
 
-
 def _dp_code(dev_id, dp_id):
     """Function code (e.g. 'switch_1') for a local DP id, or None if the
     plugin does not (yet) know that DP for this device."""
@@ -738,7 +707,6 @@ def _dp_code(dev_id, dp_id):
         return None if not code or code == 'None' else code
     except Exception:
         return None
-
 
 def _describe_local_dps(dev_id, dps):
     """'switch_1 (DP 1) = true, bright_value_v2 (DP 3) = 500' for a local
@@ -749,7 +717,6 @@ def _describe_local_dps(dev_id, dps):
         label = f"{code} (DP {dp_id})" if code else f"DP {dp_id} (not mapped)"
         parts.append(f"{label} = {_format_value(value)}")
     return ', '.join(parts) if parts else 'no data points'
-
 
 # TinyTuya error codes that a device connection can return, with a plain
 # explanation and a hint what to check
@@ -893,7 +860,6 @@ def _log_local_message(dev_id, source, reply):
         except Exception:
             pass
 
-
 def _log_pulsar_message(data):
     """INFO log entry for every message that arrives via Tuya Pulsar, in
     both supported shapes (legacy 'status' and IoT Core 'bizData'), before
@@ -939,7 +905,6 @@ def _log_pulsar_message(data):
         except Exception:
             pass
 
-
 def _merge_pulsar_into_result(dev_id, status_list):
     """Write the DP values from a Pulsar push into result[dev_id], so the
     next cloud-fallback read (which returns held values when rate-limited)
@@ -957,7 +922,6 @@ def _merge_pulsar_into_result(dev_id, status_list):
         else:
             held.append({'code': code, 'value': item.get('value')})
     result[dev_id] = held
-
 
 def _pulsar_on_message(msg):
     """Called from the Pulsar network thread the instant Tuya reports a
@@ -1122,21 +1086,14 @@ def _pulsar_on_message(msg):
                 continue
 
         # Write temperature and/or humidity to the units the startup block made.
-        # AlwaysUpdate=1 is required: unit.sValue is the in-memory copy, which
-        # can drift from the database (e.g. after an external update). A Pulsar
-        # push is by definition a fresh value, so it must always be written.
+        # The pushed DPs were merged into result[dev_id] at the top of this
+        # function (see _merge_pulsar_into_result), so the next CloudFallback()
+        # returns these fresh values instead of a stale held value -- no
+        # AlwaysUpdate=1 is needed for the fast path any more.
         if temperature is not None and checkDevice(dev_id, 1):
             Debug(event='pulsar', message=f"Pulsar: fast path BEFORE for {_device_name(dev_id)} ({dev_id}) unit 1: mem={Devices[dev_id].Units[1].sValue!r}, new={temperature!r}, TimedOut={Devices[dev_id].TimedOut}")
             UpdateDomoticz(dev_id, 1, temperature, 0, 0, source='pulsar')
             Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (temperature) -> {temperature}")
-
-        if humidity is not None and checkDevice(dev_id, 2):
-            UpdateDomoticz(dev_id, 2, humidity, humidity, 0, source='pulsar')
-            Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (humidity) -> {humidity}")
-
-        if temperature is not None and humidity is not None and checkDevice(dev_id, 3):
-            UpdateDomoticz(dev_id, 3, f"{temperature};{humidity};0", 0, 0, source='pulsar')
-            Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (T+H) -> {temperature}/{humidity}")
 
         # Any sensor/switch-sensor push we got here carried at least one DP
         # this plugin knows how to write (temperature, humidity or battery):
@@ -1640,7 +1597,6 @@ def _pulsar_on_message(msg):
 
     threading.Thread(target=_run_targeted_update, daemon=True).start()
 
-
 def start_pulsar_listener():
     """Start the realtime push listener for this hardware instance, using
     the same Access ID / Access Secret / Region already configured for
@@ -1677,7 +1633,6 @@ def start_pulsar_listener():
     except Exception as e:
         Error(event='pulsar', message=f"Pulsar: failed to start realtime listener: {e}")
         pulsar_client = None
-
 
 def _log_realtime_capable_devices():
     """Log a clear startup overview of the realtime (Pulsar) situation for
@@ -1768,7 +1723,6 @@ def _log_realtime_capable_devices():
             Log(event="pulsar", message="No door contacts, motion sensors, or doorbells found for this instance -- realtime Pulsar updates are not applicable right now.")
     except Exception as e:
         Debug(event="pulsar", message=f"could not build realtime-devices overview: {e}")
-
 
 def stop_pulsar_listener():
     """Cleanly tear down the Pulsar connection for this hardware instance.
@@ -2220,10 +2174,10 @@ class BasePlugin:
                 if dev_type in ('switch', 'switch/sensor') and Unit == 2 and searchCode('switch_led', function):
                     if Command == 'Off':
                         SendCommandTuya(DeviceID, 'switch_led', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0, source='command')
                     elif Command == 'On':
                         SendCommandTuya(DeviceID, 'switch_led', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     elif Command == 'Set Level':
                         SendCommandTuya(DeviceID, 'switch_led', True)
                         SendCommandTuya(DeviceID, 'bright_value', Level)
@@ -2258,7 +2212,7 @@ class BasePlugin:
                 if dev_type in ('dimmer'):
                     if Command == 'Off':
                         SendCommandTuya(DeviceID, f"switch_led_{Unit}", False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0, source='command')
                     elif Command == 'Set Level':
                         SendCommandTuya(DeviceID, f"switch_led_{Unit}", True)
                         SendCommandTuya(DeviceID, f"bright_value_{Unit}", Level)
@@ -2297,10 +2251,10 @@ class BasePlugin:
 
                     if Command == 'Off':
                         SendCommandTuya(DeviceID, switch, False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, False, 0, 0, source='command')
                     elif Command == 'On':
                         SendCommandTuya(DeviceID, switch, True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     elif Command == 'Set Level':
                         if searchCode('bright_value_v2', function):
                             SendCommandTuya(DeviceID, switch, True)
@@ -2350,60 +2304,15 @@ class BasePlugin:
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                             UpdateDomoticz(DeviceID, Unit, Color, 1, 0, source='command')
 
-                # Multi-LED ondersteuning voor draw_tool (buiten Unit == 1 check)
-                if dev_type in ('light', 'fanlight', 'pirlight') and Unit >= 11:
-                    Debug(event='debug', message=f"Multi-LED check: Unit {Unit}, draw_tool in functions: {searchCode('draw_tool', function)}")
-                    if searchCode('draw_tool', function):
-                        led_index = Unit - 11
-                        Log(event='log', message=f"Multi-LED detected: LED {led_index}, command {Command}")
-                        if Command == 'Off':
-                            max_value = get_draw_tool_max_value(DeviceID)
-                            white_type = detect_white_channel_type(DeviceID)
-                            white = 0 if white_type == 'rgbw' else None
-                            send_draw_tool_command(DeviceID, led_index, 0, 0, 0, 0, max_value, white)
-                            UpdateDomoticz(DeviceID, Unit, 0, 0, 0, source='command')
-
-                        elif Command == 'On':
-                            current_level = 100
-                            huidige_kleur = get_led_color(DeviceID, Unit)
-                            max_value = get_draw_tool_max_value(DeviceID)
-                            white_type = detect_white_channel_type(DeviceID)
-                            white = current_level if white_type == 'rgbw' else None
-                            send_draw_tool_command(DeviceID, led_index,
-                                                   huidige_kleur['r'],
-                                                   huidige_kleur['g'],
-                                                   huidige_kleur['b'],
-                                                   current_level, max_value, white)
-                            UpdateDomoticz(DeviceID, Unit, current_level, 1, 0, source='command')
-
-                        elif Command == 'Set Level':
-                            huidige_kleur = get_led_color(DeviceID, Unit)
-                            max_value = get_draw_tool_max_value(DeviceID)
-                            white_type = detect_white_channel_type(DeviceID)
-                            white = Level if white_type == 'rgbw' else None
-                            send_draw_tool_command(DeviceID, led_index,
-                                                   huidige_kleur['r'],
-                                                   huidige_kleur['g'],
-                                                   huidige_kleur['b'],
-                                                   Level, max_value, white)
-                            UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
-
-                        elif (Command == 'Set Color' or Command == 'Set Level') and len(Color) != 0:
-                            max_value = get_draw_tool_max_value(DeviceID)
-                            white_type = detect_white_channel_type(DeviceID)
-                            white = Level if white_type == 'rgbw' else None
-                            if Color['m'] == 2:
-                                send_draw_tool_command(DeviceID, led_index, 255, 255, 255, Level, max_value, white)
-                            elif Color['m'] == 3:
-                                send_draw_tool_command(DeviceID, led_index,
-                                                       int(Color['r']),
-                                                       int(Color['g']),
-                                                       int(Color['b']),
-                                                       Level, max_value, white)
-                            UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
-                            if Color['m'] == 3:
-                                kleur_string = f"{int(Color['r'])},{int(Color['g'])},{int(Color['b'])}"
-                                UpdateDomoticz(DeviceID, Unit, kleur_string, 1, 0, source='command')
+                    # KSIX: broadcast to all spots when the main unit is used.
+                    # Only fires for the KSIX BXOUTL1 (product_id tihpfl49x2ozdkab),
+                    # which ignores colour_data and needs draw_tool frames instead.
+                    if getConfigItem(DeviceID, 'product_id') == 'tihpfl49x2ozdkab' and searchCode('draw_tool', function):
+                        if isinstance(Color, dict) and Color.get('m') == 3:
+                            rr, gg, bb = int(Color['r']), int(Color['g']), int(Color['b'])
+                        else:
+                            rr = gg = bb = 255
+                        send_draw_tool_command(DeviceID, None, rr, gg, bb, Level)
 
                 if dev_type in ('light') and Unit == 2:
                     if searchCode('Power', function):
@@ -2476,7 +2385,7 @@ class BasePlugin:
                             SendCommandTuya(DeviceID, 'colour_data', hvs)
 
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
-                        UpdateDomoticz(DeviceID, Unit, Color, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, Color, 1, 0, source='command')
                 if dev_type in ('light') and Unit == 3:
                     if searchCode('lightmode', function):
                         switch = 'lightmode'
@@ -2491,6 +2400,61 @@ class BasePlugin:
                             mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                             SendCommandTuya(DeviceID, switch, mode[int(Level / 10)])
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+                # Multi-LED ondersteuning voor draw_tool (buiten Unit == 1 check)
+                if dev_type in ('light', 'fanlight', 'pirlight') and Unit >= 11:
+                    if searchCode('draw_tool', function):
+                        led_index = Unit - 11
+                        product_id = getConfigItem(DeviceID, 'product_id') or ''
+                        Log(event='log', message=f"Multi-LED detected: LED {led_index}, command {Command}, product_id {product_id}")
+
+                        if Command == 'Off':
+                            max_value = get_draw_tool_max_value(DeviceID)
+                            white_type = detect_white_channel_type(DeviceID)
+                            white = 0 if white_type == 'rgbw' else None
+                            send_draw_tool_command(DeviceID, led_index, 0, 0, 0, 0, max_value, white)
+                            UpdateDomoticz(DeviceID, Unit, 0, 0, 0, source='command')
+
+                        elif Command == 'On':
+                            current_level = 100
+                            huidige_kleur = get_led_color(DeviceID, Unit)
+                            max_value = get_draw_tool_max_value(DeviceID)
+                            white_type = detect_white_channel_type(DeviceID)
+                            white = current_level if white_type == 'rgbw' else None
+                            send_draw_tool_command(DeviceID, led_index,
+                                                huidige_kleur['r'],
+                                                huidige_kleur['g'],
+                                                huidige_kleur['b'],
+                                                current_level, max_value, white)
+                            UpdateDomoticz(DeviceID, Unit, current_level, 1, 0, source='command')
+
+                        elif Command == 'Set Level':
+                            huidige_kleur = get_led_color(DeviceID, Unit)
+                            max_value = get_draw_tool_max_value(DeviceID)
+                            white_type = detect_white_channel_type(DeviceID)
+                            white = Level if white_type == 'rgbw' else None
+                            send_draw_tool_command(DeviceID, led_index,
+                                                huidige_kleur['r'],
+                                                huidige_kleur['g'],
+                                                huidige_kleur['b'],
+                                                Level, max_value, white)
+                            UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+
+                        elif (Command == 'Set Color' or Command == 'Set Level') and len(Color) != 0:
+                            max_value = get_draw_tool_max_value(DeviceID)
+                            white_type = detect_white_channel_type(DeviceID)
+                            white = Level if white_type == 'rgbw' else None
+                            if Color['m'] == 2:
+                                send_draw_tool_command(DeviceID, led_index, 255, 255, 255, Level, max_value, white)
+                            elif Color['m'] == 3:
+                                send_draw_tool_command(DeviceID, led_index,
+                                                    int(Color['r']),
+                                                    int(Color['g']),
+                                                    int(Color['b']),
+                                                    Level, max_value, white)
+                            UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+                            if Color['m'] == 3:
+                                kleur_string = f"{int(Color['r'])},{int(Color['g'])},{int(Color['b'])}"
+                                UpdateDomoticz(DeviceID, Unit, kleur_string, 1, 0, source='command')
 
                 if dev_type == 'aromatherapy':
                     if Command == 'On' and Unit == 1:
@@ -2500,7 +2464,7 @@ class BasePlugin:
                     elif Command == 'Off' and Unit == 1:
                         if searchCode('Power', function):
                             SendCommandTuya(DeviceID, 'Power', False)
-                            UpdateDomoticz(DeviceID, Unit, False, 0, 1)
+                            UpdateDomoticz(DeviceID, Unit, False, 0, 1, source='command')
                     elif Command == 'On' and Unit == 2:
                         if searchCode('Light', function):
                             SendCommandTuya(DeviceID, 'Light', True)
@@ -2569,7 +2533,7 @@ class BasePlugin:
                             SendCommandTuya(DeviceID, 'status', '1')
                         else:
                             SendCommandTuya(DeviceID, f"control{ext}", 'open')
-                        UpdateDomoticz(DeviceID, Unit, 'Open', 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, 'Open', 1, 0, source='command')
                     elif Command == 'Close':
                         if searchCode(f"mach_operate{ext}", function):
                             SendCommandTuya(DeviceID, f"mach_operate{ext}", 'ZZ')
@@ -2577,7 +2541,7 @@ class BasePlugin:
                             SendCommandTuya(DeviceID, 'status', '2')
                         else:
                             SendCommandTuya(DeviceID, f"control{ext}", 'close')
-                        UpdateDomoticz(DeviceID, Unit, 'Close', 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, 'Close', 0, 0, source='command')
                     elif Command == 'Stop':
                         if searchCode(f"mach_operate{ext}", function):
                             SendCommandTuya(DeviceID, f"mach_operate{ext}", 'STOP')
@@ -2585,7 +2549,7 @@ class BasePlugin:
                             SendCommandTuya(DeviceID, 'status', '3')
                         else:
                             SendCommandTuya(DeviceID, f"control{ext}", 'stop')
-                        UpdateDomoticz(DeviceID, Unit, 'Stop', 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, 'Stop', 1, 0, source='command')
                     elif Command == 'Set Level':
                         if searchCode(f"percent_control{ext}", function):
                             control = f"percent_control{ext}"
@@ -2599,63 +2563,63 @@ class BasePlugin:
                         switch = 'switch'
                         if Command == 'Off' and Unit == 1:
                             SendCommandTuya(DeviceID, switch, False)
-                            UpdateDomoticz(DeviceID, 1, False, 0, 0)
+                            UpdateDomoticz(DeviceID, 1, False, 0, 0, source='command')
                         elif Command == 'On' and Unit == 1:
                             SendCommandTuya(DeviceID, switch, True)
-                            UpdateDomoticz(DeviceID, 1, True, 1, 0)
+                            UpdateDomoticz(DeviceID, 1, True, 1, 0, source='command')
                     if searchCode('ach_stemp', function):
                         switch = 'ach_stemp'
                         if Command == 'Set Level' and Unit  == 11:
                             SendCommandTuya(DeviceID, switch, Level)
-                            UpdateDomoticz(DeviceID, 11, Level, 1, 0)
+                            UpdateDomoticz(DeviceID, 11, Level, 1, 0, source='command')
                     if searchCode('wth_stemp', function):
                         switch = 'wth_stemp'
                         if Command == 'Set Level' and Unit  == 12:
                             SendCommandTuya(DeviceID, switch, Level)
-                            UpdateDomoticz(DeviceID, 12, Level, 1, 0)
+                            UpdateDomoticz(DeviceID, 12, Level, 1, 0, source='command')
                     if searchCode('aircond_temp_diff', function):
                         switch = 'aircond_temp_diff'
                         if Command == 'Set Level' and Unit  == 13:
                             SendCommandTuya(DeviceID, switch, Level)
-                            UpdateDomoticz(DeviceID, 13, Level, 1, 0)
+                            UpdateDomoticz(DeviceID, 13, Level, 1, 0, source='command')
                     if searchCode('wth_temp_diff', function):
                         switch = 'wth_temp_diff'
                         if Command == 'Set Level' and Unit  == 14:
                             SendCommandTuya(DeviceID, switch, Level)
-                            UpdateDomoticz(DeviceID, 14, Level, 1, 0)
+                            UpdateDomoticz(DeviceID, 14, Level, 1, 0, source='command')
                     if searchCode('acc_stemp', function):
                         switch = 'acc_stemp'
                         if Command == 'Set Level' and Unit  == 15:
                             SendCommandTuya(DeviceID, switch, Level)
-                            UpdateDomoticz(DeviceID, 15, Level, 1, 0)
+                            UpdateDomoticz(DeviceID, 15, Level, 1, 0, source='command')
                     if searchCode('mode', function):
                         if Command == 'Set Level' and Unit == 16:
                             mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                             SendCommandTuya(DeviceID, 'mode', mode[int(Level / 10)])
-                            UpdateDomoticz(DeviceID, 16, Level, 1, 0)
+                            UpdateDomoticz(DeviceID, 16, Level, 1, 0, source='command')
                     if searchCode('work_mode', function):
                         if Command == 'Set Level' and Unit == 17:
                             mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                             SendCommandTuya(DeviceID, 'work_mode', mode[int(Level / 10)])
-                            UpdateDomoticz(DeviceID, 17, Level, 1, 0)
+                            UpdateDomoticz(DeviceID, 17, Level, 1, 0, source='command')
                     if searchCode('temp_set', function):
                         switch = 'temp_set'
                         if Command == 'Set Level' and Unit  == 19:
                             SendCommandTuya(DeviceID, switch, Level)
-                            UpdateDomoticz(DeviceID, 19, Level, 1, 0)
+                            UpdateDomoticz(DeviceID, 19, Level, 1, 0, source='command')
                     # if searchCode('water_set', function):
                     #     switch = 'water_set'
                     #     if Command == 'Set Level' and Unit  == 20:
                     #         SendCommandTuya(DeviceID, switch, Level)
-                    #         UpdateDomoticz(DeviceID, 20, Level, 1, 0)
+                    #         UpdateDomoticz(DeviceID, 20, Level, 1, 0, source='command')
                     if searchCode('compressor_state', function):
                         switch = 'compressor_state'
                         if Command == 'Off' and Unit == 24:
                             SendCommandTuya(DeviceID, switch, False)
-                            UpdateDomoticz(DeviceID, 24, False, 0, 0)
+                            UpdateDomoticz(DeviceID, 24, False, 0, 0, source='command')
                         elif Command == 'On' and Unit == 24:
                             SendCommandTuya(DeviceID, switch, True)
-                            UpdateDomoticz(DeviceID, 24, True, 1, 0)
+                            UpdateDomoticz(DeviceID, 24, True, 1, 0, source='command')
 
                 elif dev_type == 'thermostat' or dev_type == 'heater' or dev_type == 'heatpump':
                     if searchCode('switch_1', function):
@@ -2685,55 +2649,55 @@ class BasePlugin:
                     #     switch4 = 'work_mode'
                     if Command == 'Off' and Unit == 1:
                         SendCommandTuya(DeviceID, switch, False)
-                        UpdateDomoticz(DeviceID, 1, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 1, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 1:
                         SendCommandTuya(DeviceID, switch, True)
-                        UpdateDomoticz(DeviceID, 1, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 1, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit  == 3:
                         SendCommandTuya(DeviceID, switch3, Level)
-                        UpdateDomoticz(DeviceID, 3, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 3, Level, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 4:
                         mode = getConfigItem(f"{DeviceID}-4", 'mode') if not None else Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, switch4, mode[int(Level / 10)])
-                        UpdateDomoticz(DeviceID, 4, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 4, Level, 1, 0, source='command')
                     if Command == 'Off' and Unit == 5:
                         SendCommandTuya(DeviceID, 'window_check', False)
-                        UpdateDomoticz(DeviceID, 5, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 5, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 5:
                         SendCommandTuya(DeviceID, 'window_check', True)
-                        UpdateDomoticz(DeviceID, 5, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 5, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 6:
                         SendCommandTuya(DeviceID, 'child_lock', False)
-                        UpdateDomoticz(DeviceID, 6, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 6, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 6:
                         SendCommandTuya(DeviceID, 'child_lock', True)
-                        UpdateDomoticz(DeviceID, 6, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 6, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 7:
                         SendCommandTuya(DeviceID, 'eco', False)
-                        UpdateDomoticz(DeviceID, 7, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 7, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 7:
                         SendCommandTuya(DeviceID, 'eco', True)
-                        UpdateDomoticz(DeviceID, 7, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 7, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit  == 9:
                         if searchCode('fan_level', function) or searchCode('fan_speed_enum', function):
                             fan_code = 'fan_level' if searchCode('fan_level', function) else 'fan_speed_enum'
                             mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                             SendCommandTuya(DeviceID, fan_code, mode[int(Level / 10)])
-                            UpdateDomoticz(DeviceID, 9, Level, 1, 0)
+                            UpdateDomoticz(DeviceID, 9, Level, 1, 0, source='command')
                         else:
                             wind = 'windspeed'
                             SendCommandTuya(DeviceID, wind, Level)
-                            UpdateDomoticz(DeviceID, 9, Level, 1, 0)
+                            UpdateDomoticz(DeviceID, 9, Level, 1, 0, source='command')
                     if Command == 'Off' and Unit == 17:
                         SendCommandTuya(DeviceID, 'anti_bother', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 17:
                         SendCommandTuya(DeviceID, 'anti_bother', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     extra = {30: 'turbo', 31: 'quiet', 32: 'sleep', 33: 'energy_save', 34: 'healthy'}
                     if Unit in extra and Command in ('On', 'Off'):
                         SendCommandTuya(DeviceID, extra[Unit], Command == 'On')
-                        UpdateDomoticz(DeviceID, Unit, Command == 'On', int(Command == 'On'), 0)
+                        UpdateDomoticz(DeviceID, Unit, Command == 'On', int(Command == 'On'), 0, source='command')
 
                 if dev_type in ('sensor', 'switch/sensor'):
                     if Command == 'Set Level' and Unit == 15:
@@ -2768,70 +2732,70 @@ class BasePlugin:
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     # if Command == 'Off' and Unit == 47:
                     #     SendCommandTuya(DeviceID, 'alarm_switch', False)
-                    #     UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                    #     UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     # elif Command == 'On' and Unit == 47:
                     #     SendCommandTuya(DeviceID, 'alarm_switch', True)
-                    #     UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                    #     UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
 
                 if dev_type == 'doorbell':
                     if Command == 'Off' and Unit == 2:
                         SendCommandTuya(DeviceID, 'floodlight_switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 2:
                         SendCommandTuya(DeviceID, 'floodlight_switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 3:
                         SendCommandTuya(DeviceID, 'motion_switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 3:
                         SendCommandTuya(DeviceID, 'motion_switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 4:
                         SendCommandTuya(DeviceID, 'basic_indicator', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 4:
                         SendCommandTuya(DeviceID, 'basic_indicator', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 5:
                         SendCommandTuya(DeviceID, 'decibel_switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 5:
                         SendCommandTuya(DeviceID, 'decibel_switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 6:
                         SendCommandTuya(DeviceID, 'basic_private', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 6:
                         SendCommandTuya(DeviceID, 'basic_private', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 7:
                         SendCommandTuya(DeviceID, 'motion_tracking', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 7:
                         SendCommandTuya(DeviceID, 'motion_tracking', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 8:
                         SendCommandTuya(DeviceID, 'motion_area_switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 8:
                         SendCommandTuya(DeviceID, 'motion_area_switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 9:
                         SendCommandTuya(DeviceID, 'siren_switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 9:
                         SendCommandTuya(DeviceID, 'siren_switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Set Level' and Unit  == 10:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 10, mode[int(Level / 10)])
-                        UpdateDomoticz(DeviceID, 10, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 10, Level, 1, 0, source='command')
                     if Command == 'Off' and Unit == 11:
                         SendCommandTuya(DeviceID, 'floodlight_switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 11:
                         SendCommandTuya(DeviceID, 'floodlight_switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Set Level' and Unit == 12:
                         SendCommandTuya(DeviceID, 'ipc_siren_volume', Level)
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
@@ -2842,10 +2806,10 @@ class BasePlugin:
                 if dev_type == 'fan':
                     if Command == 'Off' and Unit == 1:
                         SendCommandTuya(DeviceID, 'switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 1:
                         SendCommandTuya(DeviceID, 'switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 2:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'mode', mode[int(Level / 10)])
@@ -2859,133 +2823,133 @@ class BasePlugin:
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     if Command == 'Off' and Unit == 7:
                         SendCommandTuya(DeviceID, 'light', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 7:
                         SendCommandTuya(DeviceID, 'light', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 8:
                         SendCommandTuya(DeviceID, 'RH_switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 8:
                         SendCommandTuya(DeviceID, 'RH_switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 11:
                         SendCommandTuya(DeviceID, 'anion', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 11:
                         SendCommandTuya(DeviceID, 'anion', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 12:
                         SendCommandTuya(DeviceID, 'free_cooling', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 12:
                         SendCommandTuya(DeviceID, 'free_cooling', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 13:
                         SendCommandTuya(DeviceID, 'powerful', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 13:
                         SendCommandTuya(DeviceID, 'powerful', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
 
                 if dev_type == 'fanlight':
                     if Command == 'Off' and Unit == 2:
                         SendCommandTuya(DeviceID, 'fan_switch', False)
-                        UpdateDomoticz(DeviceID, 2, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 2, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 2:
                         SendCommandTuya(DeviceID, 'fan_switch', True)
-                        UpdateDomoticz(DeviceID, 2, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 2, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'fan_speed', int(mode[int(Level / 10)]))
-                        UpdateDomoticz(DeviceID, 3, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 3, Level, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 4:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'fan_direction', mode[int(Level / 10)])
-                        UpdateDomoticz(DeviceID, 4, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 4, Level, 1, 0, source='command')
 
                 if dev_type == 'powermeter' and searchCode('switch', function):
                     if Command == 'Off':
                         SendCommandTuya(DeviceID, 'switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On':
                         SendCommandTuya(DeviceID, 'switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
 
                 if dev_type == 'powermeter' and searchCode('switch_1', function):
                     if Command == 'Off':
                         SendCommandTuya(DeviceID, 'switch_1', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On':
                         SendCommandTuya(DeviceID, 'switch_1', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
 
                 if dev_type == 'siren':
                     if Command == 'Off':
                         SendCommandTuya(DeviceID, 'AlarmSwitch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On':
                         SendCommandTuya(DeviceID, 'AlarmSwitch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 2:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'Alarmtype', mode[int(Level / 10)])
-                        UpdateDomoticz(DeviceID, 2, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 2, Level, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'Alarmtype', mode[int(Level / 10)])
-                        UpdateDomoticz(DeviceID, 3, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 3, Level, 1, 0, source='command')
                     # Other Type of alarm with same code
                     if Command == 'Off' and Unit == 1:
                         SendCommandTuya(DeviceID, 'muffling', False)
-                        UpdateDomoticz(DeviceID, 1, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 1, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 1:
                         SendCommandTuya(DeviceID, 'muffling', True)
-                        UpdateDomoticz(DeviceID, 1, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 1, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 2:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'alarm_state', mode[int(Level / 10)])
-                        UpdateDomoticz(DeviceID, 2, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 2, Level, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'alarm_volume', mode[int(Level / 10)])
-                        UpdateDomoticz(DeviceID, 3, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 3, Level, 1, 0, source='command')
 
                 if dev_type == 'pirlight':
                     if Command == 'Off' and Unit == 2:
                         SendCommandTuya(DeviceID, 'switch_pir', False)
-                        UpdateDomoticz(DeviceID, 2, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 2, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 2:
                         SendCommandTuya(DeviceID, 'switch_pir', True)
-                        UpdateDomoticz(DeviceID, 2, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 2, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'device_mode', mode[int(Level / 10)])
-                        UpdateDomoticz(DeviceID, 3, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 3, Level, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 4:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'pir_sensitivity', mode[int(Level / 10)])
-                        UpdateDomoticz(DeviceID, 4, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 4, Level, 1, 0, source='command')
 
                 if dev_type == 'garagedooropener':
                     if Command == 'Off' and Unit == 1:
                         SendCommandTuya(DeviceID, 'switch_1', False)
-                        UpdateDomoticz(DeviceID, 1, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 1, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 1:
                         SendCommandTuya(DeviceID, 'switch_1', True)
-                        UpdateDomoticz(DeviceID, 1, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 1, True, 1, 0, source='command')
 
                 if dev_type == 'feeder':
                     if Command == 'Off' and Unit == 5:
                         SendCommandTuya(DeviceID, 'light', False)
-                        UpdateDomoticz(DeviceID, 5, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 5, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 5:
                         SendCommandTuya(DeviceID, 'light', True)
-                        UpdateDomoticz(DeviceID, 5, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 5, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 1:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'manual_feed', int(mode[int(Level / 10)]))
-                        UpdateDomoticz(DeviceID, 1, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 1, Level, 1, 0, source='command')
 
                 if dev_type == 'irrigation':
                     if searchCode('switch_1', function):
@@ -2994,26 +2958,26 @@ class BasePlugin:
                         switch = 'switch'
                     if Command == 'Off' and Unit == 1:
                         SendCommandTuya(DeviceID, switch, False)
-                        UpdateDomoticz(DeviceID, 1, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 1, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 1:
                         SendCommandTuya(DeviceID, switch, True)
-                        UpdateDomoticz(DeviceID, 1, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 1, True, 1, 0, source='command')
                     area_codes = {3: 'areaone', 4: 'areatwo', 5: 'areathree', 6: 'areafour', 7: 'areafive', 8: 'areasix'}
                     if Unit in area_codes and Command in ('On', 'Off'):
                         on = (Command == 'On')
                         SendCommandTuya(DeviceID, area_codes[Unit], on)
-                        UpdateDomoticz(DeviceID, Unit, on, int(on), 0)
+                        UpdateDomoticz(DeviceID, Unit, on, int(on), 0, source='command')
                 if dev_type == 'starlight':
                     if Command == 'Off' and Unit == 1:
                         SendCommandTuya(DeviceID, 'switch_led', False)
                         SendCommandTuya(DeviceID, 'colour_switch', False)
-                        UpdateDomoticz(DeviceID, 1, False, 0, 0)
-                        UpdateDomoticz(DeviceID, 2, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 1, False, 0, 0, source='command')
+                        UpdateDomoticz(DeviceID, 2, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 1:
                         SendCommandTuya(DeviceID, 'switch_led', True)
                         SendCommandTuya(DeviceID, 'colour_switch', True)
-                        UpdateDomoticz(DeviceID, 1, True, 1, 0)
-                        UpdateDomoticz(DeviceID, 2, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 1, True, 1, 0, source='command')
+                        UpdateDomoticz(DeviceID, 2, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 1:
                         Color = Devices[DeviceID].Units[1].Color
                         if Color == '':
@@ -3022,74 +2986,74 @@ class BasePlugin:
                         hvs = {'h':h, 's':s, 'v':Level * 10}
                         SendCommandTuya(DeviceID, 'colour_data', hvs)
                         SendCommandTuya(DeviceID, 'colour_switch', True)
-                        UpdateDomoticz(DeviceID, 1, json.dumps(Color), 1, 0)
+                        UpdateDomoticz(DeviceID, 1, json.dumps(Color), 1, 0, source='command')
                     elif Command == 'Set Color' and Unit == 1: #
                         h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
                         hvs = {'h':h, 's':s, 'v':Level * 10}
                         SendCommandTuya(DeviceID, 'colour_data', hvs)
                         SendCommandTuya(DeviceID, 'colour_switch', True)
-                        UpdateDomoticz(DeviceID, 1, json.dumps(Color), 1, 0)
+                        UpdateDomoticz(DeviceID, 1, json.dumps(Color), 1, 0, source='command')
                     if Command == 'Off' and Unit == 2:
                         SendCommandTuya(DeviceID, 'colour_switch', False)
-                        UpdateDomoticz(DeviceID, 2, False, 0, 0)
-                        UpdateDomoticz(DeviceID, 1, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 2, False, 0, 0, source='command')
+                        UpdateDomoticz(DeviceID, 1, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 2:
                         SendCommandTuya(DeviceID, 'colour_switch', True)
-                        UpdateDomoticz(DeviceID, 2, True, 1, 0)
-                        UpdateDomoticz(DeviceID, 1, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 2, True, 1, 0, source='command')
+                        UpdateDomoticz(DeviceID, 1, True, 1, 0, source='command')
                     if Command == 'Off' and Unit == 3:
                         SendCommandTuya(DeviceID, 'laser_switch', False)
-                        UpdateDomoticz(DeviceID, 3, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 3, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 3:
                         SendCommandTuya(DeviceID, 'laser_switch', True)
-                        UpdateDomoticz(DeviceID, 3, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 3, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 3:
                         SendCommandTuya(DeviceID, 'laser_switch', True)
                         SendCommandTuya(DeviceID, 'laser_bright', 21.25 + ((Level / 100) * 78.75)) # 21.25 + ((Level / 100) * 78.75) ) * 10
-                        UpdateDomoticz(DeviceID, 3, True, 1, 0)
-                        UpdateDomoticz(DeviceID, 3, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 3, True, 1, 0, source='command')
+                        UpdateDomoticz(DeviceID, 3, Level, 1, 0, source='command')
                     if Command == 'Off' and Unit == 4:
                         SendCommandTuya(DeviceID, 'fan_switch', False)
-                        UpdateDomoticz(DeviceID, 4, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 4, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 4:
                         SendCommandTuya(DeviceID, 'fan_switch', True)
-                        UpdateDomoticz(DeviceID, 4, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 4, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 4:
                         SendCommandTuya(DeviceID, 'fan_switch', True)
                         SendCommandTuya(DeviceID, 'fan_speed', Level)
-                        UpdateDomoticz(DeviceID, 4, True, 1, 0)
-                        UpdateDomoticz(DeviceID, 4, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 4, True, 1, 0, source='command')
+                        UpdateDomoticz(DeviceID, 4, Level, 1, 0, source='command')
 
                 if dev_type == 'smartlock':
                     if searchCode('lock_motor_state', function):
                         if Command == 'Off' and Unit == 1:
                             SendCommandTuya(DeviceID, 'lock_motor_state', False)
-                            UpdateDomoticz(DeviceID, 1, 10, 0, 0)
+                            UpdateDomoticz(DeviceID, 1, 10, 0, 0, source='command')
                         elif Command == 'On' and Unit == 1:
                             SendCommandTuya(DeviceID, 'lock_motor_state', True)
-                            UpdateDomoticz(DeviceID, 1, 0, 1, 0)
+                            UpdateDomoticz(DeviceID, 1, 0, 1, 0, source='command')
                     elif searchCode('rtc_lock', function):
                         if Command == 'Off' and Unit == 1:
                             SendCommandTuya(DeviceID, 'rtc_lock', 0)
-                            UpdateDomoticz(DeviceID, 1, 10, 0, 0)
+                            UpdateDomoticz(DeviceID, 1, 10, 0, 0, source='command')
                         elif Command == 'On' and Unit == 1:
                             SendCommandTuya(DeviceID, 'rtc_lock', 1)
-                            UpdateDomoticz(DeviceID, 1, 0, 1, 0)
+                            UpdateDomoticz(DeviceID, 1, 0, 1, 0, source='command')
                     else:
                         if Command == 'Off' and Unit == 1:
                             SendCommandTuya(DeviceID, 'switch', False)
-                            UpdateDomoticz(DeviceID, 1, 10, 0, 0)
+                            UpdateDomoticz(DeviceID, 1, 10, 0, 0, source='command')
                         elif Command == 'On' and Unit == 1:
                             SendCommandTuya(DeviceID, 'switch', True)
-                            UpdateDomoticz(DeviceID, 1, 0, 1, 0)
+                            UpdateDomoticz(DeviceID, 1, 0, 1, 0, source='command')
 
                 if dev_type == 'dehumidifier':
                     if Command == 'Off' and Unit == 1:
                         SendCommandTuya(DeviceID, 'switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 1:
                         SendCommandTuya(DeviceID, 'switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 2:
                         if searchCode('dehumidify_set_value', function):
                             tdev = 'dehumidify_set_value'
@@ -3154,15 +3118,15 @@ class BasePlugin:
                         code = dehumidifier_toggles[Unit]
                         on = (Command == 'On')
                         SendCommandTuya(DeviceID, code, on)
-                        UpdateDomoticz(DeviceID, Unit, on, int(on), 0)
+                        UpdateDomoticz(DeviceID, Unit, on, int(on), 0, source='command')
 
                 if dev_type == 'vacuum':
                     if Command == 'Off' and Unit == 1:
                         SendCommandTuya(DeviceID, 'power_go', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 1:
                         SendCommandTuya(DeviceID, 'power_go', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'mode', mode[int(Level / 10)])
@@ -3179,10 +3143,10 @@ class BasePlugin:
                 if dev_type == 'purifier':
                     if Command == 'Off' and Unit == 1:
                         SendCommandTuya(DeviceID, 'switch', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 1:
                         SendCommandTuya(DeviceID, 'switch', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 3:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'mode', mode[int(Level / 10)])
@@ -3195,29 +3159,29 @@ class BasePlugin:
                 if dev_type == 'smartkettle':
                     if Command == 'Off' and Unit == 1:
                         SendCommandTuya(DeviceID, 'start', False)
-                        UpdateDomoticz(DeviceID, Unit, False, 0, 0)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'On' and Unit == 1:
                         SendCommandTuya(DeviceID, 'start', True)
-                        UpdateDomoticz(DeviceID, Unit, True, 1, 0)
+                        UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit  == 4:
                         SendCommandTuya(DeviceID, 'cook_temperature', Level)
-                        UpdateDomoticz(DeviceID, 4, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 4, Level, 1, 0, source='command')
 
                 if dev_type == 'mower':
                     if Command == 'Set Level' and Unit == 1:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'MachineControlCmd', mode[int(Level / 10)])
-                        UpdateDomoticz(DeviceID, 1, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 1, Level, 1, 0, source='command')
                     if Command == 'Off' and Unit == 2:
                         SendCommandTuya(DeviceID, 'MachineRainMode', False)
-                        UpdateDomoticz(DeviceID, 2, False, 0, 0)
+                        UpdateDomoticz(DeviceID, 2, False, 0, 0, source='command')
                     elif Command == 'On' and Unit == 2:
                         SendCommandTuya(DeviceID, 'MachineRainMode', True)
-                        UpdateDomoticz(DeviceID, 2, True, 1, 0)
+                        UpdateDomoticz(DeviceID, 2, True, 1, 0, source='command')
                     if Command == 'Set Level' and Unit == 6:
                         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                         SendCommandTuya(DeviceID, 'MachineWorkMode', mode[int(Level / 10)])
-                        UpdateDomoticz(DeviceID, 6, Level, 1, 0)
+                        UpdateDomoticz(DeviceID, 6, Level, 1, 0, source='command')
 
                 if dev_type == 'human_presence':
                     if Command == 'Set Level' and Unit == 2:
@@ -3243,21 +3207,21 @@ class BasePlugin:
                 # if dev_type == 'infrared_ac':
                 #     if Command == 'Off' and Unit == 1:
                 #         SendCommandTuya(DeviceID, 'PowerOff', 'PowerOff')
-                #         UpdateDomoticz(DeviceID, 1, False, 0, 0)
+                #         UpdateDomoticz(DeviceID, 1, False, 0, 0, source='command')
                 #     elif Command == 'On' and Unit == 1:
                 #         SendCommandTuya(DeviceID, 'PowerOn', 'PowerOn')
-                #         UpdateDomoticz(DeviceID, 1, True, 1, 0)
+                #         UpdateDomoticz(DeviceID, 1, True, 1, 0, source='command')
                 #     elif Command == 'Set Level' and Unit  == 2:
                 #         SendCommandTuya(DeviceID, 'T', Level)
-                #         UpdateDomoticz(DeviceID, 2, Level, 1, 0)
+                #         UpdateDomoticz(DeviceID, 2, Level, 1, 0, source='command')
                 #     elif Command == 'Set Level' and Unit == 3:
                 #         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                 #         SendCommandTuya(DeviceID, 'M', mode[int(Level / 10)])
-                #         UpdateDomoticz(DeviceID, 3, Level, 1, 0)
+                #         UpdateDomoticz(DeviceID, 3, Level, 1, 0, source='command')
                 #     elif Command == 'Set Level' and Unit == 4:
                 #         mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                 #         SendCommandTuya(DeviceID, 'F', mode[int(Level / 10)])
-                #         UpdateDomoticz(DeviceID, 4, Level, 1, 0)
+                #         UpdateDomoticz(DeviceID, 4, Level, 1, 0, source='command')
 
         except Exception as e:
             Error(device=DeviceID, name=dev_name, event="command", message=f"onCommand ERROR: {str(e)}")
@@ -3425,8 +3389,6 @@ def _log_local_scan_results(localtuya, devs, label, elapsed=None, scan_error=Non
 
     if found_count == 0 and not_found_entries and not found_entries:
         Error(event="ip-scan", message=f"{label}: zero devices found on the local network at all. If this keeps happening for every scan, it usually points to a network-level problem rather than devices being offline: UDP ports 6666/6667/6668 blocked by a firewall on this host, Domoticz running in a Docker/VM network namespace that does not receive broadcast traffic, or this host being on a different subnet/VLAN than the Tuya devices.")
-
-
 
 def onHandleThread(startup, local, target_dev_id=None):
     global tuya, devs, properties, dps_map, result, product_id, TuyaError
@@ -3658,7 +3620,6 @@ def onHandleThread(startup, local, target_dev_id=None):
                 for dev in devs:
                     dev_id = dev['id']
                     properties[dev_id] = raw['result']
-
 
                     if not properties[dev_id].get('functions'):
                         Error(event='error', message=f"!! Warning Functions data is missing for {dev.get('name', 'Unknown')} ({dev_id}) !!")
@@ -4631,7 +4592,6 @@ def onHandleThread(startup, local, target_dev_id=None):
                                     options['ValueMax'] = get_scale(StatusProperties, temp, the_values.get('max'))
                                     options['ValueUnit'] = the_values.get('unit')
                             DomoticzEx.Unit(Name=f"{dev['name']} (Siren Duration)", DeviceID=dev['id'], Unit=13, Type=242, Subtype=1, Options=options, Image=21, Used=1).Create()
-
 
                     if dev_type == 'fan':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
@@ -6976,24 +6936,6 @@ def StatusDeviceTuya(Function):
         valueT = valueRaw
     return valueT
 
-def _merge_pulsar_into_result(dev_id, status_list):
-    """Write the DP values from a Pulsar push into result[dev_id], so the
-    next cloud-fallback read (which returns held values when rate-limited)
-    does not overwrite the fresh value with a stale one."""
-    held = result.get(dev_id)
-    if not isinstance(held, list):
-        held = []
-    by_code = {item.get('code'): item for item in held if isinstance(item, dict)}
-    for item in status_list:
-        code = item.get('code')
-        if code is None:
-            continue
-        if code in by_code:
-            by_code[code]['value'] = item.get('value')
-        else:
-            held.append({'code': code, 'value': item.get('value')})
-    result[dev_id] = held
-
 def SendCommandTuya(ID, CommandName, Status):
     sendfunction = properties[ID]['functions']
     if isinstance(CommandName, list):
@@ -7289,7 +7231,6 @@ def decode_colour_data(raw):
 
     return None
 
-
 def find_steady_lightmode(function):
     for item in function or []:
         if item.get('code') != 'lightmode':
@@ -7350,23 +7291,28 @@ def detect_white_channel_type(DeviceID):
     except Exception:
         return 'rgb'
 
-
 def send_draw_tool_command(DeviceID, led_index, r, g, b, brightness, max_value=255, white=None):
     white_type = detect_white_channel_type(DeviceID)
-    if white_type == 'rgbw' and white is None:
-        white = brightness  # Use same brightness for white channel in RGBW mode
 
-    encoded_command = encode_draw_tool_command(led_index, r, g, b, brightness, max_value=max_value, white=white)
-    Log(event='draw-tool', message=f"Multi-LED: Attempting local send for LED {led_index}, type: {white_type}")
+    # KSIX devices do not use a white channel in the frame; passing white
+    # would push the generic encoder down the RGBW path.
+    product_id = getConfigItem(DeviceID, 'product_id') or ''
+
+    if white_type == 'rgbw' and white is None and product_id != 'tihpfl49x2ozdkab':
+        white = brightness
+
+    encoded_command = encode_draw_tool_command(
+        led_index, r, g, b, brightness,
+        max_value=max_value, white=white, product_id=product_id,
+    )
+    Log(event='draw-tool', message=f"Multi-LED: Attempting local send for LED {led_index}, type: {white_type}, product_id: {product_id}")
     if send_draw_tool_command_local(DeviceID, encoded_command):
         Log(event='draw-tool', message=f"Multi-LED: Local send succeeded for LED {led_index}")
         return True
 
     Log(event='draw-tool', message=f"Multi-LED: Local send failed, fallback to cloud for LED {led_index}")
-    # Fallback to cloud via SendCommandTuya
     SendCommandTuya(DeviceID, 'draw_tool', encoded_command)
     return False
-
 
 def send_draw_tool_command_local(DeviceID, encoded_command):
     try:
@@ -7393,43 +7339,147 @@ def send_draw_tool_command_local(DeviceID, encoded_command):
         Debug(event='draw-tool', message=f"Local draw_tool send failed for {DeviceID}: {e}")
         return False
 
-
-def encode_draw_tool_command(led_index, r, g, b, brightness, max_value=255, white=None):
+def encode_draw_tool_command(led_index, r, g, b, brightness, max_value=255, white=None, product_id=None):
     """
-    Encode draw_tool command for RGBIC linear lights
-    Supports RGB, RGBW, and RGBWW based on white parameter
-    """
-    r = max(0, min(255, r))
-    g = max(0, min(255, g))
-    b = max(0, min(255, b))
-    brightness = max(0, min(100, brightness))
+    Encode draw_tool command for RGBIC linear lights.
 
+    Two device families are supported:
+
+    * KSIX BXOUTL1 (product_id 'tihpfl49x2ozdkab') — 4 (or 8) independent
+      RGB spots. Two frame layouts:
+        - broadcast (all spots, 9 bytes): 01 01 00 01 H S V 00 00
+        - single spot (12 bytes):          01 02 01 00 H S V 00 00 81 00 SPOT
+      The colour byte H is NOT a standard HSV hue: it uses the device's
+      own lookup table (red=0x01, yellow=0x35, green=0x7B, blue=0xDF).
+
+    * Generic RGBIC (all other devices) — 12-byte frames with HSV-style
+      hue_hi/hue_lo. This is the original format and is kept unchanged.
+
+    Parameters
+    ----------
+    led_index : int
+        Spot index. 0-based for the KSIX family (0..3 for a 4-spot set,
+        0..7 for a chained 8-spot set). For the generic family this is
+        the raw index written into the last byte.
+    r, g, b : int
+        0..255 RGB values.
+    brightness : int
+        0..100, used as the V byte in the KSIX layout (and as part of the
+        v-scaling in the generic layout).
+    max_value : int
+        255 or 1000, only used by the generic layout.
+    white : int or None
+        Only used by the generic layout for RGBW frames.
+    product_id : str or None
+        Tuya product_id. When it equals 'tihpfl49x2ozdkab', the KSIX
+        layout is used. Otherwise the generic layout is used.
+    """
+    r = max(0, min(255, int(r)))
+    g = max(0, min(255, int(g)))
+    b = max(0, min(255, int(b)))
+    brightness = max(0, min(100, int(brightness)))
+
+    if product_id == 'tihpfl49x2ozdkab':
+        return _encode_draw_tool_ksix(led_index, r, g, b, brightness)
+
+    # --- Generic RGBIC layout (unchanged) ---
     h, s, v = rgb_to_hsv_v2(r, g, b)
     hue_hi = (h >> 8) & 0xFF
     hue_lo = h & 0xFF
     sat = max(0, min(100, int(round(s / 10))))
     brightness_hex = format(brightness, '02x')
 
-    # For RGBIC lights with white channel support
     if white is not None:
-        white = max(0, min(255, white))
+        white = max(0, min(255, int(white)))
         white_hex = format(white, '02x')
-        # RGBW format: 01 02 hue_hi hue_lo sat brightness white 00 81 00 spot
         hex_string = f"010201{hue_hi:02x}{hue_lo:02x}{sat:02x}{brightness_hex}{white_hex}008100{led_index:02x}"
     else:
-        # Standard RGB format
         hex_string = f"010201{hue_hi:02x}{hue_lo:02x}{sat:02x}{brightness_hex}00008100{led_index:02x}"
 
-    Log(event='draw-tool', message=f"Draw Tool: LED {led_index}, RGB({r},{g},{b}), Brightness {brightness}, White {white}, HSV({h},{s},{v}), Hex: {hex_string}")
-
+    Log(event='draw-tool', message=f"Draw Tool (generic): LED {led_index}, RGB({r},{g},{b}), Brightness {brightness}, White {white}, HSV({h},{s},{v}), Hex: {hex_string}")
     try:
         byte_data = bytes.fromhex(hex_string)
         encoded = base64.b64encode(byte_data).decode('utf-8')
-        Log(event='draw-tool', message=f"Draw Tool: Encoded command: {encoded}")
+        Log(event='draw-tool', message=f"Draw Tool (generic): Encoded command: {encoded}")
         return encoded
     except Exception as e:
         Debug(event='draw-tool', message=f"Error encoding draw_tool: {e}")
         return "AQIBAAAAAGQA"
+
+# --- KSIX BXOUTL1 specific encoding ----------------------------------------
+
+# Non-linear H lookup used by the KSIX BXOUTL1 firmware.
+# These are the values the device itself reports for pure colours;
+# intermediate hues are interpolated linearly between the anchors.
+_KSIX_HUE_ANCHORS = [
+    (0,   0x01),   # red
+    (60,  0x35),   # yellow
+    (120, 0x7B),   # green
+    (240, 0xDF),   # blue
+    (360, 0x01),   # wrap back to red
+]
+
+def _ksix_rgb_to_h(r, g, b):
+    """Convert an RGB triplet to the KSIX H byte using the device's own
+    non-linear lookup. Returns 0x01..0xDF (never 0x00, which is 'off')."""
+    # Start from a conventional hue to decide *which* anchor segment we
+    # are in, then interpolate the H byte between the two anchors.
+    import colorsys as _cs
+    hh, _, _ = _cs.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+    hh = hh * 360.0
+
+    for i in range(len(_KSIX_HUE_ANCHORS) - 1):
+        a_hue, a_val = _KSIX_HUE_ANCHORS[i]
+        b_hue, b_val = _KSIX_HUE_ANCHORS[i + 1]
+        if a_hue <= hh <= b_hue:
+            span = b_hue - a_hue
+            if span <= 0:
+                return a_val
+            t = (hh - a_hue) / span
+            return int(round(a_val + (b_val - a_val) * t))
+    return 0x01
+
+def _ksix_sat_byte(r, g, b):
+    """Saturation byte, 0..100 as the device expects."""
+    import colorsys as _cs
+    _, ss, _ = _cs.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+    return max(0, min(100, int(round(ss * 100))))
+
+def _encode_draw_tool_ksix(led_index, r, g, b, brightness):
+    """Build the draw_tool payload for the KSIX BXOUTL1.
+
+    * led_index is None or negative -> broadcast frame (all spots).
+    * led_index >= 0                -> single-spot frame.
+
+    Brightness is the V byte, 1..100. 0 means "off".
+    """
+    h_byte = _ksix_rgb_to_h(r, g, b)
+    s_byte = _ksix_sat_byte(r, g, b)
+    v_byte = max(0, min(100, int(brightness)))
+
+    if led_index is None or int(led_index) < 0:
+        # Broadcast: 01 01 00 01 H S V 00 00
+        hex_string = f"01010001{h_byte:02x}{s_byte:02x}{v_byte:02x}0000"
+        frame = 'broadcast'
+    else:
+        spot = max(0, min(255, int(led_index)))
+        # Single spot: 01 02 01 00 H S V 00 00 81 00 SPOT
+        hex_string = f"01020100{h_byte:02x}{s_byte:02x}{v_byte:02x}00008100{spot:02x}"
+        frame = f'spot {spot}'
+
+    Log(event='draw-tool', message=(
+        f"Draw Tool (KSIX, {frame}): RGB({r},{g},{b}) "
+        f"H=0x{h_byte:02x} S={s_byte} V={v_byte} Hex: {hex_string}"
+    ))
+
+    try:
+        byte_data = bytes.fromhex(hex_string)
+        encoded = base64.b64encode(byte_data).decode('utf-8')
+        Log(event='draw-tool', message=f"Draw Tool (KSIX): Encoded command: {encoded}")
+        return encoded
+    except Exception as e:
+        Debug(event='draw-tool', message=f"Error encoding draw_tool (KSIX): {e}")
+        return "AQEBAAAAAGQA"
 
 def decode_draw_tool_status(base64_data, expected_led_count):
     result = {}

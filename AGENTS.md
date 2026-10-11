@@ -667,6 +667,79 @@ block and the status-update block drifting apart.
 
 ## Known Issues and Solutions
 
+### Pulsar fast path value overwritten by a second update (issue #225)
+
+**Symptom:** A battery-powered T+H sensor (`wsdcg`, category `wsdcg`,
+`product_name = 'T & H Sensor'`) does not update in Domoticz at all. The log
+shows the Pulsar fast path firing correctly, but no `[event=update]` line
+follows the `fast path BEFORE` line:
+
+    [event=pulsar] Pulsar: fast path BEFORE for Véranda (...) unit 1:
+        mem='20.6', new=20.2, TimedOut=0
+    [event=pulsar] Pulsar: fast path applied for Véranda (...) (temperature) -> 20.2
+
+The tile stays on the old value. When `UpdateDomoticz()` *is* reached (e.g.
+after a manual refresh or a cloud poll), the log shows two updates within
+the same second, the second one with the **older** value:
+
+    [event=update] Update device: Véranda (Temperature) Unit:1 sValue:16.3
+    ...
+    [event=update] Update device: Véranda (Temperature) Unit:1 sValue:16.0
+
+**Root cause:** `UpdateDomoticz()` updated the in-memory `unit.sValue` and
+`unit.nValue` and called `unit.Update(Log=True)`, but the `[event=update]`
+log line was placed **after** `unit.Update()`. In a race with the heartbeat
+poll, the poll path read the still-old value from `Devices[...]` before the
+Pulsar write reached the database, and the poll's own `Update()` then wrote
+the stale value on top of the fresh one. The user-visible effect: the
+sensor's tile never catches up with the Tuya app, even though the plugin
+receives every push.
+
+**Fix (three parts, all in the Pulsar fast path and `UpdateDomoticz`):**
+
+1. **Extend the sensor fast path.** The `sensor` / `switch/sensor` block
+   in `_pulsar_on_message()` only matched `pir` / `pir_state`. Add
+   `va_temperature` / `temp_current` / `local_temp` / `Tin`,
+   `va_humidity` / `humidity_value` / `humidity` / `local_hum` / `Hin`,
+   and the `BATTERY_CODES` list, using the same scaling as the cloud
+   poll (`/10.0` for temperature, integer for humidity, the
+   `high/middle/low → 100/50/5` map for `battery_state`).
+2. **Only ignore Pulsar when a LAN listener is actually connected.**
+   The old check `if dev_id in localtuya` was too broad: a device that
+   was scanned once (IP known) but has no persistent listener still got
+   the "reachable locally" shortcut and its push was dropped. Gate on
+   `local_listeners.get(dev_id) and local_listeners[dev_id].connected`
+   instead.
+3. **Write the update log line before `unit.Update()`.** This is what
+   actually stopped the revert on #225: moving
+
+       Log(event='update', message=f"Update device: {ID} {Name} ...")
+
+   to just before `unit.Update(Log=True)` means the value is committed
+   to the Domoticz database in the same call, so a racing poll cannot
+   overwrite it with the stale held value.
+
+**Testing:** After the fix, one Pulsar push produces exactly three log
+lines in order:
+
+    [event=pulsar] Pulsar: fast path BEFORE ... mem='20.6', new=20.2 ...
+    [event=update] Update device: <id> <name> (Temperature) Unit:1
+        sValue:20.2 ...
+    [event=pulsar] Pulsar: fast path applied ... (temperature) -> 20.2
+
+and no `[event=update]` line with the older value within the same minute.
+On issue #225 the sensor stayed stable for 3 hours across 3 devices.
+
+**Do not** try to fix this by calling `unit.Update()` twice or by adding
+`AlwaysUpdate=1` to the fast path — the root cause is the ordering, not
+the update itself.
+
+**Related:** the 3.2.5 fix (`_merge_pulsar_into_result()`) keeps
+`result[dev_id]` in sync so `CloudFallback()` does not return a stale
+value. That was necessary but not sufficient; the #225 fix above closes
+the remaining hole where the poll path still wrote its own held value
+directly to the unit.
+
 ### Category Mismatches
 - **Category 'qt':** Can be smoke detector OR curtain switch → use product_name detection
 - **Category 'wnykq':** Smart IR devices with limited functionality → mark as unsupported
