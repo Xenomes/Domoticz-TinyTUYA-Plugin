@@ -6933,7 +6933,7 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0):
     Devices[ID].TimedOut = TimedOut
     unit.Update(Log=True)
 
-    Log(event='update', message=f"Update device: {Name} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}")
+    Log(event='update', message=f"Update device: {Name} {ID} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}")
 
 def StatusDeviceTuya(Function):
     if searchCode(Function, StatusProperties):
