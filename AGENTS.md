@@ -173,6 +173,10 @@ pairing.
 - `_log_pulsar_message(data)` — INFO line for every Pulsar message, in
   both the legacy and IoT Core shapes, before any processing. Uses the
   structured `Log()` helper.
+- `_merge_pulsar_into_result(dev_id, status_list)` — writes the DP
+  values from a Pulsar push into `result[dev_id]` so the next
+  cloud-fallback read does not overwrite the fresh value with a stale one.
+  Called once at the top of `_pulsar_on_message()`.
 - `_log_realtime_capable_devices()` — startup overview of devices
   covered by the Pulsar fast path (door contacts, motion sensors,
   doorbells, smoke detectors, water leak sensors, smart locks, human
@@ -186,6 +190,12 @@ pairing.
   Tuya device list first, then `Devices[dev_id].Units[1].Name`, then the ID.
 - `_sys_date(d, kind)` — formats a date using the locale of the system
   Domoticz runs on. Falls back to ISO when only C/POSIX is available.
+- `UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0, source="poll")`
+  — writes a value to a Domoticz unit. The `source=` keyword argument
+  (default `"poll"`) appears in the log line as `[source] Update device: ...`
+  so a reader can tell which engine wrote the value. Non-default callers use
+  `"pulsar"` (Pulsar fast paths), `"command"` (onCommand), `"credits"`
+  (_usage_update_devices), or `"refresh"` (RefreshDevice and one-off reads).
 
 **Important:** Do NOT use the standard library `logging` module for plugin
 logging. Domoticz captures the plugin's output on its own, and the stdlib
@@ -252,6 +262,13 @@ All fast paths apply the **same** value conversion as the regular poll
 path (`brightness_to_pct`, `hsv_to_rgb`, the `battery_state` →
 `high/middle/low` mapping, and so on) so a device cannot end up with a
 value from the fast path that disagrees with the next regular poll.
+
+The fast paths do **not** pass `AlwaysUpdate=1` to `UpdateDomoticz()`. The
+fresh value is kept in sync with the poll path by calling
+`_merge_pulsar_into_result()` at the top of `_pulsar_on_message()`, which
+writes the pushed DP values into `result[dev_id]` so that a subsequent
+`CloudFallback()` (which returns held values when rate-limited) does not
+overwrite the fresh value with a stale one.
 
 Any device type that is **not** listed above goes through the slow,
 verified path. Adding a new fast path requires that the DP-to-unit
@@ -347,6 +364,29 @@ with a new ID, or factory reset).
   re-enable them manually. This is intentional — we cannot safely guess
   whether the user wants the old device back.
 
+## Known Issues
+
+### Pulsar fast path value revert (fixed in 3.2.5)
+
+**Symptom:** A Pulsar fast path writes a fresh value to Domoticz, but the next
+regular poll overwrites it with the old value a few seconds later. The log shows
+two update lines for the same unit in quick succession:
+`[pulsar] Update device: ... sValue:X` followed by `[poll] Update device: ... sValue:Y`.
+
+**Root cause:** The fast path wrote to Domoticz but did not update `result[dev_id]`.
+When the next regular poll ran, `CloudFallback()` returned the held (stale)
+value from `result[dev_id]` (because the cloud poll was rate-limited), and the
+status-update loop wrote that stale value back to Domoticz.
+
+**Fix:** `_merge_pulsar_into_result()` is called at the top of
+`_pulsar_on_message()` to write the pushed DP values into `result[dev_id]` before
+any fast path runs. This keeps the held value in sync with the fresh value, so
+the subsequent `CloudFallback()` returns the new value instead of the old one.
+
+**Testing:** After the fix, a Pulsar push should not cause a revert on the next
+poll cycle, and the log should show exactly one `[pulsar] Update device:` line per
+push, not followed by a `[poll] Update device:` line with an older value.
+
 ## Build and Verification
 
 ### Syntax Check
@@ -374,32 +414,31 @@ The new log line to grep for when testing orphaned device handling is
 The version number lives in **two places** in the XML header of
 `plugin.py` and must match:
 
-    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.4" ...>
+    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.5" ...>
         ...
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.4</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.5</h2><br/>
 
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
 
-**3.2.4 is the current working version.** It fixes the orphaned-device
-handling: devices that exist in Domoticz but are no longer reported by
-Tuya are now correctly marked inactive at every unit, in a single pass
-at startup.
+**3.2.5 is the current working version.** It fixes the Pulsar fast path
+value revert bug and adds `source=` logging to distinguish update engines.
 
-Changes since 3.2.3:
+Changes since 3.2.4:
 
-- `_mark_orphaned_device_inactive()` now passes
-  `UpdateProperties=True` to `unit.Update()`. Without it, the `Used`
-  flag is not written to the Domoticz database, so the units stayed
-  `Used=1` and the dashboard tiles remained visible.
-- The orphaned scan was moved out of the `for dev in devs:` loop and
-  given an `orphaned_devices` guard, so it runs once per startup instead
-  of once per device per heartbeat.
-- The helper now logs the list of unit numbers it actually marked
-  (`units: 1, 2, 3`), so a partially-inactive device is visible in the
-  log instead of silently staying half-processed.
+- Added `_merge_pulsar_into_result()` helper, called at the top of
+  `_pulsar_on_message()` to write pushed DP values into `result[dev_id]`
+  so the next cloud-fallback read does not overwrite the fresh value with a
+  stale one. This fixes the "value reverts a few seconds later" bug.
+- Removed `AlwaysUpdate=1` from all Pulsar fast-path `UpdateDomoticz()` calls.
+  The merge helper above makes the workaround unnecessary.
+- Added `source=` keyword argument to `UpdateDomoticz()` (default `"poll"`).
+  Non-default callers use `"pulsar"` (fast paths), `"command"` (onCommand),
+  `"credits"` (_usage_update_devices), or `"refresh"` (RefreshDevice). The
+  `event=update` log line now shows `[source] Update device: ...` so a
+  reader can tell which engine wrote the value.
 
-Both version strings in the header must be bumped to 3.2.4 together.
+Both version strings in the header must be bumped to 3.2.5 together.
 
 ## GitHub Labels
 
@@ -1085,6 +1124,17 @@ folder and restart.
 6. Confirm that the wake-up is throttled: two consecutive polls of the
    same device should only show one wake-up attempt per
    `LOCAL_WAKE_MIN_INTERVAL` seconds.
+
+### Pulsar fast path testing
+1. Trigger a state change on a fast-path device (door contact, motion sensor,
+   doorbell, smoke detector, water leak sensor, smart lock, or human presence)
+   from the Tuya app or physically.
+2. Confirm the log shows a `[pulsar] Update device:` line with the new value.
+3. Wait for the next regular poll cycle (cloud or LAN, whichever applies).
+4. Confirm the log does **not** show a `[poll] Update device:` line with the
+   old value — the value should stay at the fresh value from the push.
+5. If a revert does appear, check the Known Issues section for the
+   `_merge_pulsar_into_result()` fix.
 
 ### Light colour testing
 1. Turn the light on
