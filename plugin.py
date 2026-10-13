@@ -7117,7 +7117,7 @@ def temp_value_scale(device_functions, actual_function_name, raw):
 def temp_value_scale_reverse(device_functions, actual_function_name, scaled):
     """
     convert from a scale of 0 - 255 => max_value - min_value
-    e.g.: 0 -> 1000 and 255 -> 10
+    e.g.: 10 -> 1000 and 255 -> 0
     """
     if device_functions and actual_function_name:
         for item in device_functions:
