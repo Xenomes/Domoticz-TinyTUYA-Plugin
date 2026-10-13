@@ -2288,7 +2288,6 @@ class BasePlugin:
                                         bright_max = max(bright_max, int(vals.get('max', 0)))
                                     except Exception:
                                         pass
-
                             use_v1000 = colour_data_v2 or bright_max >= 1000
                             if use_v1000:
                                 h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
@@ -2300,7 +2299,11 @@ class BasePlugin:
                             hvs = {'h': h, 's': s, 'v': v_scaled}
                             SendCommandTuya(DeviceID, switch, True)
                             SendCommandTuya(DeviceID, 'work_mode', 'colour')
-                            SendCommandTuya(DeviceID, 'colour_data', hvs)
+                            if colour_data_v2:
+                                colour_data_v2_hex = f"{h:04x}{s:04x}{v_scaled:04x}"
+                                SendCommandTuya(DeviceID, 'colour_data_v2', colour_data_v2_hex)
+                            else:
+                                SendCommandTuya(DeviceID, 'colour_data', hvs)
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                             UpdateDomoticz(DeviceID, Unit, Color, 1, 0, source='command')
 
@@ -5962,12 +5965,19 @@ def onHandleThread(startup, local, target_dev_id=None):
                             svalue = str(dimtuya) if currentstatus else '0'
                             if str(unit.sValue) != svalue or unit.nValue != nval:
                                 UpdateDomoticz(dev_id, 1, svalue, nval, 0)
-                            if searchCode('temp_value_v2', StatusProperties):
+                            if StatusDeviceTuya('work_mode')=="white" and searchCode('temp_value_v2', StatusProperties):
                                 colortuya=temp_value_scale(StatusProperties, 'temp_value_v2', int(StatusDeviceTuya('temp_value_v2')))
                                 colortuyaobj={"b":0,"cw":255-colortuya,"g":0,"m":2,"r":0,"t":colortuya,"ww":colortuya}
                                 UpdateDomoticz(dev_id, 1, json.dumps(colortuyaobj), nval, 0)
                                 #Devices[dev_id].Units[1].Color=json.dumps(colortuyaobj)
                                 #Devices[dev_id].Units[1].Update(UpdateProperties=True)
+                            if StatusDeviceTuya('work_mode')=="colour" and searchCode('colour_data_v2', StatusProperties):
+                                colour_data_v2_hex = StatusDeviceTuya('colour_data_v2')
+                                h, s, v = (int(colour_data_v2_hex[i:i + 4],16) for i in range(0, len(colour_data_v2_hex), 4))
+                                r, g, b = hsv_to_rgb_v2(h, s, v)
+                                colortuyaobj={"r":r,"g":g,"b":b,"m":3}
+                                UpdateDomoticz(dev_id, 1, json.dumps(colortuyaobj), nval, 0)
+                                UpdateDomoticz(dev_id, 1, int(round(v/10)), nval, 0)
                             if searchCode('Power', StatusProperties):
                                 currentstatus = StatusDeviceTuya('Power')
                                 UpdateDomoticz(dev_id, 2, bool(currentstatus), int(bool(currentstatus)), 0)
