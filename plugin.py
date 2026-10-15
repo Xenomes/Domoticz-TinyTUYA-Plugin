@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.5" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.6" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.5</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.6</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -2192,9 +2192,10 @@ class BasePlugin:
                         elif Color.get('m') == 3:
                             h, s, v = rgb_to_hsv(int(Color['r']), int(Color['g']), int(Color['b']))
                             hvs = {'h': h, 's': s, 'v': v}
+                            colour_code = 'colour_data_v2' if searchCode('colour_data_v2', function) else 'colour_data'
                             SendCommandTuya(DeviceID, 'switch_led', True)
                             SendCommandTuya(DeviceID, 'work_mode', 'colour')
-                            SendCommandTuya(DeviceID, 'colour_data', hvs)
+                            SendCommandTuya(DeviceID, colour_code, hvs)
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                             UpdateDomoticz(DeviceID, Unit, Color, 1, 0, source='command')
 
@@ -2298,9 +2299,10 @@ class BasePlugin:
                                 v_scaled = Level * 2.55
 
                             hvs = {'h': h, 's': s, 'v': v_scaled}
+                            colour_code = 'colour_data_v2' if searchCode('colour_data_v2', function) else 'colour_data'
                             SendCommandTuya(DeviceID, switch, True)
                             SendCommandTuya(DeviceID, 'work_mode', 'colour')
-                            SendCommandTuya(DeviceID, 'colour_data', hvs)
+                            SendCommandTuya(DeviceID, colour_code, hvs)
                             UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                             UpdateDomoticz(DeviceID, Unit, Color, 1, 0, source='command')
 
@@ -2380,9 +2382,10 @@ class BasePlugin:
                                 v_scaled = Level * 2.55
 
                             hvs = {'h': h, 's': s, 'v': v_scaled}
+                            colour_code = 'colour_data_v2' if searchCode('colour_data_v2', function) else 'colour_data'
                             if switch:
                                 SendCommandTuya(DeviceID, switch, True)
-                            SendCommandTuya(DeviceID, 'colour_data', hvs)
+                                SendCommandTuya(DeviceID, colour_code, hvs)
 
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                         UpdateDomoticz(DeviceID, Unit, Color, 1, 0, source='command')
@@ -2508,9 +2511,9 @@ class BasePlugin:
                     elif Command == 'Set Color' and Unit == 6:
                         if searchCode('colour_data', function):
                             steady = find_steady_lightmode(function)
+                            colour_code = 'colour_data_v2' if searchCode('colour_data_v2', function) else 'colour_data'
                             if steady is not None:
                                 SendCommandTuya(DeviceID, 'lightmode', steady)
-
                             if len(Color) > 0 and 'm' in Color:
                                 if Color['m'] == 2:
                                     colour_data_value = {"h": 0, "s": 0, "v": Level}
@@ -2521,7 +2524,7 @@ class BasePlugin:
                                     colour_data_value = {"h": 0, "s": 0, "v": Level}
                             else:
                                 colour_data_value = {"h": 0, "s": 0, "v": Level}
-                            SendCommandTuya(DeviceID, 'colour_data', colour_data_value)
+                            SendCommandTuya(DeviceID, colour_code, colour_data_value)
                             UpdateDomoticz(DeviceID, Unit, Color, 1, 0, source='command')
 
                 if dev_type == ('cover'):
@@ -2980,17 +2983,19 @@ class BasePlugin:
                         UpdateDomoticz(DeviceID, 2, True, 1, 0, source='command')
                     elif Command == 'Set Level' and Unit == 1:
                         Color = Devices[DeviceID].Units[1].Color
+                        colour_code = 'colour_data_v2' if searchCode('colour_data_v2', function) else 'colour_data'
                         if Color == '':
                             Color ={'b':255,'cw':0,'g':255,'m':3,'r':255,'t':0,'ww':0}
                         h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
                         hvs = {'h':h, 's':s, 'v':Level * 10}
-                        SendCommandTuya(DeviceID, 'colour_data', hvs)
+                        SendCommandTuya(DeviceID, colour_code, hvs)
                         SendCommandTuya(DeviceID, 'colour_switch', True)
                         UpdateDomoticz(DeviceID, 1, json.dumps(Color), 1, 0, source='command')
-                    elif Command == 'Set Color' and Unit == 1: #
+                    elif Command == 'Set Color' and Unit == 1:
+                        colour_code = 'colour_data_v2' if searchCode('colour_data_v2', function) else 'colour_data'
                         h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
                         hvs = {'h':h, 's':s, 'v':Level * 10}
-                        SendCommandTuya(DeviceID, 'colour_data', hvs)
+                        SendCommandTuya(DeviceID, colour_code, hvs)
                         SendCommandTuya(DeviceID, 'colour_switch', True)
                         UpdateDomoticz(DeviceID, 1, json.dumps(Color), 1, 0, source='command')
                     if Command == 'Off' and Unit == 2:
@@ -3074,6 +3079,7 @@ class BasePlugin:
                         SendCommandTuya(DeviceID, 'work_mode', mode[int(Level / 10)])
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
                     elif Command == 'Set Color' and Unit == 6:
+                        colour_code = 'colour_data_v2' if searchCode('colour_data_v2', function) else 'colour_data'
                         if searchCode('colour_data', function):
                             if searchCode('lightmode', function):
                                 for item in function:
@@ -3111,7 +3117,7 @@ class BasePlugin:
                                     colour_data_value = {"h": 0, "s": 0, "v": Level}
                             else:
                                 colour_data_value = {"h": 0, "s": 0, "v": Level}
-                            SendCommandTuya(DeviceID, 'colour_data', colour_data_value)
+                            SendCommandTuya(DeviceID, colour_code, colour_data_value)
                             UpdateDomoticz(DeviceID, Unit, Color, 1, 0, source='command')
                     dehumidifier_toggles = {9: 'child_lock', 10: 'anion', 11: 'filter_life', 13: 'runtime_total_reset'}
                     if Unit in dehumidifier_toggles and Command in ('On', 'Off'):
@@ -3389,6 +3395,41 @@ def _log_local_scan_results(localtuya, devs, label, elapsed=None, scan_error=Non
 
     if found_count == 0 and not_found_entries and not found_entries:
         Error(event="ip-scan", message=f"{label}: zero devices found on the local network at all. If this keeps happening for every scan, it usually points to a network-level problem rather than devices being offline: UDP ports 6666/6667/6668 blocked by a firewall on this host, Domoticz running in a Docker/VM network namespace that does not receive broadcast traffic, or this host being on a different subnet/VLAN than the Tuya devices.")
+
+def colour_data_brightness_pct(raw_cd):
+    """Haal de helderheid (v) uit een Tuya colour_data waarde en geef
+    die terug als percentage 0..100. Ondersteunt alle drie de vormen:
+      - cloud JSON-string:  '{"h":..,"s":..,"v":..}'
+      - lokale v1 hex:      RR GG BB 00 HHHH SS VV (7 bytes, V op byte 6)
+      - lokale v2 hex:      HHHH SSSS VVVV         (6 bytes, V op bytes 4-5)
+    Geeft None als de waarde niet te interpreteren is."""
+    if raw_cd is None:
+        return None
+    if isinstance(raw_cd, dict):
+        v = raw_cd.get('v')
+        if v is None:
+            return None
+        v = int(v)
+        return round(100 * v / (1000 if v > 255 else 255))
+    if not isinstance(raw_cd, str):
+        return None
+    if raw_cd.startswith('{'):
+        try:
+            parsed = json.loads(raw_cd)
+        except Exception:
+            return None
+        return colour_data_brightness_pct(parsed)
+    try:
+        data = bytes.fromhex(raw_cd)
+    except ValueError:
+        return None
+    if len(data) == 7:
+        # v1: RR GG BB 00 HHHH SS VV  -> V = data[6]
+        return round(100 * data[6] / 255)
+    if len(data) == 6:
+        # v2: HHHH SSSS VVVV          -> V = data[4:6]
+        return round(100 * int.from_bytes(data[4:6], 'big') / 1000)
+    return None
 
 def onHandleThread(startup, local, target_dev_id=None):
     global tuya, devs, properties, dps_map, result, product_id, TuyaError
@@ -5858,15 +5899,9 @@ def onHandleThread(startup, local, target_dev_id=None):
                                 if str(Devices[dev_id].Units[2].sValue) != led_svalue:
                                     UpdateDomoticz(dev_id, 2, led_svalue, int(led_on), 0)
                                 if led_on and searchCode('colour_data', StatusProperties):
-                                    cdata = StatusDeviceTuya('colour_data')
-                                    if isinstance(cdata, str) and cdata.startswith('{'):
-                                        try:
-                                            cdata = json.loads(cdata)
-                                        except Exception:
-                                            cdata = None
-                                    if isinstance(cdata, dict) and 'h' in cdata and 's' in cdata and 'v' in cdata:
-                                        r, g, b = hsv_to_rgb(int(cdata['h']), int(cdata['s']), int(cdata['v']))
-                                        color_str = json.dumps({'m': 3, 'r': r, 'g': g, 'b': b, 't': 0, 'cw': 0, 'ww': 0})
+                                    cdata = decode_colour_data(StatusDeviceTuya('colour_data'))
+                                    if cdata is not None:
+                                        color_str = json.dumps(cdata)
                                         if str(Devices[dev_id].Units[2].Color) != color_str:
                                             UpdateDomoticz(dev_id, 2, color_str, 1, 0)
 
@@ -5953,15 +5988,59 @@ def onHandleThread(startup, local, target_dev_id=None):
                             else:
                                 currentstatus = bool(StatusDeviceTuya('led_switch'))
                             nval = 1 if currentstatus else 0
-                            if searchCode('bright_value_v2', StatusProperties):
-                                dimtuya = brightness_to_pct(StatusProperties, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
-                            elif searchCode('bright_value', StatusProperties):
-                                dimtuya = brightness_to_pct(StatusProperties, 'bright_value', int(StatusDeviceTuya('bright_value')))
+                            work_mode = StatusDeviceTuya('work_mode') if searchCode('work_mode', StatusProperties) else 'white'
+
+                            color_dict = None
+                            dimtuya = 100
+
+                            if work_mode == 'colour':
+                                raw_cd = StatusDeviceTuya('colour_data')
+                                if raw_cd is None:
+                                    raw_cd = StatusDeviceTuya('colour_data_v2')
+                                cdata = decode_colour_data(raw_cd)
+                                if cdata is not None:
+                                    color_dict = cdata
+                                pct = colour_data_brightness_pct(raw_cd)
+                                if pct is not None:
+                                    dimtuya = pct
+
+                            elif work_mode == 'white':
+                                temp = StatusDeviceTuya('temp_value')
+                                if temp is None:
+                                    temp = StatusDeviceTuya('temp_value_v2')
+                                if temp is not None:
+                                    raw_temp = int(temp)
+                                    # Inverse of temp_value_scale(): Tuya 0=warm, Domoticz 255=warm
+                                    raw_max = 1000 if raw_temp > 255 else 255
+                                    t = round((raw_max - raw_temp) * 255 / raw_max)
+                                    t = min(255, max(0, t))
+                                    color_dict = {'m': 2, 'r': 0, 'g': 0, 'b': 0, 't': t, 'cw': 0, 'ww': 0}
+                                if searchCode('bright_value_v2', StatusProperties):
+                                    dimtuya = brightness_to_pct(StatusProperties, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
+                                elif searchCode('bright_value', StatusProperties):
+                                    dimtuya = brightness_to_pct(StatusProperties, 'bright_value', int(StatusDeviceTuya('bright_value')))
+
                             else:
-                                dimtuya = 100
+                                # scene / music / onbekend: alleen helderheid, geen kleur
+                                if searchCode('bright_value_v2', StatusProperties):
+                                    dimtuya = brightness_to_pct(StatusProperties, 'bright_value_v2', int(StatusDeviceTuya('bright_value_v2')))
+                                elif searchCode('bright_value', StatusProperties):
+                                    dimtuya = brightness_to_pct(StatusProperties, 'bright_value', int(StatusDeviceTuya('bright_value')))
+
+                            if color_dict is not None:
+                                color_str = json.dumps(color_dict)
+                                if str(unit.Color) != color_str:
+                                    UpdateDomoticz(dev_id, 1, color_str, nval, 0)
+
+                            # Write brightness first, then colour, so the colour write never clobbers sValue.
                             svalue = str(dimtuya) if currentstatus else '0'
                             if str(unit.sValue) != svalue or unit.nValue != nval:
                                 UpdateDomoticz(dev_id, 1, svalue, nval, 0)
+
+                            if color_dict is not None:
+                                color_str = json.dumps(color_dict)
+                                if str(unit.Color) != color_str:
+                                    UpdateDomoticz(dev_id, 1, color_str, nval, 0)
                             if searchCode('Power', StatusProperties):
                                 currentstatus = StatusDeviceTuya('Power')
                                 UpdateDomoticz(dev_id, 2, bool(currentstatus), int(bool(currentstatus)), 0)
@@ -6502,13 +6581,12 @@ def onHandleThread(startup, local, target_dev_id=None):
                             # 'DC0A00000200DC'. Decode it to RGB; nValue follows the Light
                             # state (the light can be on while Power is off).
                             if searchCode('colour_data', StatusProperties):
-                                currentcolor = StatusDeviceTuya('colour_data')
-                                colour_dict = decode_colour_data(currentcolor)
-                                light_on = bool(StatusDeviceTuya('Light')) if searchCode('Light', StatusProperties) else False
-                                nval = 1 if light_on else 0
-                                if colour_dict is not None:
-                                    svalue = json.dumps(colour_dict)
-                                    if (str(svalue) != str(Devices[dev_id].Units[6].sValue)
+                                cdata = decode_colour_data(StatusDeviceTuya('colour_data'))
+                                if cdata is not None:
+                                    light_on = bool(StatusDeviceTuya('Light')) if searchCode('Light', StatusProperties) else False
+                                    nval = 1 if light_on else 0
+                                    svalue = json.dumps(cdata)
+                                    if (str(Devices[dev_id].Units[6].sValue) != svalue
                                             or Devices[dev_id].Units[6].nValue != nval):
                                         UpdateDomoticz(dev_id, 6, svalue, nval, 0)
 
@@ -6603,17 +6681,11 @@ def onHandleThread(startup, local, target_dev_id=None):
                             update_select_device('mode', 4)
                             update_value_device('fault', 5)
                             if searchCode('colour_data', StatusProperties):
-                                currentcolor = StatusDeviceTuya('colour_data')
-                                # Handle JSON string format from Tuya
-                                if isinstance(currentcolor, str) and currentcolor.startswith('{'):
-                                    try:
-                                        parsed_color = json.loads(currentcolor)
-                                        if isinstance(parsed_color, dict):
-                                            currentcolor = parsed_color
-                                    except Exception:
-                                        pass
-                                if str(currentcolor) != str(Devices[dev_id].Units[6].sValue):
-                                    UpdateDomoticz(dev_id, 6, currentcolor, 1, 0)
+                                cdata = decode_colour_data(StatusDeviceTuya('colour_data'))
+                                if cdata is not None:
+                                    svalue = json.dumps(cdata)
+                                    if str(Devices[dev_id].Units[6].sValue) != svalue:
+                                        UpdateDomoticz(dev_id, 6, svalue, 1, 0)
                             update_value_device('temp_indoor', 7)
                             update_nvalue_device('humidity_indoor', 8)
                             update_dualvalue_device('temp_indoor', 'humidity_indoor', 9)
@@ -6880,9 +6952,13 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0, source="p
     unit = Devices[ID].Units[Unit]
     Name = Devices[ID].Units[Unit].Name
 
-    # Detect color JSON explicitly
+    # Detect color JSON in both string and dict form
     is_color = False
-    if isinstance(sValue, str):
+    if isinstance(sValue, dict):
+        if 'm' in sValue:
+            is_color = True
+            sValue = json.dumps(sValue)
+    elif isinstance(sValue, str):
         try:
             js = json.loads(sValue)
             if isinstance(js, dict) and 'm' in js:
@@ -6890,7 +6966,19 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0, source="p
         except Exception:
             pass
 
-    # Prevent unnecessary updates
+    if is_color:
+        # Color switch: sValue is the brightness number in Domoticz,
+        # Color is the JSON. Do not clobber sValue with JSON.
+        if str(unit.Color) == str(sValue) and not AlwaysUpdate:
+            return
+        unit.Color = str(sValue)
+        unit.nValue = nValue
+        Devices[ID].TimedOut = TimedOut
+        unit.Update(Log=True)
+        Log(event='update', message=f"[{source}] Update device: {Name} {ID} Unit:{Unit} Color:{sValue} nValue:{nValue} TimedOut={TimedOut}")
+        return
+
+    # Non-color update (the existing path)
     if (
         str(unit.sValue) == str(sValue)
         and str(unit.nValue) == str(nValue)
@@ -6899,18 +6987,12 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0, source="p
     ):
         return
 
-    # Apply updates
     if sValue is not None:
         unit.sValue = str(sValue)
-
-        if is_color:
-            unit.Color = str(sValue)
-        else:
-            # numeric slider value
-            try:
-                unit.LastLevel = int(float(sValue))
-            except Exception:
-                pass
+        try:
+            unit.LastLevel = int(float(sValue))
+        except Exception:
+            pass
 
     unit.nValue = nValue
     Devices[ID].TimedOut = TimedOut
@@ -7006,7 +7088,6 @@ def SendCommandTuya(ID, CommandName, Status):
                     d.set_socketPersistent(False)
 
                 if is_cover and actual_function_name == 'control':
-                    # standard Tuya cover: control DP with open/close/stop strings
                     if actual_status == 'open':
                         d.open_cover()
                     elif actual_status == 'close':
@@ -7015,6 +7096,45 @@ def SendCommandTuya(ID, CommandName, Status):
                         d.stop_cover()
                     else:
                         d.set_status(actual_status, int(dp_id))
+                elif (actual_function_name in ('colour_data', 'colour_data_v2')
+                        and isinstance(actual_status, dict) and 'h' in actual_status):
+                    h = int(actual_status.get('h', 0))
+                    s = int(actual_status.get('s', 0))
+                    v = int(actual_status.get('v', 0))
+                    if s > 255 or v > 255:
+                        # v2 scale (0..1000) on s and/or v
+                        r, g, b = hsv_to_rgb_v2(h, s, v)
+                    else:
+                        # v1 scale (0..255)
+                        r, g, b = hsv_to_rgb(h, s, v)
+
+                    if hasattr(d, 'set_colour'):
+                        # Tuya's own helper builds the packed format (only on BulbDevice)
+                        if device_version == 3.1:
+                            d.set_colour(r, g, b, nowait=True)
+                        else:
+                            d.set_colour(r, g, b)
+                    else:
+                        h16 = min(0xFFFF, max(0, int(h)))
+                        if actual_function_name == 'colour_data':
+                            # v1: 7 bytes RR GG BB HHHH SS VV -- exactly what the device
+                            # itself reports on DP 5 (e.g. '116b070072ee6b').
+                            s8 = s if s <= 255 else round(s * 255 / 1000)
+                            v8 = v if v <= 255 else round(v * 255 / 1000)
+                            s8 = min(255, max(0, int(s8)))
+                            v8 = min(255, max(0, int(v8)))
+                            hex_colour = f"{r:02x}{g:02x}{b:02x}{h16:04x}{s8:02x}{v8:02x}"
+                        else:
+                            # v2: 6 bytes HHHH SSSS VVVV (e.g. '000003e8000a').
+                            s16 = min(0xFFFF, max(0, int(s)))
+                            v16 = min(0xFFFF, max(0, int(v)))
+                            hex_colour = f"{h16:04x}{s16:04x}{v16:04x}"
+                        if device_version == 3.1:
+                            d.set_status(hex_colour, int(dp_id), nowait=True)
+                        else:
+                            d.set_status(hex_colour, int(dp_id))
+
+                    result = {'dps': {str(dp_id): 'sent'}}
                 else:
                     # raw DP: status / mach_operate / position / percent_control / everything else
                     if device_version == 3.1:
@@ -7022,7 +7142,6 @@ def SendCommandTuya(ID, CommandName, Status):
                         result = {'dps': {str(dp_id): actual_status}}
                     else:
                         result = d.set_status(actual_status, int(dp_id))
-
                 if not is_cover or actual_function_name not in ('status', 'control', 'mach_operate'):
                     if not result or 'Error' in result or 'Err' in result:
                         raise Exception(result)
@@ -7212,24 +7331,61 @@ def hsv_to_rgb_v2(h, s, v):
     return r, g, b
 
 def decode_colour_data(raw):
+    """Tuya colour values arrive in three shapes:
+        - cloud colour_data / colour_data_v2 : JSON string '{"h":..,"s":..,"v":..}'
+        - local colour_data                  : hex string, first 3 bytes are R, G, B
+        - local colour_data_v2               : hex string, 6 bytes h(2) s(2) v(2), big-endian
+    Returns a Domoticz colour dict, or None when the value cannot be interpreted."""
     if isinstance(raw, dict):
-        h, s, v = raw.get('h'), raw.get('s'), raw.get('v')
-        if h is None or s is None or v is None:
-            return None
-        r, g, b = hsv_to_rgb(int(h), int(s), int(v))
-        return {'m': 3, 'r': r, 'g': g, 'b': b, 't': 0, 'cw': 0, 'ww': 0}
+        return _hsv_to_domoticz(raw.get('h'), raw.get('s'), raw.get('v'))
 
-    if isinstance(raw, str) and len(raw) >= 6 and len(raw) % 2 == 0:
+    if not isinstance(raw, str):
+        return None
+
+    # Cloud form: JSON string
+    if raw.startswith('{'):
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            return None
+        return decode_colour_data(parsed)
+
+    # Local form: hex string
+    if len(raw) >= 6 and len(raw) % 2 == 0:
         try:
             data = bytes.fromhex(raw)
         except ValueError:
             return None
-        if len(data) < 3:
-            return None
-        r, g, b = data[0], data[1], data[2]
-        return {'m': 3, 'r': r, 'g': g, 'b': b, 't': 0, 'cw': 0, 'ww': 0}
+        if len(data) == 7:
+            # v1: RR GG BB HHHH SS VV
+            #   bytes 0-2: R, G, B (de dim-versie, alleen voor het geval
+            #              de lamp geen h/s/v meestuurt)
+            #   bytes 3-4: h (16-bit big-endian)
+            #   byte 5:    s
+            #   byte 6:    v
+            h = int.from_bytes(data[3:5], 'big')
+            s = data[5]
+            v = data[6]
+            return _hsv_to_domoticz(h, s, v)
+        if len(data) == 3:
+            # legacy colour_data: R, G, B
+            r, g, b = data[0], data[1], data[2]
+            return {'m': 3, 'r': r, 'g': g, 'b': b, 't': 0, 'cw': 0, 'ww': 0}
 
     return None
+
+def _hsv_to_domoticz(h, s, v):
+    """v1 uses s/v 0..255, v2 uses s/v 0..1000 -- pick the scale from the value.
+    v (helderness) wordt NIET in de RGB verwerkt: Domoticz heeft daar een
+    aparte slider voor. Anders wordt de kleur-tile onnodig donker."""
+    if h is None or s is None or v is None:
+        return None
+    h, s = int(h), int(s)
+    if s > 255:
+        r, g, b = hsv_to_rgb_v2(h, s, 1000)     # volle v2 helderheid
+    else:
+        r, g, b = hsv_to_rgb(h, s, 255)         # volle v1 helderheid
+    return {'m': 3, 'r': r, 'g': g, 'b': b, 't': 0, 'cw': 0, 'ww': 0}
 
 def find_steady_lightmode(function):
     for item in function or []:

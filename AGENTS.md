@@ -366,6 +366,53 @@ with a new ID, or factory reset).
 
 ## Known Issues
 
+### Colour tile stays on the old colour / too dark (fixed in 3.2.6)
+
+**Symptom:** The colour tile lags behind the app, or shows a dimmed
+version of the chosen colour; on v1 lamps the slider sits at 100% no
+matter what; on v2 lamps (Calex GU10) the colour never updates at all.
+
+**Root cause:** `decode_colour_data()` only handled the JSON and 6-byte
+hex forms, so the 7-byte v1 hex frame fell through to a branch that
+treated the first 3 bytes as live RGB — but those bytes are the *dimmed*
+RGB, not the colour. Separately, `_hsv_to_domoticz()` scaled RGB by `v`,
+baking brightness into the colour.
+
+**Fix:** add a 7-byte branch (h = bytes 3-4, s = byte 5, v = byte 6);
+add a 6-byte branch back in case it is accidentally removed; drop `v`
+from the RGB calculation in `_hsv_to_domoticz()`.
+
+**Testing:** on a v1 lamp, set a colour at low brightness; the tile
+must show the full-brightness colour and the slider must drop.
+
+### Colour change takes 3 seconds (fixed in 3.2.6)
+
+**Symptom:** `[LOCAL FAILED] ..., fallback to cloud: None` on every
+colour change, followed 3 s later by `[CLOUD] Command sent to Tuya`.
+
+**Root cause:** the plugin sent the raw `{'h','s','v'}` dict as the DP
+value. The device rejects it, `set_status()` returns `None`, and the
+3-second socket timeout fires before the cloud fallback runs.
+
+**Fix:** pack the dict into the hex layout the device expects
+(`RR GG BB HHHH SS VV` for `colour_data`, `HHHH SSSS VVVV` for
+`colour_data_v2`) before calling `set_status()`. Branch on the DP code,
+not on the `s` value.
+
+**Testing:** a colour change completes locally in <300 ms with no
+`[LOCAL FAILED]` line.
+
+### `'Device' object has no attribute 'set_colour'`
+
+**Symptom:** `[LOCAL FAILED] ..., fallback to cloud: 'Device' object
+has no attribute 'set_colour'`.
+
+**Root cause:** `set_colour()` only exists on `tinytuya.BulbDevice`.
+The plugin instantiates `tinytuya.Device` for all non-cover devices.
+
+**Fix:** guard with `hasattr(d, 'set_colour')` and fall back to a
+hand-built hex payload. Never assume the method exists.
+
 ### Pulsar fast path value revert (fixed in 3.2.5)
 
 **Symptom:** A Pulsar fast path writes a fresh value to Domoticz, but the next
@@ -664,6 +711,247 @@ block and the status-update block drifting apart.
   `lightmode` enum by looking for `steady` / `static` / `normal` /
   `constant`, falling back to index 2. Returns `None` when the device
   has no `lightmode` DP; callers must skip the send in that case.
+
+## Tuya colour round-trip (v1, v2, cloud)
+
+Tuya colour handling is asymmetric: the same DP code arrives in three
+different shapes depending on where it came from, and the device expects
+yet another shape on the way back. Getting this wrong produces the
+symptoms users report most often: colours that don't follow the app,
+colours that are too dark, colour tiles that stay yellow, sliders stuck
+at 100%, or a 3-second delay per colour change.
+
+### The three read shapes
+
+`colour_data` and `colour_data_v2` are the same logical DP but arrive as:
+
+| Source | Example | Layout |
+|---|---|---|
+| Cloud (getstatus) | `'{"h":114.0,"s":238.0,"v":107.1}'` | JSON string, s/v = 0..1000 for v2, 0..255 for v1 |
+| Pulsar push | same as cloud | JSON string |
+| LAN listener (v1 device) | `'116b070072ee6b'` | 7 bytes: `RR GG BB HHHH SS VV` |
+| LAN listener (v2 device) | `'000003e8000a'` | 6 bytes: `HHHH SSSS VVVV` |
+
+All three must be handled by `decode_colour_data()`:
+
+- JSON string → recurse after `json.loads`
+- 7-byte hex → h = bytes 3-4, s = byte 5, v = byte 6 (**not** RGB; the
+  first 3 bytes are the *dimmed* RGB, only useful as a fallback)
+- 6-byte hex → h = bytes 0-1, s = bytes 2-3, v = bytes 4-5
+
+**Do not** treat the first 3 bytes of a 7-byte frame as the live colour.
+The device is dimming them by `v`, so a lamp at 12% shows `0c0cb0...`
+for the same hue that reads `ff66cc...` at full brightness. Doing this
+produces the "tile is too dark" symptom.
+
+### `_hsv_to_domoticz()` must not bake `v` into RGB
+
+Domoticz has a separate brightness slider for a Color Switch. The colour
+dict must therefore carry the colour at *full* brightness; the slider
+shows the dimming. Use only `s` to decide the scale:
+
+```python
+def _hsv_to_domoticz(h, s, v):
+    if h is None or s is None or v is None:
+        return None
+    h, s = int(h), int(s)
+    if s > 255:
+        r, g, b = hsv_to_rgb_v2(h, s, 1000)   # full v2 brightness
+    else:
+        r, g, b = hsv_to_rgb(h, s, 255)       # full v1 brightness
+    return {'m': 3, 'r': r, 'g': g, 'b': b, 't': 0, 'cw': 0, 'ww': 0}
+```
+
+`v` stays in the signature because `decode_colour_data` passes it, but
+it is no longer used. Any call site that used `v` to scale RGB must be
+fixed separately (see `colour_data_brightness_pct`).
+
+### `colour_data_brightness_pct()` is the single source for the slider
+
+The brightness shown by the slider in **colour mode** is `v` from
+`colour_data`, *not* `bright_value`. In **white mode** it is
+`bright_value`. The poll loop must therefore branch on `work_mode`:
+
+```python
+work_mode = StatusDeviceTuya('work_mode') if searchCode('work_mode', StatusProperties) else 'white'
+
+if work_mode == 'colour':
+    raw_cd = StatusDeviceTuya('colour_data')
+    if raw_cd is None:
+        raw_cd = StatusDeviceTuya('colour_data_v2')
+    color_dict = decode_colour_data(raw_cd)
+    dimtuya = colour_data_brightness_pct(raw_cd) or 100
+elif work_mode == 'white':
+    # m:2 — reconstruct from temp_value, invert the scale
+    temp = StatusDeviceTuya('temp_value') or StatusDeviceTuya('temp_value_v2')
+    if temp is not None:
+        raw_temp = int(temp)
+        raw_max = 1000 if raw_temp > 255 else 255
+        t = round((raw_max - raw_temp) * 255 / raw_max)     # 255=warm
+        color_dict = {'m': 2, 'r': 0, 'g': 0, 'b': 0, 't': t, 'cw': 0, 'ww': 0}
+    # brightness from bright_value
+    ...
+```
+
+**Do not use `or` for the `raw_cd` lookup.** `StatusDeviceTuya(a) or
+StatusDeviceTuya(b)` calls the second even when the first returned an
+empty-but-valid value, and worse: it registers the unused DP in
+`local_used` via the second call's side effect. Use an explicit `if
+raw_cd is None:`.
+
+`colour_data_brightness_pct(raw)` must accept all three shapes (dict,
+JSON string, 7-byte hex, 6-byte hex) and return a percentage 0..100, or
+`None` when the value cannot be interpreted. Callers must fall back to
+`100` when it returns `None`.
+
+### Temperature inversion
+
+Domoticz and Tuya use opposite scales:
+
+| | Domoticz `t` | Tuya `temp_value` |
+|---|---|---|
+| Warm (yellow) | 255 | 0 |
+| Cold (blue) | 0 | 255 |
+
+- **On write**, `SendCommandTuya()` already inverts via
+  `temp_value_scale()`. Do not invert again.
+- **On read**, the poll loop must invert manually (see the `raw_max`
+  snippet above). Forgetting this produces a colour-temperature tile
+  that jumps to the opposite end on every poll.
+
+### Write side: pack the hex, do not send the dict
+
+The device firmware expects a packed hex string on DP 5. Sending the
+raw `{'h':..,'s':..,'v':..}` dict makes TinyTuya's `set_status()`
+return `None`, which triggers the 3-second socket timeout and a cloud
+fallback. See `SendCommandTuya()` in `_do_send()`:
+
+```python
+if actual_function_name in ('colour_data', 'colour_data_v2') and isinstance(actual_status, dict) and 'h' in actual_status:
+    h, s, v = int(actual_status['h']), int(actual_status['s']), int(actual_status['v'])
+    if hasattr(d, 'set_colour'):
+        d.set_colour(r, g, b)               # Tuya's helper builds the format
+    else:
+        if actual_function_name == 'colour_data':
+            # v1: 7 bytes RR GG BB HHHH SS VV
+            hex_colour = f"{r:02x}{g:02x}{b:02x}{h16:04x}{s8:02x}{v8:02x}"
+        else:
+            # v2: 6 bytes HHHH SSSS VVVV
+            hex_colour = f"{h16:04x}{s16:04x}{v16:04x}"
+        d.set_status(hex_colour, int(dp_id))
+```
+
+The `hasattr(d, 'set_colour')` fallback matters: `tinytuya.Device` does
+not have `set_colour`, only `BulbDevice` does. The plugin instantiates
+`tinytuya.Device` for everything that is not a cover, so the manual hex
+path is what actually runs. **Do not assume `set_colour` exists.**
+
+Also important: `v1` and `v2` have **different byte layouts**. Emitting
+the v1 layout for a v2 device (or vice versa) produces a colour that
+the device silently ignores. Always branch on the DP code, never on
+`s > 255`.
+
+### `colour_code` selection
+
+When sending a colour, pick the DP code that actually exists on the
+device:
+
+```python
+colour_code = 'colour_data_v2' if searchCode('colour_data_v2', function) else 'colour_data'
+SendCommandTuya(DeviceID, colour_code, hvs)
+```
+
+The prefix matcher in `SendCommandTuya()` will **not** map
+`'colour_data'` to `'colour_data_v2'` (they share a prefix, not a
+suffix). A Calex GU10 with only `colour_data_v2` would otherwise fail
+with `No dp_id for code colour_data` on every colour change.
+
+Do **not** reuse the existing `colour_data_v2` variable from the scale
+detection block: that variable means "v is 0..1000" and can be `True`
+for devices that have only `colour_data`. Use a fresh name
+(`colour_code`) for the DP selection.
+
+### `UpdateDomoticz()` for a Color Switch
+
+A Domoticz Color Switch (Type 241) stores colour and brightness
+separately:
+
+- `unit.Color` → the JSON dict
+- `unit.sValue` → the brightness number
+
+`UpdateDomoticz()` must therefore never write the colour JSON to
+`sValue`. The current implementation detects the colour dict (in both
+string and dict form) and takes an early-return path that only touches
+`unit.Color`:
+
+```python
+if is_color:
+    if str(unit.Color) == str(sValue) and not AlwaysUpdate:
+        return
+    unit.Color = str(sValue)
+    unit.nValue = nValue
+    ...
+    return
+
+# non-colour path below
+```
+
+The early `return` is essential. Without it the code falls through and
+writes the JSON into `sValue`, freezing the slider at a non-numeric
+value.
+
+### Order of writes in the poll loop
+
+In the `light` / `fanlight` block, always write brightness **first**,
+then colour:
+
+```python
+svalue = str(dimtuya) if currentstatus else '0'
+if str(unit.sValue) != svalue or unit.nValue != nval:
+    UpdateDomoticz(dev_id, 1, svalue, nval, 0)
+
+if color_dict is not None:
+    color_str = json.dumps(color_dict)
+    if str(unit.Color) != color_str:
+        UpdateDomoticz(dev_id, 1, color_str, nval, 0)
+```
+
+**Do not duplicate this block.** During development it is easy to end
+up with two identical writes; that produces the doubled `[poll] Update
+device:` lines users see in the log and wastes a call per poll. Grep
+for `Write brightness first` — that comment should appear exactly once.
+
+### Colour helpers summary
+
+- `colour_data_brightness_pct(raw)` — percentage 0..100 derived from
+  the `v` field of a `colour_data` value, in all three shapes (dict,
+  JSON string, 7-byte hex, 6-byte hex). Returns `None` when the value
+  cannot be interpreted. Used by the poll loop to drive the brightness
+  slider in colour mode.
+- `colour_data_brightness_pct(raw)` — percentage 0..100 from the `v`
+  field, or `None`.
+- `_hsv_to_domoticz(h, s, v)` — internal helper used by
+  `decode_colour_data()`. Chooses the v1/v2 scale from `s` and returns
+  a Domoticz colour dict at full brightness. `v` is accepted for
+  signature compatibility but not used.- `temp_value_scale()` (write) / manual inversion (read) — Domoticz
+  `t` ↔ Tuya `temp_value`.
+- `colour_code = 'colour_data_v2' if searchCode(...) else 'colour_data'`
+  — DP selection for writes.
+
+### Testing the colour round-trip
+
+Minimum checks after any colour change:
+
+1. App sets a colour → tile shows the **same** hue, at full brightness,
+   slider at the value from `colour_data.v`.
+2. App sets white mode → tile switches to `m:2`, `t` matches the app's
+   temperature direction (warm stays warm).
+3. App sets a colour at low brightness → tile keeps the full-brightness
+   colour, slider drops.
+4. Send a colour from Domoticz → device receives it in <300 ms, no
+   `[LOCAL FAILED]`, no `[CLOUD] Command sent to Tuya` fallback.
+5. Log shows **one** `[poll] Update device:` for colour and **one** for
+   brightness per cycle, not two of each.
 
 ## Known Issues and Solutions
 

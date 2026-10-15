@@ -161,3 +161,4 @@
 | 3.2.3 | Bump version to 3.2.3 and sync documentation (AGENTS.md, plugin.py header) |
 | 3.2.4 | Fix orphaned device sub-units: run the orphaned scan once per startup instead of per device per heartbeat |
 | 3.2.5 | Fix Pulsar fast-path updates being overwritten by stale cloud-poll values; add `source=` tag to `UpdateDomoticz()` log lines. |
+| 3.2.6 | Fix Tuya colour round-trip (#226): decode v1 7-byte hex, keep v2 6-byte, stop scaling RGB by v, add slider helper, invert temp on read, pack hex on write, guard `set_colour()`. |
