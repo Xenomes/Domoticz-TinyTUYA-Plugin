@@ -730,6 +730,12 @@ _LOCAL_ERRORS = {
 }
 # One error line per device and error code per hour; repeats go to Debug so a
 # device with a permanent problem does not fill the log every heartbeat
+_QUIET_ERROR_SOURCES = (
+    'pushed by device',
+    'heartbeat reply',
+    'status reply, single query',
+    'status reply to wake-up ping',
+)
 _LOCAL_ERROR_REPEAT = 3600
 _local_error_logged = {}
 _local_failures = {}
@@ -737,7 +743,15 @@ _local_last_wake = {}
 
 def _log_local_error(dev_id, source, reply):
     """Clear ERROR line for a device that answered with an error instead of
-    data. Returns True if the reply was an error reply (and so handled)."""
+    data. Returns True if the reply was an error reply (and so handled).
+
+    Errors from sources listed in _QUIET_ERROR_SOURCES are logged at Debug
+    level only: they are expected hiccups (device briefly asleep, sent a
+    packet TinyTuya could not decode, or is simply off) that will resolve
+    on the next reconnect. The failure is still registered for the
+    "is not recovering" detection, so a device that keeps failing without
+    a single successful reply in between will still be warned about.
+    """
     if not isinstance(reply, dict) or not ('Err' in reply or 'Error' in reply):
         return False
     err = str(reply.get('Err', ''))
@@ -747,8 +761,14 @@ def _log_local_error(dev_id, source, reply):
     msg = f"{meaning} (TinyTuya error {err or '?'}: {text}). Hint: {hint}"
     now = time.time()
     # Register this failure for the "is not recovering" detection. It
-    # counts even when the individual log line is throttled below.
+    # counts even when the individual log line is throttled or downgraded
+    # to Debug below.
     _local_note_failure(dev_id, err, now)
+
+    if source in _QUIET_ERROR_SOURCES:
+        # Expected hiccup, not a problem: only visible with debug enabled.
+        Debug(device=dev_id, name=_device_name(dev_id), ip=ip, event=source, message=msg)
+        return True
 
     key = (dev_id, err)
     if now - _local_error_logged.get(key, 0) >= _LOCAL_ERROR_REPEAT:
@@ -758,7 +778,6 @@ def _log_local_error(dev_id, source, reply):
     else:
         Debug(device=dev_id, name=_device_name(dev_id), ip=ip, event=source, message=msg)
     return True
-
 def _local_note_success(dev_id):
     """Register a successful exchange with a device. Clears the error
     history for it, restarts the settling period, and if there had been

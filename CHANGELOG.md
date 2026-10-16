@@ -164,3 +164,4 @@
 | 3.2.6 | Fix Tuya colour round-trip (#226): decode v1 7-byte hex, keep v2 6-byte, stop scaling RGB by v, add slider helper, invert temp on read, pack hex on write, guard `set_colour()`. |
 | 3.2.6a | Fix colour wheel / scaling issue for v2 devices #229 (sieger82) |
 | 3.2.7 | Add Tuya security camera support (cdsxj), 21 units including real motion sensor on Unit 21 #227 |
+| 3.2.8 | Quiet transient LAN errors (901/904/905) from push/heartbeat sources #200 |

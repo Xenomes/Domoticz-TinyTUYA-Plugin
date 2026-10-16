@@ -620,6 +620,41 @@ the subsequent `CloudFallback()` returns the new value instead of the old one.
 poll cycle, and the log should show exactly one `[pulsar] Update device:` line per
 push, not followed by a `[poll] Update device:` line with an older value.
 
+### Netwerkfouten 901/904/905 vervuilen de log (opgelost in 3.2.8)
+
+**Symptoom:** de log toont herhaaldelijk `Error: ... (TinyTuya error
+901/904/905)`-regels voor apparaten die helemaal niet kapot zijn —
+bijvoorbeeld een buitenlamp die via een tijdschema uit staat, of een
+apparaat dat even in WiFi-slaapstand gaat. Issue #200.
+
+**Oorzaak:** `_log_local_error()` logde elke fout op `Error`-niveau,
+ook als de fout optrad tijdens een bericht dat het apparaat zelf
+stuurde (`pushed by device`), tijdens een heartbeat-antwoord, of
+tijdens een eenmalige query met terugval op de cloud. Dat zijn
+verwachte hikjes die zichzelf oplossen bij de volgende reconnect.
+De "is not recovering"-detectie was hier al voor bedoeld, maar de
+ruis op Error-niveau maakte de log onbruikbaar.
+
+**Oplossing:** nieuwe constante `_QUIET_ERROR_SOURCES` met daarin
+de bronnen waarvoor een netwerkfout als verwacht geldt. Fouten uit
+die bronnen worden op `Debug`-niveau gelogd. De "is not recovering"-
+detectie blijft werken: `_local_note_failure()` wordt nog steeds
+voor élke fout aangeroepen, dus een apparaat dat blijft falen zonder
+één geslaagd antwoord krijgt nog steeds één `Error`-waarschuwing per
+uur, met een duidelijke oorzaak.
+
+**Niet veranderd:** de socket-levensduur. De `LocalListener` blijft
+bij een 904 tijdens een push de verbinding openhouden, en bij andere
+fouten de socket sluiten voor een reconnect — precies zoals vóór de
+fix. Alleen het log-niveau verandert.
+
+**Testen:** met Mode6 op `None` mogen er bij een apparaat dat even
+onbereikbaar is geen `901/904/905`-regels meer op `Error`-niveau
+verschijnen. Met Mode6 op `Basic Debugging` of hoger verschijnen ze
+weer, met dezelfde uitleg en hint als voorheen.
+
+**PR:** [issue #200](https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues/200).
+
 ## Build and Verification
 
 ### Syntax Check
@@ -653,6 +688,27 @@ The version number lives in **two places** in the XML header of
 
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
+
+**3.2.8 is the current working version.** It quiets transient LAN
+errors (901/904/905) from push and heartbeat sources, on top of the
+camera support from 3.2.7.
+
+Changes since 3.2.7:
+
+- New constant `_QUIET_ERROR_SOURCES` listing `'pushed by device'`,
+  `'heartbeat reply'`, `'status reply, single query'` and
+  `'status reply to wake-up ping'` as expected-transient sources.
+- `_log_local_error()` logs errors from those sources at `Debug`
+  level instead of `Error`. The failure is still registered via
+  `_local_note_failure()`, so the "is not recovering" detection is
+  unchanged.
+- Real errors (`'status reply on connect'`,
+  `'periodic status reply'`) still go to `Error` with the existing
+  `_LOCAL_ERROR_REPEAT` (1 h) throttle.
+- Fixes issue #200: false-positive error lines from devices that are
+  briefly asleep, off, or sending a packet TinyTuya cannot decode.
+
+Both version strings in the header must be bumped to 3.2.8 together.
 
 **3.2.7 is the current working version.** It adds Tuya security camera
 support (`cdsxj`), on top of the colour-temperature and RGB fixes from
@@ -1514,14 +1570,44 @@ treating it as motion would pulse the sensor on every poll.
 
 ### Version Differences
 - **3.x:** Hybrid local/cloud control with Pulsar realtime updates,
-  cloud usage counters, extended structured logging, wake-up of
-  sleeping modules, LAN failure detection, expanded Pulsar fast
-  paths (doorbell, smoke detector, water leak, smart lock, human
-  presence, camera motion), and colour-temperature/RGB fixes.
+  cloud usage counters, extended structured logging, quiet-mode for
+  transient LAN errors (901/904/905), wake-up of sleeping modules,
+  LAN failure detection, expanded Pulsar fast paths (doorbell, smoke
+  detector, water leak, smart lock, human presence, camera motion),
+  and colour-temperature/RGB fixes.
 
 ## Recent Work
 
-### Current (Version 3.2.7)
+### Current (Version 3.2.8)
+
+**Transient LAN errors worden stil gemaakt (issue #200)**
+
+De plugin logt fouten 901/904/905 uit verwachte bronnen nu op
+`Debug`-niveau in plaats van `Error`. Dit zijn hikjes die zichzelf
+oplossen: het apparaat is even onbereikbaar (WiFi-slaapstand,
+tijdschema), stuurt een pakket dat TinyTuya niet kan decoderen, of
+antwoordt niet op een eenmalige query. De "is not recovering"-
+detectie blijft ongewijzigd.
+
+- Nieuwe constante `_QUIET_ERROR_SOURCES` met de bronnen
+  `'pushed by device'`, `'heartbeat reply'`,
+  `'status reply, single query'` en
+  `'status reply to wake-up ping'`.
+- `_log_local_error()` kijkt naar de bron; bij een match wordt
+  `Debug()` gebruikt in plaats van `Error()`.
+  `_local_note_failure()` wordt nog steeds voor élke fout
+  aangeroepen, dus een apparaat dat blijft falen zonder succes
+  krijgt nog steeds één `Error`-waarschuwing per uur via het
+  `is not recovering`-alarm.
+- Bronnen die niet in `_QUIET_ERROR_SOURCES` staan
+  (`'status reply on connect'`, `'periodic status reply'`) worden
+  nog steeds op `Error`-niveau gelogd met de bestaande
+  `_LOCAL_ERROR_REPEAT`-throttle.
+- Geen wijziging aan de socket-levensduur: de `LocalListener` blijft
+  bij een 904 tijdens een push de verbinding openhouden, bij andere
+  fouten sluit hij de socket voor een reconnect.
+
+### Previous released (Version 3.2.7)
 
 **Security camera support (`cdsxj`)**
 
@@ -1797,13 +1883,26 @@ doorbells.
 - **Extended logging** (pre-structured):
   - `_log_local_message()` logs every LAN message (status reply, push,
     heartbeat) with device name, IP, DP code and value.
-  - `_log_local_error()` translates TinyTuya error codes
-    (901/902/904/905/914) into plain language plus a hint, throttled to
-    one ERROR per device + code per hour.
-  - `_log_pulsar_message()` logs every Pulsar message at INFO level
-    before any processing, in both legacy and IoT Core shapes.
-  - `_log_realtime_capable_devices()` logs a startup overview of the
-    devices covered by the Pulsar fast path with OK / MISMATCH states.
+- `_log_local_error(dev_id, source, reply)` — if the reply contains
+  `Err`/`Error`: a clear ERROR line with the translated meaning from
+  `_LOCAL_ERRORS` (901/902/904/905/914) and a hint. Sources listed in
+  `_QUIET_ERROR_SOURCES` are logged at **Debug** level instead of
+  Error — a transient hik does not belong in the normal log. For the
+  other sources, repeats within `_LOCAL_ERROR_REPEAT = 3600` seconds
+  go to Debug. Uses the structured `Error()` and `Debug()` helpers.
+- `_QUIET_ERROR_SOURCES` — tuple of sources for which a network error
+  is expected to resolve on its own: `'pushed by device'`,
+  `'heartbeat reply'`, `'status reply, single query'` and
+  `'status reply to wake-up ping'`. Errors from these sources are
+  still registered for the "is not recovering" detection via
+  `_local_note_failure()`, but only appear in the log when Mode6
+  debugging is enabled. Real errors (`'status reply on connect'`,
+  `'periodic status reply'`) still go to Error level with the
+  existing `_LOCAL_ERROR_REPEAT` throttle.
+- `_log_pulsar_message()` logs every Pulsar message at INFO level
+  before any processing, in both legacy and IoT Core shapes.
+- `_log_realtime_capable_devices()` logs a startup overview of the
+  devices covered by the Pulsar fast path with OK / MISMATCH states.
 - **`_sys_date()`** formats dates in log lines and reports using the
   locale of the system Domoticz runs on.
 - **`_device_name()`** helper resolves a raw `dev_id` to a
@@ -2112,6 +2211,11 @@ Always run `python3 -m py_compile plugin.py` after changes
   in the temperature read path: `raw_max` is being guessed from the
   value instead of derived from the `temp_is_v2` flag (issue #226,
   fixed in 3.2.6).
+- `Error: ... (TinyTuya error 901/904/905)` — verschijnt alleen nog
+  voor de bronnen `status reply on connect` en `periodic status
+  reply`, of als het `is not recovering`-alarm afgaat. Kom je deze
+  fouten tegen tijdens een push of een heartbeat, dan is Mode6-debug
+  aan — zet die uit om de ruis te laten verdwijnen (vanaf 3.2.8).
 - `[device=X unit=21 ... event=motion] motion detected via pulsar` —
   camera motion event fired from the Pulsar fast path. A matching
   `[motion-reset]` line appears 15 s later unless a newer motion
@@ -2301,6 +2405,22 @@ Always run `python3 -m py_compile plugin.py` after changes
   TCP connect of a device that recently failed, so it should recover by
   itself. If the warning `is not recovering` appears, the device is
   genuinely offline or on a different IP.
+
+### Log vol met 901/904/905 errors voor apparaten die gewoon werken
+- Sinds 3.2.8 worden deze fouten alleen nog op `Error`-niveau gelogd
+  voor de bronnen `status reply on connect` en `periodic status
+  reply`. Komen ze uit een push, heartbeat, of eenmalige query, dan
+  zijn ze alleen zichtbaar met Mode6-debug aan. Upgrade naar 3.2.8
+  of nieuwer (issue #200).
+- Als je de fouten nog steeds ziet op `Error`-niveau ná de update,
+  kijk dan naar de `event=` tag in de logregel:
+  - `event="status reply on connect"` — het apparaat accepteert de
+    eerste TCP-connect niet. Dit is een echt probleem; controleer
+    `nc -zv <ip> 6668` vanaf de Domoticz-host.
+  - `event="periodic status reply"` — het apparaat antwoordt niet op
+    de periodieke statusvraag. Ook een echt probleem.
+  - Elke andere `event=` tag met een 901/904/905 — Mode6-debug staat
+    aan. Uitzetten laat de ruis verdwijnen.
 
 ### `cannot access local variable 'state'`
 - Bug in the "is not recovering" helpers. `_local_failures.setdefault`
