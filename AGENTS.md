@@ -39,6 +39,8 @@ between instances — do not add cross-instance state or shared files.
 
 - `plugin.py` — the plugin
 - `README.md`, `CHANGELOG.md`, `AGENTS.md`
+- `.gitignore` — ignores `tuya-raw.json`, `snapshot.json`, `__pycache__`,
+  `tools/dump.json`, `tools/creds.json`
 - `tools/` — debug scripts
 - `examples/`, `backup/`, `.devin/`
 
@@ -84,9 +86,9 @@ not create anything outside Domoticz's own plugin directory.
 
 The version number lives in the XML header:
 
-    <plugin key="tinytuya" name="TinyTUYA" ... version="3.2.4" ...>
+    <plugin key="tinytuya" name="TinyTUYA" ... version="3.2.6" ...>
         ...
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.4</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.6</h2><br/>
 
 Both places must match. `Parameters['Version']` is populated by
 Domoticz from the header, so nothing else needs to change.
@@ -366,6 +368,77 @@ with a new ID, or factory reset).
 
 ## Known Issues
 
+### White colour temperature not applied / colour wheel does nothing (fixed in 3.2.6)
+
+**Symptom:** On Calex and other `dj`-category bulbs, the colour wheel
+changes nothing physically. The device is created correctly, on/off works,
+brightness works, but the white-temperature slider has no effect on the
+bulb. Issue #226.
+
+**Root cause (two separate bugs):**
+
+1. **`temp_value_scale()` was converting in the wrong direction.** It is
+   called from `SendCommandTuya()` and must map the Domoticz 0–255 scale
+   to the device's raw Tuya value. The original implementation did the
+   opposite, producing wrong (often clamped) values that the bulb
+   ignored.
+
+2. **`raw_max` was guessed from the value instead of tracked explicitly.**
+   In the poll loop's `work_mode == 'white'` branch, the code used
+   `raw_max = 1000 if raw_temp > 255 else 255`. If Domoticz starts with
+   a bulb whose `temp_value_v2` happens to be below 255, the plugin
+   assumes a 255-scale device and inverts the temperature incorrectly.
+   The DP code (`temp_value` vs `temp_value_v2`) already tells you which
+   scale the device uses — no guessing needed.
+
+**Fix:**
+
+1. `temp_value_scale()` now converts **from** the Domoticz 0–255 scale
+   **to** the raw value. The parameter was renamed from `raw` to
+   `scaled` to make the direction explicit in the signature:
+
+   ```python
+   def temp_value_scale(device_functions, actual_function_name, scaled):
+       # ... convert 0-255 -> device raw value
+       return round(max_value + (min_value - max_value) * (scaled / 255))
+   ```
+
+2. The poll loop now sets a `temp_is_v2` flag while reading the DP, and
+   derives `raw_max` from **that flag**, not from the value:
+
+   ```python
+   temp = StatusDeviceTuya('temp_value')
+   temp_is_v2 = False
+   if temp is None:
+       temp = StatusDeviceTuya('temp_value_v2')
+       temp_is_v2 = True
+   if temp is not None:
+       raw_temp = int(temp)
+       raw_max = 1000 if temp_is_v2 == True else 255
+       t = round((raw_max - raw_temp) * 255 / raw_max)
+       t = min(255, max(0, t))
+       color_dict = {'m': 2, 'r': 0, 'g': 0, 'b': 0, 't': t, 'cw': 0, 'ww': 0}
+   ```
+
+3. `UpdateDomoticz()` colour branch now passes `UpdateProperties=True`
+   when writing a colour, so the colour value is persisted to the
+   database (not just held in memory):
+
+   ```python
+   unit.Update(UpdateProperties=True, Log=True)
+   ```
+
+**Testing:** On a Calex GU10 (`colour_data_v2` / `temp_value_v2`), open
+the colour wheel and move the white-temperature slider:
+
+- The physical bulb must change temperature (warm ↔ cold).
+- The log must **not** show `raw_max = 255` for a v2 device.
+- After a Domoticz restart, the colour and temperature must survive
+  (the `UpdateProperties=True` fix).
+
+**PR:** [#229](https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/pull/229),
+fixing [#226](https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues/226).
+
 ### Colour tile stays on the old colour / too dark (fixed in 3.2.6)
 
 **Symptom:** The colour tile lags behind the app, or shows a dimmed
@@ -461,31 +534,36 @@ The new log line to grep for when testing orphaned device handling is
 The version number lives in **two places** in the XML header of
 `plugin.py` and must match:
 
-    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.5" ...>
+    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.6" ...>
         ...
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.5</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.6</h2><br/>
 
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
 
-**3.2.5 is the current working version.** It fixes the Pulsar fast path
-value revert bug and adds `source=` logging to distinguish update engines.
+**3.2.6 is the current working version.** It adds the white colour
+temperature and RGB fixes from PR #229 (issue #226), on top of the
+structured logging and orphaned-device work from 3.2.1–3.2.5.
 
-Changes since 3.2.4:
+Changes since 3.2.5:
 
-- Added `_merge_pulsar_into_result()` helper, called at the top of
-  `_pulsar_on_message()` to write pushed DP values into `result[dev_id]`
-  so the next cloud-fallback read does not overwrite the fresh value with a
-  stale one. This fixes the "value reverts a few seconds later" bug.
-- Removed `AlwaysUpdate=1` from all Pulsar fast-path `UpdateDomoticz()` calls.
-  The merge helper above makes the workaround unnecessary.
-- Added `source=` keyword argument to `UpdateDomoticz()` (default `"poll"`).
-  Non-default callers use `"pulsar"` (fast paths), `"command"` (onCommand),
-  `"credits"` (_usage_update_devices), or `"refresh"` (RefreshDevice). The
-  `event=update` log line now shows `[source] Update device: ...` so a
-  reader can tell which engine wrote the value.
+- Fixed `temp_value_scale()` conversion direction. The function is only
+  called from `SendCommandTuya()` and must convert from the Domoticz
+  0–255 scale to the device's raw value; it was doing the opposite.
+  The parameter was renamed from `raw` to `scaled` to make the direction
+  explicit in the signature.
+- The poll loop's `work_mode == 'white'` branch no longer guesses
+  `raw_max` from the value (`1000 if raw_temp > 255 else 255`). It
+  tracks whether the value came from `temp_value` or `temp_value_v2`
+  with a `temp_is_v2` flag and derives `raw_max` from the DP code.
+  This misidentified a v2 device if its temperature happened to start
+  below 255.
+- `UpdateDomoticz()` colour branch now passes `UpdateProperties=True`
+  when writing a colour, so the colour value is persisted to the
+  Domoticz database. Without it the colour was only held in memory and
+  was lost on restart.
 
-Both version strings in the header must be bumped to 3.2.5 together.
+Both version strings in the header must be bumped to 3.2.6 together.
 
 ## GitHub Labels
 
@@ -525,6 +603,7 @@ Common combinations:
 - Log line missing or wrong: `bug` + `logging`
 - Aromatherapy follow-up: `bug` + `device-support` + `color`
 - Sleeping device / wake-up work: `enhancement` + `local-control`
+- White colour temperature not applied: `bug` + `color`
 
 When in doubt, add `question` and ask for a log.
 
@@ -783,11 +862,16 @@ if work_mode == 'colour':
     dimtuya = colour_data_brightness_pct(raw_cd) or 100
 elif work_mode == 'white':
     # m:2 — reconstruct from temp_value, invert the scale
-    temp = StatusDeviceTuya('temp_value') or StatusDeviceTuya('temp_value_v2')
+    temp = StatusDeviceTuya('temp_value')
+    temp_is_v2 = False
+    if temp is None:
+        temp = StatusDeviceTuya('temp_value_v2')
+        temp_is_v2 = True
     if temp is not None:
         raw_temp = int(temp)
-        raw_max = 1000 if raw_temp > 255 else 255
-        t = round((raw_max - raw_temp) * 255 / raw_max)     # 255=warm
+        raw_max = 1000 if temp_is_v2 == True else 255   # from the DP code, not the value
+        t = round((raw_max - raw_temp) * 255 / raw_max)  # 255=warm
+        t = min(255, max(0, t))
         color_dict = {'m': 2, 'r': 0, 'g': 0, 'b': 0, 't': t, 'cw': 0, 'ww': 0}
     # brightness from bright_value
     ...
@@ -798,6 +882,12 @@ StatusDeviceTuya(b)` calls the second even when the first returned an
 empty-but-valid value, and worse: it registers the unused DP in
 `local_used` via the second call's side effect. Use an explicit `if
 raw_cd is None:`.
+
+**Do not guess the temperature scale from the value.** The heuristic
+`raw_max = 1000 if raw_temp > 255 else 255` fails when a v2 bulb happens
+to start below 255 (issue #226, fixed in 3.2.6). The DP code already
+tells you which scale applies — track it with a `temp_is_v2` flag while
+reading.
 
 `colour_data_brightness_pct(raw)` must accept all three shapes (dict,
 JSON string, 7-byte hex, 6-byte hex) and return a percentage 0..100, or
@@ -813,11 +903,23 @@ Domoticz and Tuya use opposite scales:
 | Warm (yellow) | 255 | 0 |
 | Cold (blue) | 0 | 255 |
 
-- **On write**, `SendCommandTuya()` already inverts via
-  `temp_value_scale()`. Do not invert again.
+- **On write**, `SendCommandTuya()` calls `temp_value_scale()` to invert.
+  The function converts **from** the Domoticz 0–255 scale **to** the
+  device's raw value:
+
+  ```python
+  return round(max_value + (min_value - max_value) * (scaled / 255))
+  ```
+
+  The parameter is named `scaled` (not `raw`) to make the direction
+  unambiguous. A previous version converted the wrong way, which is why
+  white-temperature changes were silently ignored on some bulbs (issue
+  #226, fixed in 3.2.6).
 - **On read**, the poll loop must invert manually (see the `raw_max`
-  snippet above). Forgetting this produces a colour-temperature tile
-  that jumps to the opposite end on every poll.
+  snippet above). **Do not guess the scale from the value** — track
+  which DP the value came from with a `temp_is_v2` flag. Forgetting the
+  inversion entirely produces a colour-temperature tile that jumps to
+  the opposite end on every poll.
 
 ### Write side: pack the hex, do not send the dict
 
@@ -890,7 +992,8 @@ if is_color:
         return
     unit.Color = str(sValue)
     unit.nValue = nValue
-    ...
+    Devices[ID].TimedOut = TimedOut
+    unit.Update(UpdateProperties=True, Log=True)
     return
 
 # non-colour path below
@@ -899,6 +1002,11 @@ if is_color:
 The early `return` is essential. Without it the code falls through and
 writes the JSON into `sValue`, freezing the slider at a non-numeric
 value.
+
+The `UpdateProperties=True` is **required** for the colour to be written
+to the Domoticz database. Without it the colour is only held in memory
+and is lost on restart (fixed in 3.2.6, follow-up to PR #229). This
+matches the same flag used by `_mark_orphaned_device_inactive()`.
 
 ### Order of writes in the poll loop
 
@@ -928,13 +1036,14 @@ for `Write brightness first` — that comment should appear exactly once.
   JSON string, 7-byte hex, 6-byte hex). Returns `None` when the value
   cannot be interpreted. Used by the poll loop to drive the brightness
   slider in colour mode.
-- `colour_data_brightness_pct(raw)` — percentage 0..100 from the `v`
-  field, or `None`.
 - `_hsv_to_domoticz(h, s, v)` — internal helper used by
   `decode_colour_data()`. Chooses the v1/v2 scale from `s` and returns
   a Domoticz colour dict at full brightness. `v` is accepted for
-  signature compatibility but not used.- `temp_value_scale()` (write) / manual inversion (read) — Domoticz
-  `t` ↔ Tuya `temp_value`.
+  signature compatibility but not used.
+- `temp_value_scale(device_functions, name, scaled)` (write) / manual
+  inversion with `temp_is_v2` (read) — Domoticz `t` ↔ Tuya
+  `temp_value`. The parameter is named `scaled` because the function
+  converts **from** the Domoticz 0–255 scale **to** the raw value.
 - `colour_code = 'colour_data_v2' if searchCode(...) else 'colour_data'`
   — DP selection for writes.
 
@@ -950,7 +1059,12 @@ Minimum checks after any colour change:
    colour, slider drops.
 4. Send a colour from Domoticz → device receives it in <300 ms, no
    `[LOCAL FAILED]`, no `[CLOUD] Command sent to Tuya` fallback.
-5. Log shows **one** `[poll] Update device:` for colour and **one** for
+5. Move the white-temperature slider end to end on a v2 bulb → the
+   physical bulb must change temperature and the log must not show
+   `raw_max = 255`.
+6. Restart Domoticz → the colour and temperature survive (the
+   `UpdateProperties=True` fix from 3.2.6).
+7. Log shows **one** `[poll] Update device:` for colour and **one** for
    brightness per cycle, not two of each.
 
 ## Known Issues and Solutions
@@ -1053,6 +1167,12 @@ directly to the unit.
   can cause Domoticz to ignore the update.
 - **Reading `colour_data` requires decoding.** It can arrive as JSON or
   as a hex string; use `decode_colour_data()`.
+- **White temperature scale is set by the DP code, not the value.**
+  Track `temp_is_v2` while reading and derive `raw_max` from that flag.
+  The old heuristic `1000 if raw_temp > 255 else 255` misfires on a v2
+  bulb that starts below 255 (issue #226, fixed in 3.2.6).
+- **Colour writes need `UpdateProperties=True`.** Without it the colour
+  is only held in memory and is lost on restart (fixed in 3.2.6).
 
 ### Local Connection Issues
 - Protocol 3.4 devices may not respond to local queries
@@ -1187,13 +1307,39 @@ directly to the unit.
 ### Version Differences
 - **3.x:** Hybrid local/cloud control with Pulsar realtime updates,
   cloud usage counters, extended structured logging, wake-up of
-  sleeping modules, LAN failure detection, and expanded Pulsar fast
+  sleeping modules, LAN failure detection, expanded Pulsar fast
   paths (doorbell, smoke detector, water leak, smart lock, human
-  presence).
+  presence), and colour-temperature/RGB fixes.
 
 ## Recent Work
 
-### Current (Version 3.2.4)
+### Current (Version 3.2.6)
+
+**Colour temperature and RGB fixes (PR #229, issue #226)**
+
+Three fixes from sieger82 that make the colour wheel and
+white-temperature slider work on Calex and other `dj`-category bulbs:
+
+- **`temp_value_scale()` direction fixed.** The function is only called
+  from `SendCommandTuya()` and must convert from the Domoticz 0–255
+  scale to the device's raw value. It was doing the conversion
+  backwards, so the device received wrong values and ignored the
+  temperature change. The parameter was renamed from `raw` to `scaled`
+  to make the direction explicit.
+- **`raw_max` no longer guessed from the value.** The poll loop's
+  `work_mode == 'white'` branch used
+  `raw_max = 1000 if raw_temp > 255 else 255`, which misidentifies a v2
+  device if its temperature happens to start below 255. It now tracks
+  whether the value came from `temp_value` or `temp_value_v2` with a
+  `temp_is_v2` flag and derives `raw_max` from the DP code.
+- **`UpdateProperties=True` added to the colour-update path** in
+  `UpdateDomoticz()`. Without it the colour was only held in memory and
+  was not persisted to the Domoticz database.
+
+**File added:** `.gitignore` with `tuya-raw.json`, `snapshot.json`,
+`__pycache__`, `tools/dump.json`, `tools/creds.json`.
+
+### Previous released (Version 3.2.4)
 
 **Orphaned device sub-units fixed**
 
@@ -1508,6 +1654,12 @@ folder and restart.
      sent before `colour_data`, and no `work_mode`
 4. Pick white
    - The light must return to white and honour the brightness slider
+5. **Move the white-temperature slider from one end to the other**
+   - The physical bulb must change temperature (warm ↔ cold)
+   - On a v2 device the log must not show `raw_max = 255`
+   - Restart Domoticz and confirm the colour and temperature survive
+     (they are persisted via `UpdateProperties=True`)
+   - Issue #226 was exactly this failing silently
 
 ### Aromatherapy testing (Issue #200)
 1. **Main switch off, Light on.** The Light tile must stay green, and
@@ -1667,6 +1819,10 @@ Always run `python3 -m py_compile plugin.py` after changes
 - `event="device removed"` zonder `(units: ...)` erachter — oude
   plugin-versie (vóór de 3.2.3-correctie) die de unit-lijst nog niet
   logde. Werk bij naar de huidige `plugin.py`.
+- `raw_max = 255` in a `work_mode = 'white'` log for a v2 bulb — **bug**
+  in the temperature read path: `raw_max` is being guessed from the
+  value instead of derived from the `temp_is_v2` flag (issue #226,
+  fixed in 3.2.6).
 
 ## Dependencies
 
@@ -1686,6 +1842,8 @@ Always run `python3 -m py_compile plugin.py` after changes
 - **CHANGELOG.md:** Version history
 - **README.md:** User documentation
 - **AGENTS.md:** This file — architecture and conventions for agents
+- **.gitignore:** Ignores `tuya-raw.json`, `snapshot.json`, `__pycache__`,
+  `tools/dump.json`, `tools/creds.json`
 - **tools/**: Debug and utility scripts
 - **backup/**: Backup files
 - **examples/**: Example configurations
@@ -1776,6 +1934,14 @@ Always run `python3 -m py_compile plugin.py` after changes
 - `rgb_to_hsv_v2` / `hsv_to_rgb_v2` - 0-1000 scale, only for
   `colour_data_v2` devices
 - `brightness_to_pct` / `pct_to_brightness` - read min/max from schema
+- `temp_value_scale(device_functions, actual_function_name, scaled)` -
+  convert **from** the Domoticz 0–255 scale **to** the device raw value
+  (direction is fixed in 3.2.6). The parameter is named `scaled` to
+  make the direction explicit.
+- `colour_data_brightness_pct(raw)` - percentage 0..100 from the `v`
+  field of a `colour_data` value, in all shapes (dict, JSON string,
+  7-byte hex, 6-byte hex). Returns `None` when the value cannot be
+  interpreted.
 - `decode_colour_data(raw)` - Accepts a Tuya `colour_data` value in
   JSON or hex-string form and returns a Domoticz colour dict, or
   `None` when the value cannot be interpreted. Callers must handle
@@ -1842,6 +2008,17 @@ Always run `python3 -m py_compile plugin.py` after changes
 - On aromatherapy devices: check whether the plugin sends a steady
   `lightmode` before `colour_data` and **does not** send `work_mode`.
   Fixed in the #200 follow-up.
+
+### White colour temperature slider does nothing
+- The plugin is older than 3.2.6. `temp_value_scale()` was converting
+  the wrong way, so the device received wrong values and ignored them.
+  Upgrade to 3.2.6 or newer (PR #229, issue #226).
+- If the plugin is already on 3.2.6, check the log for
+  `raw_max = 255` on a v2 bulb — that means `raw_max` is still being
+  guessed from the value instead of derived from the `temp_is_v2` flag.
+- Colour changes should also survive a Domoticz restart on 3.2.6; if
+  they don't, the colour-write path is missing
+  `unit.Update(UpdateProperties=True, ...)`.
 
 ### Aromatherapy Light tile stays green while the humidifier is off
 - Not a bug. The Light unit follows its own `Light` DP, which can be
@@ -1912,6 +2089,8 @@ Always run `python3 -m py_compile plugin.py` after changes
 - Enable debug logging to see `work_mode` and `colour_data` order
 - `draw_tool` uses a non-linear colour code table, not RGB values
 - Domoticz `m=3` colour dicts should carry only `m, r, g, b`
+- On a v2 bulb, white temperature changes must survive a plugin restart.
+  If they don't, the plugin is older than 3.2.6 (PR #229, issue #226).
 
 ### Maxcio devices in general
 - Almost all Maxcio Wi-Fi devices report protocol **v3.1** in the local
@@ -1935,3 +2114,23 @@ Always run `python3 -m py_compile plugin.py` after changes
 - The report only fires when `_usage_tick()` sees a day rollover.
   Check that `onHeartbeat()` still calls `_usage_tick()`, and that the
   Domoticz system clock is correct.
+```
+
+The key changes applied:
+
+1. **Directory layout** — added `.gitignore` entry.
+2. **Version bumping** — header example and prose now show 3.2.6 with a "Changes since 3.2.5" list describing the PR #229 fixes.
+3. **Known Issues** — new top entry "White colour temperature not applied / colour wheel does nothing (fixed in 3.2.6)" with the three-part fix, plus a note in "Color Control" about the DP-code-derived scale and `UpdateProperties=True`.
+4. **Temperature inversion** section — fully rewritten to use `scaled` parameter and `temp_is_v2` flag, with a note that guessing from the value is a bug (issue #226).
+5. **`colour_data_brightness_pct()` snippet** — updated to use `temp_is_v2`.
+6. **`UpdateDomoticz()` for a Color Switch** — added `Devices[ID].TimedOut = TimedOut` and `unit.Update(UpdateProperties=True, Log=True)`.
+7. **Colour helpers summary** — `temp_value_scale` note about direction, and split out `colour_data_brightness_pct` as its own bullet.
+8. **Testing the colour round-trip** — new steps 5 and 6 for white-temperature and restart survival.
+9. **File Structure** — added `.gitignore`.
+10. **Important Functions → Colour helpers** — added `temp_value_scale` and `colour_data_brightness_pct`.
+11. **Recent Work** — new "Current (Version 3.2.6)" entry above the 3.2.4 entry.
+12. **Testing Approach → Light colour testing** — added step 5 for the white-temperature slider.
+13. **Log Analysis** — added a `raw_max = 255` diagnostic line.
+14. **User Notes** — added "White colour temperature slider does nothing" and expanded "Color Problems".
+15. **Branch Information → Version Differences** — mentions the colour-temperature/RGB fixes.
+16. **GitHub Labels** — added `bug` + `color` for the new issue.
