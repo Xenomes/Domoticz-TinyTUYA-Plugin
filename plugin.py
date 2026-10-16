@@ -2289,7 +2289,6 @@ class BasePlugin:
                                         bright_max = max(bright_max, int(vals.get('max', 0)))
                                     except Exception:
                                         pass
-
                             use_v1000 = colour_data_v2 or bright_max >= 1000
                             if use_v1000:
                                 h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
@@ -6996,7 +6995,7 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0, source="p
 
     unit.nValue = nValue
     Devices[ID].TimedOut = TimedOut
-    unit.Update(Log=True)
+    unit.Update(UpdateProperties=True, Log=True)
 
     Log(event='update', message=f"[{source}] Update device: {Name} {ID} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}")
 
@@ -7043,7 +7042,7 @@ def SendCommandTuya(ID, CommandName, Status):
     if any(x in CommandName for x in ['bright_value', 'bright_value_v2', 'bright_value_1', 'bright_value_2', 'laser_bright']):
         actual_status = pct_to_brightness(sendfunction, actual_function_name, Status)
     elif any(x in CommandName for x in ['temp_value', 'temp_value_v2']):
-        actual_status = temp_value_scale(sendfunction, actual_function_name, Status)
+        actual_status = temp_value_scale_reverse(sendfunction, actual_function_name, Status)
     elif isinstance(Status, (int, float)) and not isinstance(Status, bool):
         actual_status = set_scale(sendfunction, actual_function_name, Status)
 
@@ -7212,15 +7211,35 @@ def brightness_to_pct(device_functions, actual_function_name, raw):
     return round((100 / (255 - 22.68) * (int(raw) - 22.68)))
 
 def temp_value_scale(device_functions, actual_function_name, raw):
+    """
+    convert from a scale of max_value - min_value => 0 - 255
+    e.g.: 1000 -> 10 and 0 -> 255
+    """
     if device_functions and actual_function_name:
         for item in device_functions:
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 min_value = int(the_values.get('min', 0))
                 max_value = int(the_values.get('max', 255))
-                return round((255 / (max_value - min_value) * (int((max_value - raw)) - min_value)))
+                #return round((255 / (max_value - min_value) * (int((max_value - raw)) - min_value)))  # incorrect
+                return round(255 * (raw - max_value) / (min_value - max_value))
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round((int(max_value - raw)))
+
+def temp_value_scale_reverse(device_functions, actual_function_name, scaled):
+    """
+    convert from a scale of 0 - 255 => max_value - min_value
+    e.g.: 10 -> 1000 and 255 -> 0
+    """
+    if device_functions and actual_function_name:
+        for item in device_functions:
+            if item['code'] == actual_function_name:
+                the_values = json.loads(item['values'])
+                min_value = int(the_values.get('min', 0))
+                max_value = int(the_values.get('max', 255))
+                return round( max_value + (min_value - max_value) * (scaled / 255) )
+    else:
+        return scaled  # do nothing
 
 def set_scale(device_functions, actual_function_name, raw):
     scale = 0
