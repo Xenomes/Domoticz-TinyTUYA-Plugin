@@ -6006,12 +6006,15 @@ def onHandleThread(startup, local, target_dev_id=None):
 
                             elif work_mode == 'white':
                                 temp = StatusDeviceTuya('temp_value')
+                                temp_is_v2 = False
                                 if temp is None:
                                     temp = StatusDeviceTuya('temp_value_v2')
+                                    temp_is_v2 = True
                                 if temp is not None:
                                     raw_temp = int(temp)
                                     # Inverse of temp_value_scale(): Tuya 0=warm, Domoticz 255=warm
-                                    raw_max = 1000 if raw_temp > 255 else 255
+                                    #raw_max = 1000 if raw_temp > 255 else 255         # this means that if domoticz starts with the bulb set to a value <255, a max of 255 would be assumed. But that does not have to be the case
+                                    raw_max = 1000 if temp_is_v2 == True else 255
                                     t = round((raw_max - raw_temp) * 255 / raw_max)
                                     t = min(255, max(0, t))
                                     color_dict = {'m': 2, 'r': 0, 'g': 0, 'b': 0, 't': t, 'cw': 0, 'ww': 0}
@@ -6974,7 +6977,8 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0, source="p
         unit.Color = str(sValue)
         unit.nValue = nValue
         Devices[ID].TimedOut = TimedOut
-        unit.Update(Log=True)
+        #unit.Update(Log=True)
+        unit.Update(UpdateProperties=True, Log=True)
         Log(event='update', message=f"[{source}] Update device: {Name} {ID} Unit:{Unit} Color:{sValue} nValue:{nValue} TimedOut={TimedOut}")
         return
 
@@ -7211,16 +7215,17 @@ def brightness_to_pct(device_functions, actual_function_name, raw):
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
     return round((100 / (255 - 22.68) * (int(raw) - 22.68)))
 
-def temp_value_scale(device_functions, actual_function_name, raw):
+def temp_value_scale(device_functions, actual_function_name, scaled):
+    # this function is only ever called from SendCommandTuya and should convert from scale 0-255 to raw value. previous version was doing it the other way around
     if device_functions and actual_function_name:
         for item in device_functions:
             if item['code'] == actual_function_name:
                 the_values = json.loads(item['values'])
                 min_value = int(the_values.get('min', 0))
                 max_value = int(the_values.get('max', 255))
-                return round((255 / (max_value - min_value) * (int((max_value - raw)) - min_value)))
+                return round( max_value + (min_value - max_value) * (scaled / 255) )
     # Convert a percentage to a raw value 1% = 25 => 100% = 255
-    return round((int(max_value - raw)))
+    return round((int(max_value - scaled)))   # what is this return statement doing? should probably be cleaned up
 
 def set_scale(device_functions, actual_function_name, raw):
     scale = 0
