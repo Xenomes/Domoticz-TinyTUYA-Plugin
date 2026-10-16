@@ -2289,6 +2289,7 @@ class BasePlugin:
                                         bright_max = max(bright_max, int(vals.get('max', 0)))
                                     except Exception:
                                         pass
+
                             use_v1000 = colour_data_v2 or bright_max >= 1000
                             if use_v1000:
                                 h, s, v = rgb_to_hsv_v2(int(Color['r']), int(Color['g']), int(Color['b']))
@@ -6999,7 +7000,7 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0, source="p
 
     unit.nValue = nValue
     Devices[ID].TimedOut = TimedOut
-    unit.Update(UpdateProperties=True, Log=True)
+    unit.Update(Log=True)
 
     Log(event='update', message=f"[{source}] Update device: {Name} {ID} Unit:{Unit} sValue:{sValue} nValue:{nValue} TimedOut={TimedOut}")
 
@@ -7046,7 +7047,7 @@ def SendCommandTuya(ID, CommandName, Status):
     if any(x in CommandName for x in ['bright_value', 'bright_value_v2', 'bright_value_1', 'bright_value_2', 'laser_bright']):
         actual_status = pct_to_brightness(sendfunction, actual_function_name, Status)
     elif any(x in CommandName for x in ['temp_value', 'temp_value_v2']):
-        actual_status = temp_value_scale_reverse(sendfunction, actual_function_name, Status)
+        actual_status = temp_value_scale(sendfunction, actual_function_name, Status)
     elif isinstance(Status, (int, float)) and not isinstance(Status, bool):
         actual_status = set_scale(sendfunction, actual_function_name, Status)
 
