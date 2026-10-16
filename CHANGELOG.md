@@ -163,3 +163,4 @@
 | 3.2.5 | Fix Pulsar fast-path updates being overwritten by stale cloud-poll values; add `source=` tag to `UpdateDomoticz()` log lines. |
 | 3.2.6 | Fix Tuya colour round-trip (#226): decode v1 7-byte hex, keep v2 6-byte, stop scaling RGB by v, add slider helper, invert temp on read, pack hex on write, guard `set_colour()`. |
 | 3.2.6a | Fix colour wheel / scaling issue for v2 devices #229 (sieger82) |
+| 3.2.7 | Add Tuya security camera support (cdsxj), 21 units including real motion sensor on Unit 21 #227 |

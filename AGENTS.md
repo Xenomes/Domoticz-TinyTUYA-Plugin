@@ -1,3 +1,4 @@
+```markdown
 # AGENTS.md
 
 > Architecture and conventions for agents working on the TinyTUYA Domoticz plugin.
@@ -78,6 +79,9 @@ to the hardware instance. Two kinds of keys are used:
 - `getConfigItem(USAGE_KEY)` — the cloud usage counter store.
 - `getConfigItem(f"{dev_id}:rain", 'rain_24h')` — the last rain
   counter value for the weather station.
+- `getConfigItem(f"{dev_id}:motion", 'last_pic')` — the last value of
+  the camera's `movement_detect_pic` DP, used to deduplicate motion
+  events between the Pulsar fast path and the regular poll loop.
 
 Do **not** add files. The plugin must remain self-contained and must
 not create anything outside Domoticz's own plugin directory.
@@ -86,9 +90,9 @@ not create anything outside Domoticz's own plugin directory.
 
 The version number lives in the XML header:
 
-    <plugin key="tinytuya" name="TinyTUYA" ... version="3.2.6" ...>
+    <plugin key="tinytuya" name="TinyTUYA" ... version="3.2.7" ...>
         ...
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.6</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.7</h2><br/>
 
 Both places must match. `Parameters['Version']` is populated by
 Domoticz from the header, so nothing else needs to change.
@@ -182,7 +186,7 @@ pairing.
 - `_log_realtime_capable_devices()` — startup overview of devices
   covered by the Pulsar fast path (door contacts, motion sensors,
   doorbells, smoke detectors, water leak sensors, smart locks, human
-  presence sensors), with OK / MISMATCH (not yet in Domoticz) /
+  presence sensors, cameras), with OK / MISMATCH (not yet in Domoticz) /
   MISMATCH (orphaned in Domoticz). Uses the structured `Log()` and
   `Debug()` helpers.
 - `_log_status(text)` — logs at Status level when available; falls back
@@ -197,7 +201,8 @@ pairing.
   (default `"poll"`) appears in the log line as `[source] Update device: ...`
   so a reader can tell which engine wrote the value. Non-default callers use
   `"pulsar"` (Pulsar fast paths), `"command"` (onCommand), `"credits"`
-  (_usage_update_devices), or `"refresh"` (RefreshDevice and one-off reads).
+  (_usage_update_devices), `"refresh"` (RefreshDevice and one-off reads),
+  or `"motion-reset"` (the camera motion auto-reset).
 
 **Important:** Do NOT use the standard library `logging` module for plugin
 logging. Domoticz captures the plugin's output on its own, and the stdlib
@@ -232,6 +237,13 @@ based on the per-device DP layout, so the mapping cannot drift.
   `value != 'none'` means detected. Other DP codes on the same device
   (temperature, humidity, battery) are handled in the same fast path
   block and fall through to the slow path when they do not match.
+- **Security cameras** (`dev_type == 'camera'`, category `cdsxj`): only
+  the motion event is handled directly. The Raw DP
+  `movement_detect_pic` is compared against the last value stored in
+  the plugin config under `{dev_id}:motion` / `last_pic`; when the
+  value changed, `_camera_motion_check()` pulses Unit 21 (a Motion
+  Sensor) to "On". Every other camera DP goes through the verified
+  slow path.
 - **Doorbells** (`dev_type == 'doorbell'`): a fixed `doorbell_unit_map`
   routes each DP code to its known unit (1, 3-11). The
   `nightvision_mode` selector uses its schema values to translate the
@@ -277,6 +289,61 @@ verified path. Adding a new fast path requires that the DP-to-unit
 mapping is fixed for the whole category and that the value conversion
 is already implemented (or is trivially a boolean or a battery
 percentage).
+
+## Camera motion event tracking
+
+Purpose: cameras have no boolean "motion detected" DP. The only motion
+signal is the Raw DP `movement_detect_pic`, which is empty until
+something happens and then contains a unique base64 blob (a timestamp +
+snapshot path). So **"the value changed" IS the motion event.**
+
+Two channels can observe the same change — the Pulsar fast path and the
+regular cloud-poll loop — so the plugin needs to deduplicate. It does
+that by storing the last seen value in the plugin config under
+`{dev_id}:motion` / `last_pic`. Both channels call
+`_camera_motion_check()`:
+
+```python
+def _camera_motion_check(dev_id, current_value, source):
+    if current_value is None or current_value == '':
+        return                                          # nothing to report
+    stored = getConfigItem(f"{dev_id}:motion", 'last_pic') or ''
+    if str(current_value) == str(stored):
+        return                                          # already handled
+    setConfigItem(f"{dev_id}:motion", {'last_pic': current_value})
+    _camera_trigger_motion(dev_id, source=source)
+```
+
+The first channel to see the new value triggers; the second sees the
+same value and does nothing. A motion is therefore **never published
+twice** for the same event, regardless of which channel sees it first.
+
+### Auto-reset
+
+`_camera_trigger_motion()` pulses Unit 21 to "On" and schedules a reset
+back to "Off" after `CAMERA_MOTION_RESET_SECONDS` (15 s). A per-device
+generation counter in `_camera_motion_gen` cancels a pending reset when
+a newer motion arrives, so the sensor stays "On" for the full window
+after the **most recent** motion — the same pattern a real PIR would
+produce.
+
+- **Constants:** `CAMERA_MOTION_RESET_SECONDS = 15`,
+  `CAMERA_MOTION_UNIT = 21`.
+- **State:** `_camera_motion_gen[dev_id]` — an integer that is
+  incremented on every new motion. The reset thread compares the
+  current value to its captured generation and exits silently if they
+  differ.
+- **Cleanup:** `_camera_motion_gen` is small and per-process; it does
+  not need to be cleared in `onStop()`, but adding it there would be
+  harmless.
+- **Do NOT set an Off Delay on Unit 21** in Domoticz. The plugin
+  resets the sensor itself, with a generation counter that a Domoticz
+  Off Delay cannot replicate. An Off Delay would race the plugin's
+  reset and could turn the sensor off too early or too late.
+- **Log lines:**
+  - `[device=X unit=21 name="Y" event=motion] motion detected via pulsar, unit will reset in 15s`
+  - `[device=X unit=21 ...] Update device: ... sValue:1 nValue:1 ... [pulsar]` (the On write)
+  - `[device=X unit=21 ...] Update device: ... sValue:0 nValue:0 ... [motion-reset]` (the Off write, after the reset thread fires)
 
 ## "Is not recovering" detection
 
@@ -367,6 +434,52 @@ with a new ID, or factory reset).
   whether the user wants the old device back.
 
 ## Known Issues
+
+### Security camera support (`cdsxj`)
+
+**What it is:** Tuya security cameras (category `cdsxj`, e.g. the
+"Security Camera" device with `product_id = he4r8lisqbynliun`) create
+21 units. Units 1–20 are switches/selectors/values; **Unit 21 is a
+real Motion Sensor** (Switchtype=8).
+
+**Why 21 units and not a Domoticz camera widget:** the DomoticzEx
+Python plugin API has **no camera device type**. There is no Type/
+Subtype combination that produces a camera widget. Cameras in Domoticz
+live in a separate table (Setup → More Options → Camera), and a plugin
+cannot write to that table. So the plugin exposes the camera's *state*
+and *controls* (switches, selectors, motion event) as ordinary
+Domoticz units, and the user adds the camera to the Camera table
+manually if they want a live view.
+
+**Unit numbering:** the plugin reuses the doorbell's unit numbers
+wherever the DP overlaps (units 2, 3, 5, 6, 9, 10, 12, 13), so a
+user's dzVents scripts, scenes and graphs that referenced those
+doorbell units keep working when the same DP shows up on a camera.
+Camera-only DPs fill units 1, 4, 7, 8, 11, and 14–21.
+
+**Motion handling:** see the *Camera motion event tracking* section.
+`movement_detect_pic` is a Raw base64 DP that is empty until something
+happens; the plugin treats **any change** of the value as a motion
+event, stores the last seen value in the config to deduplicate between
+Pulsar and the poll loop, and pulses Unit 21 to "On" with an automatic
+reset after 15 s. A generation counter keeps the sensor "On" until 15 s
+after the **most recent** motion, not the first.
+
+**Not exposed** (deliberately):
+
+- `sd_status`, `sd_storge` — internal SD-card state; no useful Domoticz
+  widget.
+- `initiative_message`, `movement_detect_pic` (as a raw value) —
+  Raw blobs; only used internally as the motion trigger.
+- `motion_area`, `ipc_res_change` — Raw JSON strings; static
+  configuration that would need a custom widget to be useful.
+- `device_restart`, `sd_format`, `onvif_change_pwd` — one-shot,
+  risky actions that should not have a persistent Domoticz button.
+- `onvif_*`, `ipc_magnification`, `ipc_save_percent` — configuration
+  that is set once by the Tuya app.
+
+**User-facing note:** see *User Notes → Camera has no video stream in
+Domoticz* for what the user can do instead.
 
 ### White colour temperature not applied / colour wheel does nothing (fixed in 3.2.6)
 
@@ -534,36 +647,35 @@ The new log line to grep for when testing orphaned device handling is
 The version number lives in **two places** in the XML header of
 `plugin.py` and must match:
 
-    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.6" ...>
+    <plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.7" ...>
         ...
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.6</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.7</h2><br/>
 
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
 
-**3.2.6 is the current working version.** It adds the white colour
-temperature and RGB fixes from PR #229 (issue #226), on top of the
-structured logging and orphaned-device work from 3.2.1–3.2.5.
+**3.2.7 is the current working version.** It adds Tuya security camera
+support (`cdsxj`), on top of the colour-temperature and RGB fixes from
+PR #229 (3.2.6).
 
-Changes since 3.2.5:
+Changes since 3.2.6:
 
-- Fixed `temp_value_scale()` conversion direction. The function is only
-  called from `SendCommandTuya()` and must convert from the Domoticz
-  0–255 scale to the device's raw value; it was doing the opposite.
-  The parameter was renamed from `raw` to `scaled` to make the direction
-  explicit in the signature.
-- The poll loop's `work_mode == 'white'` branch no longer guesses
-  `raw_max` from the value (`1000 if raw_temp > 255 else 255`). It
-  tracks whether the value came from `temp_value` or `temp_value_v2`
-  with a `temp_is_v2` flag and derives `raw_max` from the DP code.
-  This misidentified a v2 device if its temperature happened to start
-  below 255.
-- `UpdateDomoticz()` colour branch now passes `UpdateProperties=True`
-  when writing a colour, so the colour value is persisted to the
-  Domoticz database. Without it the colour was only held in memory and
-  was lost on restart.
+- New device type `camera` for Tuya security cameras (category
+  `cdsxj`). 21 units: 20 settings/controls plus a real Motion Sensor
+  on Unit 21.
+- New helpers `_camera_motion_check()` and `_camera_trigger_motion()`:
+  treat any change of the Raw DP `movement_detect_pic` as a motion
+  event, deduplicate between the Pulsar fast path and the poll loop
+  via a config entry `{dev_id}:motion` / `last_pic`, and pulse Unit 21
+  to "On" with an automatic reset after
+  `CAMERA_MOTION_RESET_SECONDS` (15 s) using a generation counter.
+- New Pulsar fast path for `dev_type == 'camera'` that only handles
+  the motion event; every other camera DP goes through the verified
+  slow path.
+- `_log_realtime_capable_devices()` extended to list cameras in the
+  startup realtime overview.
 
-Both version strings in the header must be bumped to 3.2.6 together.
+Both version strings in the header must be bumped to 3.2.7 together.
 
 ## GitHub Labels
 
@@ -585,6 +697,7 @@ useful.
 | `cloud-usage` | Changes to the usage counters, credits devices or forecast |
 | `logging` | Changes to LAN / Pulsar message logging or error translation |
 | `color` | Changes to colour handling, `colour_data`, `work_mode`, `draw_tool` |
+| `camera` | Changes to the security camera device type (`cdsxj`) or motion event handling |
 | `good first issue` | Small, self-contained issues suitable for newcomers |
 | `help wanted` | Needs outside input or device logs |
 | `duplicate` | Same root cause as an existing issue |
@@ -604,6 +717,8 @@ Common combinations:
 - Aromatherapy follow-up: `bug` + `device-support` + `color`
 - Sleeping device / wake-up work: `enhancement` + `local-control`
 - White colour temperature not applied: `bug` + `color`
+- New camera device type or motion event: `enhancement` + `device-support` + `camera`
+- Camera motion not firing: `bug` + `camera`
 
 When in doubt, add `question` and ask for a log.
 
@@ -621,6 +736,13 @@ When in doubt, add `question` and ask for a log.
 - New optional units (e.g. Thermor 30-34) must be gated on `searchCode`
   in `FunctionProperties` so a device without the DP does not gain a
   phantom switch
+- **Camera units reuse the doorbell's numbering** wherever the DP
+  overlaps (`floodlight_switch` → 2, `motion_switch` → 3,
+  `decibel_switch` → 5, `basic_private` → 6, `siren_switch` → 9,
+  `nightvision_mode` → 10, `ipc_siren_volume` → 12,
+  `ipc_siren_duration` → 13). This is a hard rule: changing these
+  numbers would break existing user automation. Camera-only DPs fill
+  units 1, 4, 7, 8, 11, and 14–21.
 
 ### Repetitive unit patterns — use a tuple-driven loop
 
@@ -637,6 +759,9 @@ times. Existing examples:
 - **Thermor HVAC extras** (units 30-34) — creation, status update and
   `onCommand` all use the same shape
 - **Doorbell** — status update via a tuple of `(unit, code)` pairs
+- **Camera** — the boolean switch group in the status-update loop via
+  a tuple of `(unit, code)` pairs, and the `camera_toggles` dict in
+  `onCommand`
 
 This is not just cosmetic: adding a new unlock method or a new HVAC
 mode becomes one tuple entry, and there is no risk of the creation
@@ -671,10 +796,29 @@ block and the status-update block drifting apart.
   handler must be gated on `Unit == 1`, and the LED handler on
   `Unit == 2`.
 - `SendCommandTuya()` runs the actual socket write on a background
-  thread so a slow device does not block the Domoticz main loop.
+  thread so a slow device cannot block the Domoticz main loop.
 - For a series of identical on/off units on the same device, use the
   same tuple-driven approach as in device creation (see SmartLock and
   Thermor examples).
+
+### Camera motion event
+- `_camera_motion_check(dev_id, current_value, source)` is the **only**
+  entry point for camera motion. It must be called from the Pulsar fast
+  path and from the poll loop's camera block. It stores
+  `{dev_id}:motion` / `last_pic` and triggers `_camera_trigger_motion()`
+  only when the value actually changed.
+- `_camera_trigger_motion(dev_id, unit=CAMERA_MOTION_UNIT, source)` must
+  use `checkDevice(dev_id, unit)` before updating, and must use a
+  per-device generation counter in `_camera_motion_gen` so a newer
+  motion cancels a pending reset.
+- Never write a motion event directly with `UpdateDomoticz()` without
+  going through `_camera_trigger_motion()`. The reset scheduling is the
+  whole point.
+- Constants: `CAMERA_MOTION_RESET_SECONDS = 15`,
+  `CAMERA_MOTION_UNIT = 21`. Do not hardcode these values at the call
+  sites.
+- The motion sensor unit (21) is read-only from the user's point of
+  view; do not add `onCommand` handling for it.
 
 ### Local listeners
 - `LocalListener` is only started for devices whose protocol version is
@@ -776,6 +920,23 @@ block and the status-update block drifting apart.
 - `_log_realtime_capable_devices()` must be extended whenever a new
   device type gains a fast path, so the startup log lists it in the
   realtime overview.
+- The camera fast path only handles `movement_detect_pic` and returns
+  immediately afterwards. Every other camera DP must go through the
+  slow path; do not extend the camera fast path without a per-DP
+  justification (a fixed mapping AND an idempotent value conversion).
+
+### Camera motion event helpers
+- `_camera_motion_check(dev_id, current_value, source)` — deduplicates
+  motion events via the `{dev_id}:motion` / `last_pic` config entry.
+  Called from both the Pulsar fast path and the poll loop; the first
+  channel to see a new value triggers, the other does nothing.
+- `_camera_trigger_motion(dev_id, unit=CAMERA_MOTION_UNIT, source='poll')`
+  — pulses Unit 21 to "On", schedules a reset via a daemon thread, and
+  uses `_camera_motion_gen[dev_id]` to cancel a pending reset when a
+  newer motion arrives.
+- Constants: `CAMERA_MOTION_RESET_SECONDS = 15`, `CAMERA_MOTION_UNIT = 21`.
+- **Do not** use Domoticz' Off Delay on Unit 21. The plugin resets the
+  sensor itself; an Off Delay races the plugin's timer.
 
 ### Colour decoding helpers
 - **Never write a raw Tuya colour value into `sValue`.** It may be JSON
@@ -1142,12 +1303,48 @@ value. That was necessary but not sufficient; the #225 fix above closes
 the remaining hole where the poll path still wrote its own held value
 directly to the unit.
 
+### Camera motion not firing (issue pending)
+
+**Symptom:** `movement_detect_pic` changes in the Tuya app, but Unit 21
+never pulses to "On". The log shows the `Pulsar message from ...` line
+but no `event=motion` line follows it.
+
+**Root cause candidates:**
+
+1. **Wrong DP code name.** The DP code is `movement_detect_pic`, not
+   `movement_detect_picture` or `motion_detect_pic`. Case-sensitive.
+2. **Empty value on motion.** Some firmware reports `movement_detect_pic`
+   as an empty string on motion and only fills it on a subsequent poll.
+   In that case the plugin's `_camera_motion_check()` returns early
+   because `current_value == ''` and no event fires. Check the raw
+   value in the `Pulsar message from ...` INFO line.
+3. **Config stale.** If the config entry `{dev_id}:motion` / `last_pic`
+   already contains the current value (e.g. from a previous run), no
+   event fires because nothing changed. Delete the entry or restart
+   the plugin with the DP reset to empty.
+4. **Unit 21 not created.** If `searchCode('movement_detect_pic',
+   StatusProperties)` is False (the DP is only in `functions`, not
+   `status`), the unit is not created and `_camera_trigger_motion()`
+   silently exits at `checkDevice()`.
+
+**Diagnostics:** grep the log for `event=motion`, `movement_detect_pic`
+and `{dev_id}:motion`. The `Pulsar message from ...` line right before
+the (missing) `event=motion` line shows the raw DP values.
+
+**Do not** try to fix this by removing the `current_value == ''` early
+return. An empty value is the normal "no motion recorded" state and
+treating it as motion would pulse the sensor on every poll.
+
 ### Category Mismatches
 - **Category 'qt':** Can be smoke detector OR curtain switch → use product_name detection
 - **Category 'wnykq':** Smart IR devices with limited functionality → mark as unsupported
 - **Category 'jsq':** Aromatherapy devices → treat as dedicated type
 - **Category 'cz':** Smart socket; can also expose an RGB LED ring
 - **Category 'kt':** Air conditioner; `temp_current` may be in half degrees
+- **Category 'cdsxj':** Security camera (Tuya). 21-unit mapping; the
+  Raw DP `movement_detect_pic` is used as a motion *event* — any change
+  of the value means motion. No Domoticz camera widget is created (the
+  plugin API has none; see *Security camera support (`cdsxj`)*).
 
 ### Indentation Issues
 - Complex try/except blocks in status updates can cause indentation errors
@@ -1173,6 +1370,17 @@ directly to the unit.
   bulb that starts below 255 (issue #226, fixed in 3.2.6).
 - **Colour writes need `UpdateProperties=True`.** Without it the colour
   is only held in memory and is lost on restart (fixed in 3.2.6).
+
+### Camera motion event
+- The camera has no boolean motion DP. Only the Raw DP
+  `movement_detect_pic` is a motion signal, and only via *change*.
+- Both the Pulsar fast path and the poll loop observe the same change.
+  Deduplicate via `{dev_id}:motion` / `last_pic` in the config; do
+  not skip this or a single motion produces two events.
+- Never treat an empty `movement_detect_pic` as motion. An empty value
+  is the normal "no motion recorded" state.
+- Do not add a Domoticz Off Delay on Unit 21. The plugin resets the
+  sensor itself; an Off Delay races the plugin's timer.
 
 ### Local Connection Issues
 - Protocol 3.4 devices may not respond to local queries
@@ -1309,11 +1517,70 @@ directly to the unit.
   cloud usage counters, extended structured logging, wake-up of
   sleeping modules, LAN failure detection, expanded Pulsar fast
   paths (doorbell, smoke detector, water leak, smart lock, human
-  presence), and colour-temperature/RGB fixes.
+  presence, camera motion), and colour-temperature/RGB fixes.
 
 ## Recent Work
 
-### Current (Version 3.2.6)
+### Current (Version 3.2.7)
+
+**Security camera support (`cdsxj`)**
+
+New device type `camera` for Tuya security cameras. The Tuya category
+is `cdsxj`, e.g. the "Security Camera" device with
+`product_id = he4r8lisqbynliun`.
+
+The camera exposes 21 units:
+
+- **Units 1–20** — the settings and controls the Tuya app exposes:
+  OSD, flip, motion-detect enable, floodlight, decibel detect, private
+  mode, auto-siren, SD record, siren, night vision, humanoid filter,
+  siren volume/duration, motion sensitivity, event linkage, record
+  mode, siren sound, decibel sensitivity, anti-flicker, volume.
+- **Unit 21 — Motion Sensor (Switchtype=8).** The camera has no
+  boolean motion DP; it reports motion through the Raw DP
+  `movement_detect_pic`, which is empty until something happens and
+  then contains a unique base64 blob. The plugin treats **any change**
+  of that DP as a motion event.
+
+**Deduplication:** the last seen value is stored in the plugin config
+under `{dev_id}:motion` / `last_pic`. Both the Pulsar fast path and the
+regular cloud-poll loop call `_camera_motion_check()`, which only
+triggers when the value differs from the stored one. A motion is never
+published twice for the same event, regardless of which channel sees
+it first.
+
+**Auto-reset:** `_camera_trigger_motion()` pulses Unit 21 to On and
+schedules a reset to Off after `CAMERA_MOTION_RESET_SECONDS` (15 s).
+A per-device generation counter in `_camera_motion_gen` cancels a
+pending reset when a newer motion arrives, so the sensor stays On for
+the full window after the most recent motion.
+
+**Pulsar fast path** only covers the motion event. Every other camera
+DP goes through the verified slow path, so a fast-path value can never
+disagree with the next regular poll.
+
+**Unit numbering** keeps the doorbell's numbering wherever the DP
+overlaps (`floodlight_switch` → 2, `motion_switch` → 3,
+`decibel_switch` → 5, `basic_private` → 6, `siren_switch` → 9,
+`nightvision_mode` → 10, `ipc_siren_volume` → 12,
+`ipc_siren_duration` → 13). New camera-only DPs fill units 1, 4, 7, 8,
+11, and 14–21. This preserves existing user automation that already
+referenced those unit numbers on a doorbell.
+
+**Not exposed:** `sd_status`, `sd_storge`, `initiative_message`,
+`movement_detect_pic` (as a raw value), `motion_area`,
+`ipc_res_change`, `device_restart`, `sd_format`, `onvif_*`,
+`ipc_magnification`, `ipc_save_percent`. They are either internal
+state, raw blobs, one-shot actions that should not have a persistent
+Domoticz button, or configuration set once by the Tuya app.
+
+**No Domoticz camera-widget integration:** the DomoticzEx Python plugin
+API has no camera device type. Cameras are managed in a separate
+Domoticz table (Setup → More Options → Camera), which a plugin cannot
+write to. Users add the camera to that table manually using the
+snapshot URL from the Tuya app or the camera's ONVIF endpoint.
+
+### Previous released (Version 3.2.6)
 
 **Colour temperature and RGB fixes (PR #229, issue #226)**
 
@@ -1643,6 +1910,25 @@ folder and restart.
 5. If a revert does appear, check the Known Issues section for the
    `_merge_pulsar_into_result()` fix.
 
+### Camera motion testing
+1. Confirm the camera creates 21 units, with Unit 21 labelled
+   `(Motion)` and shaped as a Motion Sensor (Switchtype=8).
+2. Wave in front of the camera.
+3. Within a second or two, Unit 21 must show "Motion" on the
+   dashboard, and the log must show `event=motion` with
+   `motion detected via pulsar`.
+4. Wait 15 s — the unit must go back to "No motion" automatically
+   (log: `source=motion-reset`).
+5. Trigger two motions within the 15 s window — the sensor must stay
+   On until 15 s after the **second** motion, not reset early.
+6. Delete the `{dev_id}:motion` config entry or restart the plugin,
+   then poll once: the poll fallback (`source=poll`) must trigger the
+   same event if Pulsar is not running.
+7. Confirm that the same motion is never published twice (no two
+   `event=motion` lines within one second of each other).
+8. Confirm no Off Delay is set on Unit 21 in the Domoticz UI. If there
+   is one, clear it — the plugin resets the sensor itself.
+
 ### Light colour testing
 1. Turn the light on
 2. Set brightness to a mid value
@@ -1682,10 +1968,11 @@ folder and restart.
 ### Pulsar fast path testing
 For every device type that has a direct fast path (door contact, motion
 sensor, doorbell, smoke detector, water leak sensor, smart lock, human
-presence sensor):
+presence sensor, camera motion):
 
 1. Trigger a status change on the physical device (open a door,
-   press the doorbell, spill water on the leak sensor, ...).
+   press the doorbell, spill water on the leak sensor, wave in front
+   of the camera, ...).
 2. The corresponding Domoticz tile must update within a second or two,
    and the log must show a `Pulsar: fast path applied for <name>
    (<id>)` line for the DP that changed.
@@ -1699,6 +1986,8 @@ presence sensor):
 6. On a smart lock, lock and unlock physically: Unit 1 must follow,
    and the corresponding unlock-method unit must be set for the method
    that was used.
+7. On a camera, wave once: Unit 21 must pulse and auto-reset. Wave
+   again during the reset window: the reset must be delayed.
 
 ### LAN failure detection testing
 1. Unplug a device that is currently in the local listener's
@@ -1823,6 +2112,20 @@ Always run `python3 -m py_compile plugin.py` after changes
   in the temperature read path: `raw_max` is being guessed from the
   value instead of derived from the `temp_is_v2` flag (issue #226,
   fixed in 3.2.6).
+- `[device=X unit=21 ... event=motion] motion detected via pulsar` —
+  camera motion event fired from the Pulsar fast path. A matching
+  `[motion-reset]` line appears 15 s later unless a newer motion
+  arrived first, in which case the reset is silently cancelled and the
+  sensor stays On.
+- `[device=X unit=21 ... event=motion] motion detected via poll` —
+  camera motion event fired from the poll fallback (Pulsar not
+  available or the config entry was stale). Same auto-reset behaviour.
+- No `event=motion` line even though the Tuya app shows motion — check
+  the preceding `Pulsar message from ...` line for the raw
+  `movement_detect_pic` value. If it is an empty string, the plugin
+  correctly ignores it; if it is a non-empty string that matches the
+  stored `{dev_id}:motion` / `last_pic`, the entry is stale — clear it
+  or restart the plugin.
 
 ## Dependencies
 
@@ -1889,6 +2192,16 @@ Always run `python3 -m py_compile plugin.py` after changes
   any processing.
 - `_log_realtime_capable_devices()` - startup overview of the devices
   covered by the fast paths.
+
+### Camera motion
+- `_camera_motion_check(dev_id, current_value, source)` - deduplicates
+  motion events via the `{dev_id}:motion` / `last_pic` config entry.
+  Called from the Pulsar fast path and the poll loop.
+- `_camera_trigger_motion(dev_id, unit=CAMERA_MOTION_UNIT, source='poll')`
+  - pulses Unit 21 to "On", schedules a reset after
+  `CAMERA_MOTION_RESET_SECONDS` (15 s), and cancels a pending reset
+  when a newer motion arrives (via `_camera_motion_gen[dev_id]`).
+- Constants: `CAMERA_MOTION_RESET_SECONDS = 15`, `CAMERA_MOTION_UNIT = 21`.
 
 ### Cloud usage
 - `_usage_count(kind, amount=1)` - add to today's counter ('api' or 'msg')
@@ -2020,6 +2333,49 @@ Always run `python3 -m py_compile plugin.py` after changes
   they don't, the colour-write path is missing
   `unit.Update(UpdateProperties=True, ...)`.
 
+### Camera has no video stream in Domoticz
+- Expected. The DomoticzEx Python plugin API has **no camera device
+  type**. Cameras in Domoticz live in a separate table
+  (Setup → More Options → Camera), and a plugin cannot write to that
+  table. The plugin exposes the camera's state and controls as
+  ordinary Domoticz units (switches, selectors, a motion sensor) but
+  cannot create a video widget.
+- To add the camera to the Domoticz Camera table manually, use the
+  snapshot URL from the Tuya app or the camera's ONVIF endpoint. The
+  camera reports `onvif_ip_addr` and `onvif_switch` in its status; once
+  ONVIF is enabled and the network IP is known, a browser at
+  `http://<camera-ip>/` usually reveals the snapshot and stream paths
+  (they differ per firmware).
+- If you need a live view in Domoticz, configure it in
+  Setup → More Options → Camera. The plugin will still provide the
+  motion event on Unit 21 and the switches/selectors on units 1–20, so
+  dzVents scripts can react to motion without needing the video widget.
+
+### Camera motion sensor keeps flipping to "No motion" immediately
+- Check that the Domoticz **Off Delay** on Unit 21 is set to 0. The
+  plugin resets the sensor itself after 15 s; a Domoticz Off Delay
+  races the plugin's timer and can reset the sensor too early.
+- If the sensor flips off within a second or two, the plugin's reset
+  thread is firing immediately — check that
+  `CAMERA_MOTION_RESET_SECONDS` has not been changed to a very small
+  value, and that the system clock is stable.
+
+### Camera motion never fires
+- Check the plugin version: camera support was added in 3.2.7.
+- Check the log for a `Pulsar message from ...` line right after the
+  physical motion. If the line is missing, Pulsar is not running —
+  install `tuya-connector-python` and restart.
+- If the `Pulsar message from ...` line shows `movement_detect_pic`
+  with an empty value, the firmware is reporting "no motion recorded";
+  wait for the next motion — the value is only filled on the event.
+- If the `Pulsar message from ...` line shows a non-empty
+  `movement_detect_pic` value but no `event=motion` follows, the config
+  entry `{dev_id}:motion` / `last_pic` is stale (contains the same
+  value). Restart the plugin to reset it, or delete the entry.
+- If nothing appears at all and the camera's category is not `cdsxj`,
+  the DeviceType mapping does not apply. Confirm with the Tuya app's
+  device info or the plugin's `deviceType` log line at startup.
+
 ### Aromatherapy Light tile stays green while the humidifier is off
 - Not a bug. The Light unit follows its own `Light` DP, which can be
   `true` while the humidifier's `Power` DP is `false`. Fixed in the
@@ -2052,85 +2408,3 @@ Always run `python3 -m py_compile plugin.py` after changes
   If it is missing, the DP code in the push is not in the fast path's
   list for that device type. If the DP code is only handled by the slow
   path, the plugin spawns a targeted `onHandleThread` in the
-  background, which will log the regular status reply.
-- If the device is reachable locally, the fast path still applies (it
-  runs before the "is the device reachable locally" check). If no line
-  appears at all, the push did not carry a DP the plugin knows about;
-  check the preceding `Pulsar message from ...` INFO line for the raw
-  DP codes.
-
-### Orphaned device is still visible on the dashboard
-- The plugin marks every unit of the orphaned device as `Used=0`
-  (`UpdateProperties=True`) at startup. If the tile is still visible
-  after that, check in Setup → Devices whether the unit still has a
-  checkbox tick. If it does, the plugin version is older than 3.2.3
-  with the `UpdateProperties=True` fix.
-- If the unit is inactive but the tile still shows on the dashboard,
-  the device is probably marked as a favourite (star icon). Un-star it
-  in the device's Edit dialog.
-- To verify in the database:
-
-  ```
-  SELECT Unit, Name, Used, Favorite FROM DeviceStatus
-   WHERE DeviceID='<orphaned-id>';
-  ```
-
-  All rows should have `Used=0`. The `Favorite` column is independent
-  of `Used` and must be cleared through the UI.
-
-### Protocol Issues
-- Protocol 3.4 devices may need cloud fallback
-- Check device version in device properties
-- Enable debug logging for detailed communication logs
-
-### Color Problems
-- Check if device is RGB, RGBW, or RGBWW
-- Verify `bright_value` max in device properties
-- Enable debug logging to see `work_mode` and `colour_data` order
-- `draw_tool` uses a non-linear colour code table, not RGB values
-- Domoticz `m=3` colour dicts should carry only `m, r, g, b`
-- On a v2 bulb, white temperature changes must survive a plugin restart.
-  If they don't, the plugin is older than 3.2.6 (PR #229, issue #226).
-
-### Maxcio devices in general
-- Almost all Maxcio Wi-Fi devices report protocol **v3.1** in the local
-  IP scan. They are poll-only by design and do not work well with a
-  persistent listener. The plugin handles this automatically from
-  version 3.1.6 onwards.
-
-### The credits devices show a lower number than the Tuya console
-- Expected. The counters cover only this plugin. Other tools or
-  projects on the same Tuya Cloud account are not included.
-- On very old tinytuya versions the fallback in `_count_cloud_calls()`
-  counts public method calls instead of HTTP requests, which can be
-  lower than what Tuya actually bills.
-
-### Bar chart on the credits devices is empty
-- The plugin does not set Bar Ranges; set them once by hand in
-  Setup → Devices → edit the device → bar-chart icon. The setting is
-  saved with the device and survives restarts.
-
-### Midnight report not in the log
-- The report only fires when `_usage_tick()` sees a day rollover.
-  Check that `onHeartbeat()` still calls `_usage_tick()`, and that the
-  Domoticz system clock is correct.
-```
-
-The key changes applied:
-
-1. **Directory layout** — added `.gitignore` entry.
-2. **Version bumping** — header example and prose now show 3.2.6 with a "Changes since 3.2.5" list describing the PR #229 fixes.
-3. **Known Issues** — new top entry "White colour temperature not applied / colour wheel does nothing (fixed in 3.2.6)" with the three-part fix, plus a note in "Color Control" about the DP-code-derived scale and `UpdateProperties=True`.
-4. **Temperature inversion** section — fully rewritten to use `scaled` parameter and `temp_is_v2` flag, with a note that guessing from the value is a bug (issue #226).
-5. **`colour_data_brightness_pct()` snippet** — updated to use `temp_is_v2`.
-6. **`UpdateDomoticz()` for a Color Switch** — added `Devices[ID].TimedOut = TimedOut` and `unit.Update(UpdateProperties=True, Log=True)`.
-7. **Colour helpers summary** — `temp_value_scale` note about direction, and split out `colour_data_brightness_pct` as its own bullet.
-8. **Testing the colour round-trip** — new steps 5 and 6 for white-temperature and restart survival.
-9. **File Structure** — added `.gitignore`.
-10. **Important Functions → Colour helpers** — added `temp_value_scale` and `colour_data_brightness_pct`.
-11. **Recent Work** — new "Current (Version 3.2.6)" entry above the 3.2.4 entry.
-12. **Testing Approach → Light colour testing** — added step 5 for the white-temperature slider.
-13. **Log Analysis** — added a `raw_max = 255` diagnostic line.
-14. **User Notes** — added "White colour temperature slider does nothing" and expanded "Color Problems".
-15. **Branch Information → Version Differences** — mentions the colour-temperature/RGB fixes.
-16. **GitHub Labels** — added `bug` + `color` for the new issue.

@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.6a" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.7" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.6a</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.7</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -30,7 +30,7 @@
             <li>Automatic DPS (data point) detection and mapping</li>
             <li>Local device control via TinyTuya (LAN)</li>
             <li>Automatic fallback to Tuya Cloud when local control is unavailable</li>
-            <li>On/Off control, dimming, color temperature and device-specific features</li>
+            <li>On/Off control, dimming, colour temperature and device-specific features</li>
             <li>Status updates from local devices when available</li>
         </ul>
 
@@ -591,7 +591,7 @@ def _usage_create_devices():
     budget has been used so far this month. Renaming them in the GUI is fine;
     the plugin only ever addresses them by DeviceID/Unit, never by name.
 
-    Ranges/colors for the Utility-tab bar indicator (Dashboard Dynamic, "Bar
+    Ranges/colours for the Utility-tab bar indicator (Dashboard Dynamic, "Bar
     Ranges") are NOT set here: that Domoticz feature is very recent and its
     internal storage format could not be confirmed, so setting it blind risks
     silently doing nothing or storing something wrong. Set it once by hand:
@@ -923,6 +923,73 @@ def _merge_pulsar_into_result(dev_id, status_list):
             held.append({'code': code, 'value': item.get('value')})
     result[dev_id] = held
 
+# --- Camera motion event tracking ------------------------------------------
+# A Tuya security camera has no boolean "motion detected" DP. Instead it
+# reports movement through the Raw DP 'movement_detect_pic', which is
+# empty until something happens and then contains a unique base64 blob
+# (timestamp + snapshot path). So "the value changed" IS the motion event.
+#
+# To prevent double triggers when both Pulsar and the regular cloud poll
+# observe the same change, the last seen value is stored in the plugin
+# config under '{dev_id}:motion' / 'last_pic'. The first observer wins;
+# the second sees the same value and does nothing.
+#
+# Unit 21 is pulsed to On and reset to Off after
+# CAMERA_MOTION_RESET_SECONDS. A per-device generation counter cancels
+# a pending reset when a newer motion arrives, so the unit stays On for
+# the full window after the most recent motion (same behaviour as a real
+# PIR sensor).
+_camera_motion_gen = {}
+CAMERA_MOTION_RESET_SECONDS = 15
+CAMERA_MOTION_UNIT = 21
+
+def _camera_motion_check(dev_id, current_value, source):
+    """Called from the Pulsar fast path and from the regular poll loop
+    whenever the camera reports its movement_detect_pic DP. Triggers a
+    Domoticz motion event only when the value actually changed since the
+    last time it was seen."""
+    if current_value is None or current_value == '':
+        # Nothing to report (no motion recorded, or the DP was cleared)
+        return
+    try:
+        stored = getConfigItem(f"{dev_id}:motion", 'last_pic') or ''
+        if str(current_value) == str(stored):
+            # Already seen and handled (probably by the other channel)
+            return
+        setConfigItem(f"{dev_id}:motion", {'last_pic': current_value})
+    except Exception as e:
+        Debug(device=dev_id, name=_device_name(dev_id), event="motion",
+              message=f"could not access motion tracking config: {e}")
+        return
+    _camera_trigger_motion(dev_id, source=source)
+
+def _camera_trigger_motion(dev_id, unit=CAMERA_MOTION_UNIT, source='poll'):
+    """Pulse the motion sensor to 'On' and schedule an automatic reset to
+    'Off' after CAMERA_MOTION_RESET_SECONDS. A generation counter
+    guarantees that a newer motion cancels the reset scheduled by an
+    earlier one, so the sensor stays 'On' for the full window after the
+    most recent motion."""
+    if not checkDevice(dev_id, unit):
+        return
+    gen = _camera_motion_gen.get(dev_id, 0) + 1
+    _camera_motion_gen[dev_id] = gen
+    UpdateDomoticz(dev_id, unit, True, 1, 0, source=source)
+    Debug(device=dev_id, name=_device_name(dev_id), unit=unit, event="motion",
+          message=f"motion detected via {source}, "
+                  f"unit will reset in {CAMERA_MOTION_RESET_SECONDS}s")
+
+    def _reset():
+        time.sleep(CAMERA_MOTION_RESET_SECONDS)
+        if _camera_motion_gen.get(dev_id, 0) != gen:
+            # A newer motion arrived in the meantime, skip this reset
+            return
+        try:
+            UpdateDomoticz(dev_id, unit, False, 0, 0, source='motion-reset')
+        except Exception:
+            pass
+
+    threading.Thread(target=_reset, daemon=True).start()
+
 def _pulsar_on_message(msg):
     """Called from the Pulsar network thread the instant Tuya reports a
     device status change (the same channel the Tuya app uses). We don't
@@ -1014,6 +1081,16 @@ def _pulsar_on_message(msg):
                 is_open = bool(item.get('value'))
                 UpdateDomoticz(dev_id, 1, bool(is_open), int(is_open), 0, source='pulsar')
                 Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (doorcontact) -> {'open' if is_open else 'closed'}")
+                return
+
+    # --- Fast path: Security Camera (category 'cdsxj') ------------------
+    # Only the motion event is handled directly. All other camera DPs go
+    # through the verified slow path (targeted cloud poll) so they always
+    # agree with the next regular poll.
+    if dev_type == 'camera':
+        for item in status_list:
+            if item.get('code') == 'movement_detect_pic':
+                _camera_motion_check(dev_id, item.get('value'), source='pulsar')
                 return
 
     # PIR / motion sensors: several categories (e.g. 'pir', but also 'tdq'
@@ -1673,7 +1750,10 @@ def _log_realtime_capable_devices():
             elif dev_type == 'doorbell':
                 # Doorbell devices have multiple units that can be updated
                 realtime_devices[dev_id] = (dev.get('name', 'Unknown'), 1, 'doorbell (multiple units)')
-
+            elif dev_type == 'camera':
+                # Only the motion event (Unit 21) is handled by the fast path
+                if searchCode('movement_detect_pic', status_props):
+                    realtime_devices[dev_id] = (dev.get('name', 'Unknown'), 21, 'camera motion')
         active = []
         missing_in_domoticz = []
         for dev_id, (name, unit, label) in realtime_devices.items():
@@ -2806,6 +2886,62 @@ class BasePlugin:
                         SendCommandTuya(DeviceID, 'ipc_siren_duration', Level)
                         UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
 
+                if dev_type == 'camera':
+                    camera_toggles = {
+                        1: 'basic_osd',
+                        2: 'floodlight_switch',
+                        3: 'motion_switch',
+                        4: 'basic_flip',
+                        5: 'decibel_switch',
+                        6: 'basic_private',
+                        7: 'ipc_auto_siren',
+                        8: 'record_switch',
+                        9: 'siren_switch',
+                        11: 'humanoid_filter',
+                    }
+                    if Unit in camera_toggles and Command in ('On', 'Off'):
+                        code = camera_toggles[Unit]
+                        on = (Command == 'On')
+                        SendCommandTuya(DeviceID, code, on)
+                        UpdateDomoticz(DeviceID, Unit, on, int(on), 0, source='command')
+                    elif Unit == 10 and Command == 'Set Level':
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandTuya(DeviceID, 'nightvision_mode', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+                    elif Unit == 12 and Command == 'Set Level':
+                        SendCommandTuya(DeviceID, 'ipc_siren_volume', Level)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+                    elif Unit == 13 and Command == 'Set Level':
+                        SendCommandTuya(DeviceID, 'ipc_siren_duration', Level)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+                    elif Unit == 14 and Command == 'Set Level':
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandTuya(DeviceID, 'motion_sensitivity', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+                    elif Unit == 15 and Command == 'Set Level':
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandTuya(DeviceID, 'event_linkage', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+                    elif Unit == 16 and Command == 'Set Level':
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandTuya(DeviceID, 'record_mode', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+                    elif Unit == 17 and Command == 'Set Level':
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandTuya(DeviceID, 'siren_sound', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+                    elif Unit == 18 and Command == 'Set Level':
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandTuya(DeviceID, 'decibel_sensitivity', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+                    elif Unit == 19 and Command == 'Set Level':
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandTuya(DeviceID, 'basic_anti_flicker', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+                    elif Unit == 20 and Command == 'Set Level':
+                        SendCommandTuya(DeviceID, 'basic_device_volume', Level)
+                        UpdateDomoticz(DeviceID, Unit, Level, 1, 0, source='command')
+                    # Unit 21 is sensor-only; no command handling needed
                 if dev_type == 'fan':
                     if Command == 'Off' and Unit == 1:
                         SendCommandTuya(DeviceID, 'switch', False)
@@ -4634,6 +4770,211 @@ def onHandleThread(startup, local, target_dev_id=None):
                                     options['ValueUnit'] = the_values.get('unit')
                             DomoticzEx.Unit(Name=f"{dev['name']} (Siren Duration)", DeviceID=dev['id'], Unit=13, Type=242, Subtype=1, Options=options, Image=21, Used=1).Create()
 
+                    if dev_type == 'camera':
+                        # Unit 1: OSD (tijdstempel in beeld)
+                        if createDevice(dev_id, 1) and searchCode('basic_osd', StatusProperties):
+                            Log(event='create', message='Create device Camera (OSD)')
+                            DomoticzEx.Unit(Name=f"{dev['name']} (OSD)", DeviceID=dev_id, Unit=1,
+                                            Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # Unit 2: floodlight_switch
+                        if createDevice(dev_id, 2) and searchCode('floodlight_switch', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Floodlight)", DeviceID=dev_id, Unit=2,
+                                            Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # Unit 3: motion_switch (instelling: detectie aan/uit)
+                        if createDevice(dev_id, 3) and searchCode('motion_switch', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Motion detect)", DeviceID=dev_id, Unit=3,
+                                            Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # Unit 4: basic_flip (beeld 180° draaien)
+                        if createDevice(dev_id, 4) and searchCode('basic_flip', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Flip)", DeviceID=dev_id, Unit=4,
+                                            Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # Unit 5: decibel_switch
+                        if createDevice(dev_id, 5) and searchCode('decibel_switch', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Decibel)", DeviceID=dev_id, Unit=5,
+                                            Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # Unit 6: basic_private (privacymodus)
+                        if createDevice(dev_id, 6) and searchCode('basic_private', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Private)", DeviceID=dev_id, Unit=6,
+                                            Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # Unit 7: ipc_auto_siren
+                        if createDevice(dev_id, 7) and searchCode('ipc_auto_siren', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Auto siren)", DeviceID=dev_id, Unit=7,
+                                            Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # Unit 8: record_switch
+                        if createDevice(dev_id, 8) and searchCode('record_switch', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Record)", DeviceID=dev_id, Unit=8,
+                                            Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # Unit 9: siren_switch
+                        if createDevice(dev_id, 9) and searchCode('siren_switch', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Siren)", DeviceID=dev_id, Unit=9,
+                                            Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # Unit 10: nightvision_mode (selector)
+                        if createDevice(dev_id, 10) and searchCode('nightvision_mode', StatusProperties):
+                            for item in StatusProperties:
+                                if item['code'] == 'nightvision_mode':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label', []))
+                                    else:
+                                        mode.extend(the_values.get('range', []))
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Night vision)", DeviceID=dev_id, Unit=10,
+                                            Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        # Unit 11: humanoid_filter
+                        if createDevice(dev_id, 11) and searchCode('humanoid_filter', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Humanoid filter)", DeviceID=dev_id, Unit=11,
+                                            Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        # Unit 12: ipc_siren_volume
+                        if createDevice(dev_id, 12) and searchCode('ipc_siren_volume', FunctionProperties):
+                            for item in FunctionProperties:
+                                if item['code'] == 'ipc_siren_volume':
+                                    the_values = json.loads(item['values'])
+                                    options = {}
+                                    options['ValueStep'] = get_scale(StatusProperties, 'ipc_siren_volume', the_values.get('step'))
+                                    options['ValueMin']  = get_scale(StatusProperties, 'ipc_siren_volume', the_values.get('min'))
+                                    options['ValueMax']  = get_scale(StatusProperties, 'ipc_siren_volume', the_values.get('max'))
+                                    options['ValueUnit'] = the_values.get('unit')
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Siren volume)", DeviceID=dev_id, Unit=12,
+                                            Type=242, Subtype=1, Options=options, Image=8, Used=1).Create()
+                        # Unit 13: ipc_siren_duration
+                        if createDevice(dev_id, 13) and searchCode('ipc_siren_duration', FunctionProperties):
+                            for item in FunctionProperties:
+                                if item['code'] == 'ipc_siren_duration':
+                                    the_values = json.loads(item['values'])
+                                    options = {}
+                                    options['ValueStep'] = get_scale(StatusProperties, 'ipc_siren_duration', the_values.get('step'))
+                                    options['ValueMin']  = get_scale(StatusProperties, 'ipc_siren_duration', the_values.get('min'))
+                                    options['ValueMax']  = get_scale(StatusProperties, 'ipc_siren_duration', the_values.get('max'))
+                                    options['ValueUnit'] = the_values.get('unit')
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Siren duration)", DeviceID=dev_id, Unit=13,
+                                            Type=242, Subtype=1, Options=options, Image=21, Used=1).Create()
+                        # Unit 14: motion_sensitivity (selector 0/1/2)
+                        if createDevice(dev_id, 14) and searchCode('motion_sensitivity', StatusProperties):
+                            for item in StatusProperties:
+                                if item['code'] == 'motion_sensitivity':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label', []))
+                                    else:
+                                        mode.extend(the_values.get('range', []))
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Motion sensitivity)", DeviceID=dev_id, Unit=14,
+                                            Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        # Unit 15: event_linkage (selector motion/human/audio)
+                        if createDevice(dev_id, 15) and searchCode('event_linkage', StatusProperties):
+                            for item in StatusProperties:
+                                if item['code'] == 'event_linkage':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label', []))
+                                    else:
+                                        mode.extend(the_values.get('range', []))
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Event linkage)", DeviceID=dev_id, Unit=15,
+                                            Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        # Unit 16: record_mode (selector 1/2)
+                        if createDevice(dev_id, 16) and searchCode('record_mode', StatusProperties):
+                            for item in StatusProperties:
+                                if item['code'] == 'record_mode':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label', []))
+                                    else:
+                                        mode.extend(the_values.get('range', []))
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Record mode)", DeviceID=dev_id, Unit=16,
+                                            Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        # Unit 17: siren_sound (selector item_1..item_9)
+                        if createDevice(dev_id, 17) and searchCode('siren_sound', StatusProperties):
+                            for item in StatusProperties:
+                                if item['code'] == 'siren_sound':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label', []))
+                                    else:
+                                        mode.extend(the_values.get('range', []))
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Siren sound)", DeviceID=dev_id, Unit=17,
+                                            Type=244, Subtype=62, Switchtype=18, Options=options, Image=8, Used=1).Create()
+                        # Unit 18: decibel_sensitivity (selector 0/1)
+                        if createDevice(dev_id, 18) and searchCode('decibel_sensitivity', StatusProperties):
+                            for item in StatusProperties:
+                                if item['code'] == 'decibel_sensitivity':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label', []))
+                                    else:
+                                        mode.extend(the_values.get('range', []))
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Decibel sensitivity)", DeviceID=dev_id, Unit=18,
+                                            Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        # Unit 19: basic_anti_flicker (selector 0/1/2)
+                        if createDevice(dev_id, 19) and searchCode('basic_anti_flicker', StatusProperties):
+                            for item in StatusProperties:
+                                if item['code'] == 'basic_anti_flicker':
+                                    the_values = json.loads(item['values'])
+                                    mode = ['off']
+                                    if item['type'] == 'Bitmap':
+                                        mode.extend(the_values.get('label', []))
+                                    else:
+                                        mode.extend(the_values.get('range', []))
+                                    options = {}
+                                    options['LevelOffHidden'] = 'true'
+                                    options['LevelActions'] = ''
+                                    options['LevelNames'] = '|'.join(mode)
+                                    options['SelectorStyle'] = '0' if len(mode) < 5 else '1'
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Anti flicker)", DeviceID=dev_id, Unit=19,
+                                            Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        # Unit 20: basic_device_volume
+                        if createDevice(dev_id, 20) and searchCode('basic_device_volume', FunctionProperties):
+                            for item in FunctionProperties:
+                                if item['code'] == 'basic_device_volume':
+                                    the_values = json.loads(item['values'])
+                                    options = {}
+                                    options['ValueStep'] = get_scale(StatusProperties, 'basic_device_volume', the_values.get('step'))
+                                    options['ValueMin']  = get_scale(StatusProperties, 'basic_device_volume', the_values.get('min'))
+                                    options['ValueMax']  = get_scale(StatusProperties, 'basic_device_volume', the_values.get('max'))
+                                    options['ValueUnit'] = the_values.get('unit')
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Volume)", DeviceID=dev_id, Unit=20,
+                                            Type=242, Subtype=1, Options=options, Image=8, Used=1).Create()
+                        # Unit 21: motion event sensor (Switchtype=8 = Motion Sensor).
+                        # Pulses to On via _camera_motion_check() when the Raw DP
+                        # 'movement_detect_pic' changes; auto-resets after 15 s.
+                        if createDevice(dev_id, 21) and searchCode('movement_detect_pic', StatusProperties):
+                            Log(event='create', message='Create device Camera (Motion)')
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Motion)", DeviceID=dev_id, Unit=21,
+                                            Type=244, Subtype=73, Switchtype=8, Image=9, Used=1).Create()
+
                     if dev_type == 'fan':
                         if createDevice(dev_id, 1) and searchCode('switch', FunctionProperties):
                             Log(event='create', message='Create device Fan')
@@ -6384,6 +6725,30 @@ def onHandleThread(startup, local, target_dev_id=None):
                             update_value_device('ipc_siren_volume', 12)
                             update_value_device('ipc_siren_duration', 13)
 
+                        if dev_type == 'camera':
+                            for unit, code in ((1, 'basic_osd'), (2, 'floodlight_switch'), (3, 'motion_switch'),
+                                               (4, 'basic_flip'), (5, 'decibel_switch'), (6, 'basic_private'),
+                                               (7, 'ipc_auto_siren'), (8, 'record_switch'), (9, 'siren_switch'),
+                                               (11, 'humanoid_filter')):
+                                update_bool_device(code, unit)
+                            update_select_device('nightvision_mode', 10)
+                            update_value_device('ipc_siren_volume', 12)
+                            update_value_device('ipc_siren_duration', 13)
+                            update_select_device('motion_sensitivity', 14)
+                            update_select_device('event_linkage', 15)
+                            update_select_device('record_mode', 16)
+                            update_select_device('siren_sound', 17)
+                            update_select_device('decibel_sensitivity', 18)
+                            update_select_device('basic_anti_flicker', 19)
+                            update_value_device('basic_device_volume', 20)
+                            # Motion event: only fires when movement_detect_pic
+                            # actually changed since the last time it was seen.
+                            # This is the fallback for when Pulsar is not
+                            # available; on a normal setup the Pulsar fast path
+                            # already handled the same event and this is a no-op.
+                            if searchCode('movement_detect_pic', StatusProperties):
+                                _camera_motion_check(dev_id, StatusDeviceTuya('movement_detect_pic'), source='poll')
+
                         if dev_type == 'fan':
                             update_bool_device('switch', 1)
                             update_select_device('mode', 2)
@@ -6939,6 +7304,8 @@ def DeviceType(category, product_id=None, product_name=None):
         resultdev = 'human_presence'
     elif category in {'qccdz'}:
         resultdev = 'evcharger'
+    elif category in {'cdsxj'}:
+        resultdev = 'camera'
     elif category in {'infrared_ac'}:
         resultdev = 'infrared_ac'
     elif 'infrared_' in category: # keep it last
@@ -6970,8 +7337,8 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0, source="p
             pass
 
     if is_color:
-        # Color switch: sValue is the brightness number in Domoticz,
-        # Color is the JSON. Do not clobber sValue with JSON.
+        # colour switch: sValue is the brightness number in Domoticz,
+        # colour is the JSON. Do not clobber sValue with JSON.
         if str(unit.Color) == str(sValue) and not AlwaysUpdate:
             return
         unit.Color = str(sValue)
@@ -6982,7 +7349,7 @@ def UpdateDomoticz(ID, Unit, sValue, nValue, TimedOut, AlwaysUpdate=0, source="p
         Log(event='update', message=f"[{source}] Update device: {Name} {ID} Unit:{Unit} Color:{sValue} nValue:{nValue} TimedOut={TimedOut}")
         return
 
-    # Non-color update (the existing path)
+    # Non-colour update (the existing path)
     if (
         str(unit.sValue) == str(sValue)
         and str(unit.nValue) == str(nValue)
@@ -7852,7 +8219,7 @@ def _mark_orphaned_device_inactive(dev_id, dev_name):
                 continue
             unit.Used = 0
             # The Used flag (and Name, SignalLevel, BatteryLevel, Image,
-            # Type, SubType, SwitchType, Description, Color) is only
+            # Type, SubType, SwitchType, Description, colour) is only
             # persisted when UpdateProperties=True is passed to Update();
             # setting the attribute alone does not reach the database.
             unit.Update(Log=False, UpdateProperties=True)
