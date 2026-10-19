@@ -22,7 +22,7 @@ between instances — do not add cross-instance state or shared files.
   `onHandleThread()` for the local path and, when the cloud poll
   interval has elapsed, for the cloud path. A module-level
   `_handle_lock` prevents two poll cycles from running at the same
-  time.
+  time. **`RefreshDevice()` also acquires this lock.**
 - `onCommand` runs on the Domoticz main thread. The actual LAN or
   cloud socket write is performed on a background thread so a slow
   device cannot block Domoticz.
@@ -412,7 +412,11 @@ with a new ID, or factory reset).
   - Pulsar handler (`_pulsar_on_message`)
   - Pulsar realtime overview (`_log_realtime_capable_devices`)
   - IP scan result logger (`_log_local_scan_results`)
-  - `RefreshDevice()`
+  - `RefreshDevice()` — **sinds PR #230** gebruikt deze functie
+    `onHandleThread(False, False, target_dev_id=DeviceID)` en past de
+    globale `devs`-lijst niet meer aan. Hierdoor kan de orphan scan
+    aan het einde van `onHandleThread()` geen andere apparaten per
+    ongeluk als orphaned markeren.
   - `onCommand()`
 - **Logging:** One clear log line per orphaned device at startup using
   the structured logging wrappers, listing the unit numbers that were
@@ -655,6 +659,39 @@ weer, met dezelfde uitleg en hint als voorheen.
 
 **PR:** [issue #200](https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/issues/200).
 
+### Refresh-knop markeert alle andere apparaten als orphaned (opgelost in 3.2.9)
+
+**Symptoom:** Het indrukken van de Refresh-knop (Unit 200) op een
+apparaat resulteert in een `TypeError` in de log. In eerdere versies
+(zonder de TypeError) verdwenen alle *andere* apparaten plotseling
+van het dashboard en stopten met reageren.
+
+**Oorzaak:**
+1. `RefreshDevice()` riep `onHandleThread(False)` aan, maar de
+   signatuur is `onHandleThread(startup, local, target_dev_id=None)`.
+   De parameter `local` ontbrak, wat resulteerde in een `TypeError`.
+2. Om alleen dat ene apparaat te pollen, verving `RefreshDevice()`
+   tijdelijk de globale `devs`-lijst. Echter, sinds 3.2.4 eindigt
+   `onHandleThread()` met een orphan scan die `devs` vergelijkt met
+   de Domoticz-database. Omdat `devs` tijdelijk maar één apparaat
+   bevatte, werden alle andere apparaten als "orphaned" bestempeld
+   en op `Used=0` gezet.
+
+**Oplossing (PR #230):**
+- `RefreshDevice()` gebruikt nu `target_dev_id`, exact zoals de
+  Pulsar fast path doet. De globale `devs`-lijst blijft intact,
+  dus de orphan scan is veilig.
+- De functie neemt nu de `_handle_lock` (met 10s timeout). Als er
+  al een poll loopt, wordt de refresh netjes overgeslagen.
+- `last_update` wordt niet meer overschreven tijdens de refresh.
+
+**Testing:** Zorg voor meerdere apparaten met een Refresh-knop.
+Druk op Refresh bij één apparaat. Alleen dat apparaat mag een
+`[refresh] Update device:` regel loggen. De andere apparaten
+blijven `Used=1` en de `last_update`-klok blijft ongewijzigd.
+
+**PR:** [#230](https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin/pull/230).
+
 ## Build and Verification
 
 ### Syntax Check
@@ -688,6 +725,30 @@ The version number lives in **two places** in the XML header of
 
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
+
+**3.2.9 is the current working version.** It fixes the Refresh button
+(Unit 200) which was broken since 3.0.1 and could mark other devices
+as orphaned. It also includes the transient LAN error quiet-mode from
+3.2.8 and the camera support from 3.2.7.
+
+Changes since 3.2.8:
+
+- `RefreshDevice()` no longer replaces the global `devs` list. It uses
+  `onHandleThread(False, False, target_dev_id=DeviceID)` instead,
+  which is the same targeted path Pulsar pushes use. This fixes a
+  critical bug where the orphan scan at the end of `onHandleThread()`
+  would mark every *other* device as orphaned (`Used=0`) when the
+  Refresh button was pressed.
+- `RefreshDevice()` now acquires `_handle_lock` (10 s timeout) before
+  calling `onHandleThread()`, just like the heartbeat poll and Pulsar
+  handler. Without it, a background poll could overwrite `last_update`
+  while the refresh was running, corrupting the regular poll clock.
+- Fixes a `TypeError: onHandleThread() missing 1 required positional
+  argument: 'local'` that had made the Refresh button a no-op.
+- Fixes issue #200: false-positive error lines from devices that are
+  briefly asleep, off, or sending a packet TinyTuya cannot decode.
+
+Both version strings in the header must be bumped to 3.2.9 together.
 
 **3.2.8 is the current working version.** It quiets transient LAN
 errors (901/904/905) from push and heartbeat sources, on top of the
@@ -1574,11 +1635,32 @@ treating it as motion would pulse the sensor on every poll.
   transient LAN errors (901/904/905), wake-up of sleeping modules,
   LAN failure detection, expanded Pulsar fast paths (doorbell, smoke
   detector, water leak, smart lock, human presence, camera motion),
-  and colour-temperature/RGB fixes.
+  colour-temperature/RGB fixes, and a safe Refresh button (PR #230).
 
 ## Recent Work
 
-### Current (Version 3.2.8)
+### Current (Version 3.2.9)
+
+**Refresh-knop gerepareerd en beveiligd (PR #230)**
+
+De Refresh-knop (Unit 200) werkte sinds 3.0.1 niet meer door een
+`TypeError`. Bovendien kon de knop, als de TypeError er niet was,
+alle andere apparaten per ongeluk als orphaned markeren.
+
+- `RefreshDevice()` roept nu `onHandleThread(False, False, target_dev_id=DeviceID)`
+  aan. Dit is hetzelfde gerichte update-pad dat de Pulsar-handler
+  gebruikt, waardoor de globale `devs`-lijst niet meer tijdelijk
+  vervangen hoeft te worden.
+- De orphan scan aan het einde van `onHandleThread()` is nu veilig:
+  alleen het opgevraagde apparaat wordt geüpdatet, de rest blijft
+  onaangeroerd.
+- `RefreshDevice()` neemt nu de `_handle_lock` (10 seconden timeout).
+  Als de achtergrond-poll al bezig is, wordt de refresh geannuleerd
+  met een duidelijke melding in de log, in plaats van te racen.
+- De `last_update`-klok wordt netjes hersteld in een `finally`-blok,
+  zodat de reguliere polling niet in de war raakt.
+
+### Previous released (Version 3.2.8)
 
 **Transient LAN errors worden stil gemaakt (issue #200)**
 
@@ -2216,6 +2298,11 @@ Always run `python3 -m py_compile plugin.py` after changes
   reply`, of als het `is not recovering`-alarm afgaat. Kom je deze
   fouten tegen tijdens een push of een heartbeat, dan is Mode6-debug
   aan — zet die uit om de ruis te laten verdwijnen (vanaf 3.2.8).
+- `Refresh: poll busy, device ... not refreshed` — de Refresh-knop
+  werd ingedrukt terwijl er al een achtergrond-poll liep. Dit is een
+  veiligheidsmaatregel (vanaf 3.2.9) om te voorkomen dat de
+  `last_update`-klok in de war raakt. Probeer het over een paar
+  seconden opnieuw.
 - `[device=X unit=21 ... event=motion] motion detected via pulsar` —
   camera motion event fired from the Pulsar fast path. A matching
   `[motion-reset]` line appears 15 s later unless a newer motion
