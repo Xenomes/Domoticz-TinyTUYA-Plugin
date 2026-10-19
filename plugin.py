@@ -8345,23 +8345,29 @@ def RefreshDevice(DeviceID):
         return
     # The normal update path for one device only: 2 API calls instead of 2 per device, and the
     # regular polling clock (last_update) stays where it was
-    global devs, last_update
+    global last_update
     if globals().get('TuyaError') is not None:
         Error(event='refresh', message=TuyaError['Payload'])
         return
     if globals().get('tuya') is None or 'devs' not in globals():
         Error(event='refresh', message='Refresh: Tuya Cloud is not initialised yet')
         return
-    one = [dev for dev in devs if dev['id'] == DeviceID]
-    if not one:
+    if not any(dev['id'] == DeviceID for dev in devs):
         Error(event='refresh', message='Refresh: device ' + str(DeviceID) + ' is not in the Tuya device list')
         return
-    all_devs, polled = devs, last_update
-    devs = one
+    # Same lock as the heartbeat poll and Pulsar: a poll running in its own thread would otherwise
+    # move last_update while this runs, and the restore below would undo that
+    if not _handle_lock.acquire(timeout=10):
+        Error(event='refresh', message='Refresh: poll busy, device ' + str(DeviceID) + ' not refreshed')
+        return
+    polled = last_update
     try:
-        onHandleThread(False)
+        # target_dev_id limits the device loop to this device; devs must stay the full list, because the
+        # orphan scan at the end of onHandleThread marks every Domoticz device missing from devs as Used=0
+        onHandleThread(False, False, target_dev_id=DeviceID)
     finally:
-        devs, last_update = all_devs, polled
+        last_update = polled
+        _handle_lock.release()
 
 def version(ver):
     return tuple(map(int, (ver.split('.'))))
