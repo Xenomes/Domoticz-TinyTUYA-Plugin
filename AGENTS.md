@@ -726,6 +726,22 @@ The version number lives in **two places** in the XML header of
 `Parameters['Version']` is populated by Domoticz from the header, so no
 other file needs changing.
 
+**3.3.0 is the current working version.** It fixes the Pulsar fast path
+for `switch/sensor` devices (like the `tdq` T & H Sensor) so that
+humidity and the combined Temp+Hum sensor also update instantly over
+Pulsar, without waiting for the next cloud poll.
+
+Changes since 3.2.9:
+
+- `_pulsar_on_message()` now updates Unit 2 (Humidity) and Unit 3
+  (Temp + Hum) for `switch/sensor` devices. Previously it only wrote
+  Unit 1 (Temperature) and returned, leaving the other units stale
+  until the next poll.
+- Fixes a gap where devices with `temp_current`, `humidity_value` and
+  `battery_state` (like the `tdq` T & H Sensor) would lag in Domoticz.
+
+Both version strings in the header must be bumped to 3.2.10 together.
+
 **3.2.9 is the current working version.** It fixes the Refresh button
 (Unit 200) which was broken since 3.0.1 and could mark other devices
 as orphaned. It also includes the transient LAN error quiet-mode from
@@ -1639,7 +1655,23 @@ treating it as motion would pulse the sensor on every poll.
 
 ## Recent Work
 
-### Current (Version 3.2.9)
+### Current (Version 3.3.0)
+
+**Fix Pulsar fast path for `switch/sensor` devices (T & H Sensor)**
+
+The Pulsar fast path for `switch/sensor` devices (like the `tdq` T & H
+Sensor with `temp_current`, `humidity_value` and `battery_state`) only
+updated Unit 1 (temperature) and returned early. Humidity (Unit 2) and
+the combined Temperature + Humidity sensor (Unit 3) were left stale
+until the next cloud poll.
+
+- Added `UpdateDomoticz(dev_id, 2, 0, humidity, 0, source='pulsar')`
+  for devices that report humidity.
+- Added `UpdateDomoticz(dev_id, 3, f"{temperature};{humidity};0", 0, 0, source='pulsar')`
+  for devices that report both temperature and humidity.
+- The battery level was already handled correctly in this fast path.
+
+### Previous released (Version 3.2.9)
 
 **Refresh-knop gerepareerd en beveiligd (PR #230)**
 

@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.2.9" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.3.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.9</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.0</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -1190,6 +1190,14 @@ def _pulsar_on_message(msg):
             Debug(event='pulsar', message=f"Pulsar: fast path BEFORE for {_device_name(dev_id)} ({dev_id}) unit 1: mem={Devices[dev_id].Units[1].sValue!r}, new={temperature!r}, TimedOut={Devices[dev_id].TimedOut}")
             UpdateDomoticz(dev_id, 1, temperature, 0, 0, source='pulsar')
             Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (temperature) -> {temperature}")
+
+        if humidity is not None and checkDevice(dev_id, 2):
+            UpdateDomoticz(dev_id, 2, 0, humidity, 0, source='pulsar')
+            Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (humidity) -> {humidity}")
+
+        if temperature is not None and humidity is not None and checkDevice(dev_id, 3):
+            UpdateDomoticz(dev_id, 3, f"{temperature};{humidity};0", 0, 0, source='pulsar')
+            Debug(event='pulsar', message=f"Pulsar: fast path applied for {_device_name(dev_id)} ({dev_id}) (temp+hum) -> {temperature};{humidity}")
 
         # Any sensor/switch-sensor push we got here carried at least one DP
         # this plugin knows how to write (temperature, humidity or battery):

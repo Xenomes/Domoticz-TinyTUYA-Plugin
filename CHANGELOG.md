@@ -166,3 +166,4 @@
 | 3.2.7 | Add Tuya security camera support (cdsxj), 21 units including real motion sensor on Unit 21 #227 |
 | 3.2.8 | Quiet transient LAN errors (901/904/905) from push/heartbeat sources #200 |
 | 3.2.9 | Fix Refresh button (TypeError and false orphaned devices) #230 (kofec) |
+| 3.3.0 | Fix Pulsar fast path for switch/sensor devices (T & H Sensor) to update Humidity and Temp+Hum units #231 |
