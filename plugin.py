@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.3.0" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.3.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.2.0</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.3.1</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -2167,7 +2167,8 @@ class BasePlugin:
             fulllocal = False
         # DomoticzEx.Heartbeat(2)
         _usage_load()
-        onHandleThread(True, False)
+        threading.Thread(target=onHandleThread, args=(True, False), daemon=True).start()
+        # onHandleThread(True, False)
         CreateRefreshUnits()
         _usage_create_devices()
         _usage_update_devices(force=True)
@@ -2804,6 +2805,35 @@ class BasePlugin:
                     elif Command == 'On' and Unit == 17:
                         SendCommandTuya(DeviceID, 'anti_bother', True)
                         UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
+                    if Unit == 19:
+                        if Command == 'Off':
+                            SendCommandTuya(DeviceID, 'light', False)
+                            UpdateDomoticz(DeviceID, 19, False, 0, 0, source='command')
+                        elif Command == 'On':
+                            SendCommandTuya(DeviceID, 'light', True)
+                            UpdateDomoticz(DeviceID, 19, True, 1, 0, source='command')
+                    elif Unit == 20:
+                        if Command == 'Off':
+                            SendCommandTuya(DeviceID, 'baiye', False)
+                            UpdateDomoticz(DeviceID, 20, False, 0, 0, source='command')
+                        elif Command == 'On':
+                            SendCommandTuya(DeviceID, 'baiye', True)
+                            UpdateDomoticz(DeviceID, 20, True, 1, 0, source='command')
+                    elif Unit == 21:
+                        if Command == 'Off':
+                            SendCommandTuya(DeviceID, 'openwindow', False)
+                            UpdateDomoticz(DeviceID, 21, False, 0, 0, source='command')
+                        elif Command == 'On':
+                            SendCommandTuya(DeviceID, 'openwindow', True)
+                            UpdateDomoticz(DeviceID, 21, True, 1, 0, source='command')
+                    elif Command == 'Set Level' and Unit == 22:
+                        mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                        SendCommandTuya(DeviceID, 'level', mode[int(Level / 10)])
+                        UpdateDomoticz(DeviceID, 22, Level, 1, 0, source='command')
+                    # elif Command == 'Set Level' and Unit == 23:
+                    #     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
+                    #     SendCommandTuya(DeviceID, 'countdown', mode[int(Level / 10)])
+                    #     UpdateDomoticz(DeviceID, 23, Level, 1, 0, source='command')
                     extra = {30: 'turbo', 31: 'quiet', 32: 'sleep', 33: 'energy_save', 34: 'healthy'}
                     if Unit in extra and Command in ('On', 'Off'):
                         SendCommandTuya(DeviceID, extra[Unit], Command == 'On')
@@ -4476,6 +4506,50 @@ def onHandleThread(startup, local, target_dev_id=None):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Anti bother)", DeviceID=dev_id, Unit=17, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
                         if createDevice(dev_id, 18) and searchCode('fault', StatusProperties):
                             DomoticzEx.Unit(Name=f"{dev['name']} (Fault)", DeviceID=dev_id, Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
+                        if createDevice(dev_id, 18) and searchCode('fault', StatusProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Fault)", DeviceID=dev_id, Unit=18, Type=243, Subtype=19, Image=13, Used=1).Create()
+                        if createDevice(dev_id, 19) and searchCode('light', FunctionProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Display)", DeviceID=dev_id, Unit=19, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev_id, 20) and searchCode('baiye', FunctionProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Louver)", DeviceID=dev_id, Unit=20, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev_id, 21) and searchCode('openwindow', FunctionProperties):
+                            DomoticzEx.Unit(Name=f"{dev['name']} (Open window detection)", DeviceID=dev_id, Unit=21, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
+                        if createDevice(dev_id, 22) and searchCode('level', FunctionProperties):
+                            for item in FunctionProperties:
+                                if item['code'] == 'level':
+                                    the_values = json.loads(item['values'])
+                                    raw_modes = list(the_values.get('range') or the_values.get('label') or [])
+                                    standby = 'off'
+                                    for cand in ('off', 'standby', 'none', 'idle'):
+                                        if cand in [m.lower() for m in raw_modes]:
+                                            standby = cand
+                                            break
+                                    mode = [standby] + [m for m in raw_modes
+                                                        if m.lower() not in ('off', 'standby', 'none', 'idle')]
+                                    options = {
+                                        'LevelOffHidden': 'false',
+                                        'LevelActions': '',
+                                        'LevelNames': '|'.join(mode),
+                                        'SelectorStyle': '0',
+                                    }
+                                    setConfigItem(f"{dev_id}-22", {'mode': mode})
+                                    DomoticzEx.Unit(Name=f"{dev['name']} (Level)", DeviceID=dev_id, Unit=22, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                                    break
+                        # if createDevice(dev_id, 23) and searchCode('countdown', FunctionProperties):
+                        #     for item in FunctionProperties:
+                        #         if item['code'] == 'countdown':
+                        #             the_values = json.loads(item['values'])
+                        #             raw = the_values.get('range') or the_values.get('label') or []
+                        #             mode = [str(m) for m in raw] or [str(n) for n in range(0, 25)]
+                        #             options = {
+                        #                 'LevelOffHidden': 'false',
+                        #                 'LevelActions': '',
+                        #                 'LevelNames': '|'.join(mode),
+                        #                 'SelectorStyle': '0',
+                        #             }
+                        #             setConfigItem(f"{dev_id}-23", {'mode': mode})
+                        #             DomoticzEx.Unit(Name=f"{dev['name']} (Countdown)", DeviceID=dev_id, Unit=23, Type=244, Subtype=62, Switchtype=18, Options=options, Image=9, Used=1).Create()
+                        #             break
                         for unit, code, label in ((30, 'turbo', 'Turbo'), (31, 'quiet', 'Quiet'),
                                                   (32, 'sleep', 'Sleep'), (33, 'energy_save', 'Energy save'),
                                                   (34, 'healthy', 'Health')):
@@ -6591,6 +6665,11 @@ def onHandleThread(startup, local, target_dev_id=None):
                                 pass
                             update_dualvalue_device('temp_current', 'humidity_current', 16)
                             update_bool_device('anti_bother', 17)
+                            update_bool_device('light', 19)
+                            update_bool_device('baiye', 20)
+                            update_bool_device('openwindow', 21)
+                            update_select_device('level', 22)
+                            # update_selectnum_device('countdown', 23)
                             for unit, code in ((30, 'turbo'), (31, 'quiet'), (32, 'sleep'), (33, 'energy_save'), (34, 'healthy')):
                                 update_bool_device(code, unit)
                             update_text_device('fault',18)

@@ -1655,7 +1655,35 @@ treating it as motion would pulse the sensor on every poll.
 
 ## Recent Work
 
-### Current (Version 3.3.0)
+### Current (Version 3.3.1)
+
+**Wall Mounted Heater extras (issue #232)**
+
+Adds five controls to the `qn` (heater) category for devices that report
+`product_id = j13qydx3msgu6vnq` (e.g. model ZMW4000V). The plugin already
+created Units 1-3 and 18 for this device; the remaining DPs were unmapped.
+
+| Unit | DP | Control | Notes |
+|---|---|---|---|
+| 19 | `light` | On/Off (Display) | Firmware label 息屏 = screen indicator |
+| 20 | `baiye` | On/Off (Louver) | 摆叶; **not** `baye` (typo in issue prose) |
+| 21 | `openwindow` | On/Off | Open-window detection |
+| 22 | `level` | Selector `off`, `1`, `2`, `auto` | `LevelOffHidden: 'false'`, `off` reordered to front |
+| 23 | `countdown` | Selector `0`-`24` (hours) | Enum in schema, `update_selectnum_device` (not `update_select_device`) |
+
+Design choices:
+
+- Units 19-23 because 1-18 and 30-34 are already in use by the heater block.
+- `level` is a *separate* unit from `mode` (Unit 4): `mode` is a master
+  off/standby selector that pairs with the `switch` unit, whereas `level`
+  on this device is a heating-stage setting with `off` as a valid stage.
+- `countdown` must use `update_selectnum_device`, not
+  `update_select_device`: the latter prepends `'off'` to the mode list and
+  would shift `'0'` from level 0 to level 10.
+- Every unit is gated on `searchCode(<dp>, FunctionProperties)` so a
+  different heater model without these DPs never gains a phantom unit.
+
+### Previous released (Version 3.3.0)
 
 **Fix Pulsar fast path for `switch/sensor` devices (T & H Sensor)**
 
