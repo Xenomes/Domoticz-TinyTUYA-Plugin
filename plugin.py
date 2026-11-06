@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.3.1" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.3.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.3.1</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.3.2</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -2834,11 +2834,10 @@ class BasePlugin:
                     #     mode = Devices[DeviceID].Units[Unit].Options['LevelNames'].split('|')
                     #     SendCommandTuya(DeviceID, 'countdown', mode[int(Level / 10)])
                     #     UpdateDomoticz(DeviceID, 23, Level, 1, 0, source='command')
-                    extra = {30: 'turbo', 31: 'quiet', 32: 'sleep', 33: 'energy_save', 34: 'healthy'}
+                    extra = {30: 'turbo', 31: 'quiet', 32: 'sleep', 33: 'energy_save', 34: 'healthy', 35: 'light'}
                     if Unit in extra and Command in ('On', 'Off'):
                         SendCommandTuya(DeviceID, extra[Unit], Command == 'On')
-                        UpdateDomoticz(DeviceID, Unit, Command == 'On', int(Command == 'On'), 0, source='command')
-
+                        UpdateDomoticz(DeviceID, Unit, Command == 'On', int(Command == 'On'), 0)
                 if dev_type in ('sensor', 'switch/sensor'):
                     if Command == 'Set Level' and Unit == 15:
                         SendCommandTuya(DeviceID, 'ph_warn_min', Level)
@@ -4552,10 +4551,9 @@ def onHandleThread(startup, local, target_dev_id=None):
                         #             break
                         for unit, code, label in ((30, 'turbo', 'Turbo'), (31, 'quiet', 'Quiet'),
                                                   (32, 'sleep', 'Sleep'), (33, 'energy_save', 'Energy save'),
-                                                  (34, 'healthy', 'Health')):
+                                                  (34, 'healthy', 'Health'), (35, 'light', 'Display light')):
                             if createDevice(dev_id, unit) and searchCode(code, FunctionProperties):
                                 DomoticzEx.Unit(Name=f"{dev['name']} ({label})", DeviceID=dev_id, Unit=unit, Type=244, Subtype=73, Switchtype=0, Image=9, Used=1).Create()
-
                     if dev_type in ('sensor', 'switch/sensor'):
                         temp = searchCode('va_temperature', StatusProperties) or searchCode('temp_current', StatusProperties) or searchCode('local_temp', StatusProperties) or searchCode('Tin', StatusProperties)
                         hum = searchCode('va_humidity', StatusProperties) or searchCode('humidity_value', StatusProperties) or searchCode('local_hum', StatusProperties) or searchCode('humidity', StatusProperties) or searchCode('Hin', StatusProperties)
@@ -6670,7 +6668,7 @@ def onHandleThread(startup, local, target_dev_id=None):
                             update_bool_device('openwindow', 21)
                             update_select_device('level', 22)
                             # update_selectnum_device('countdown', 23)
-                            for unit, code in ((30, 'turbo'), (31, 'quiet'), (32, 'sleep'), (33, 'energy_save'), (34, 'healthy')):
+                            for unit, code in ((30, 'turbo'), (31, 'quiet'), (32, 'sleep'), (33, 'energy_save'), (34, 'healthy'), (35, 'light')):
                                 update_bool_device(code, unit)
                             update_text_device('fault',18)
                             battery_device()
