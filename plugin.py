@@ -3,7 +3,7 @@
 # Author: Xenomes (xenomes@outlook.com)
 #
 """
-<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.3.2" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
+<plugin key="tinytuya" name="TinyTUYA" author="Xenomes" version="3.3.3" wikilink="" externallink="https://github.com/Xenomes/Domoticz-TinyTUYA-Plugin.git">
     <description>
         Support forum:
         <a href="https://www.domoticz.com/forum/viewtopic.php?f=65&amp;t=39441">
@@ -11,7 +11,7 @@
         </a>
         <br/><br/>
 
-        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.3.2</h2><br/>
+        <h2>TinyTuya Plugin - Hybrid Local / Cloud Control version 3.3.3</h2><br/>
 
         This plugin uses the Tuya IoT Cloud Platform <b>only for initial device discovery, DPS mapping and configuration</b>.
         Once devices are configured, commands and status updates are handled locally using <b>TinyTuya</b> whenever possible.
@@ -149,6 +149,11 @@ TuyaError = None
 
 # Prevents overlapping heartbeat poll cycles from blocking onCommand
 _handle_lock = threading.Lock()
+
+# Parameters that must never appear verbatim in the debug log.
+# Shown as '<set>' so a user debugging a missing credential can tell
+# "empty" apart from "configured but hidden".
+SENSITIVE_PARAMETERS = frozenset({'Username', 'Password'})
 
 # Device IDs that exist in Domoticz for this hardware instance but are no
 # longer reported by Tuya. Filled once during startup, then checked in
@@ -2256,28 +2261,26 @@ class BasePlugin:
                 if len(Color) != 0:
                     Color = ast.literal_eval(Color)
 
-                if dev_type in ('switch', 'switch/sensor') and Unit == 1:
-                    if searchCode('switch', function):
-                        if Command == 'Off':
-                            SendCommandTuya(DeviceID, 'switch', False)
-                            UpdateDomoticz(DeviceID, Unit, False, 0, 0, source='command')
-                        elif Command == 'On':
-                            SendCommandTuya(DeviceID, 'switch', True)
-                            UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
-                    elif searchCode('switch_on', function):
-                        if Command == 'Off':
-                            SendCommandTuya(DeviceID, 'switch_on', False)
-                            UpdateDomoticz(DeviceID, Unit, False, 0, 0, source='command')
-                        elif Command == 'On':
-                            SendCommandTuya(DeviceID, 'switch_on', True)
-                            UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
-                    else:
-                        if Command == 'Off':
-                            SendCommandTuya(DeviceID, f"switch_{Unit}", False)
-                            UpdateDomoticz(DeviceID, Unit, False, 0, 0, source='command')
-                        elif Command == 'On':
-                            SendCommandTuya(DeviceID, f"switch_{Unit}", True)
-                            UpdateDomoticz(DeviceID, Unit, True, 1, 0, source='command')
+                if dev_type in ('switch', 'switch/sensor'):
+                    code = None
+                    if Unit == 1 and searchCode('switch', function):
+                        code = 'switch'
+                    elif Unit == 1 and searchCode('switch_on', function):
+                        code = 'switch_on'
+                    elif searchCode(f"switch_{Unit}", function):
+                        code = f"switch_{Unit}"
+                    elif searchCode(f"switch{Unit}", function):
+                        code = f"switch{Unit}"
+                    elif searchCode(f"switch_on_{Unit}", function):
+                        code = f"switch_on_{Unit}"
+                    if code and Command in ('On', 'Off'):
+                        SendCommandTuya(DeviceID, code, Command == 'On')
+                        UpdateDomoticz(DeviceID, Unit, Command == 'On',
+                                    int(Command == 'On'), 0, source='command')
+                        return
+                    Log(device=DeviceID, unit=Unit, event='command',
+                        message=f"No switch DP found. Available: "
+                                f"{[f.get('code') for f in function]}")
 
                 if dev_type in ('switch', 'switch/sensor') and Unit == 2 and searchCode('switch_led', function):
                     if Command == 'Off':
@@ -7264,8 +7267,10 @@ def onHandleThread(startup, local, target_dev_id=None):
 # Generic helper functions
 def DumpConfigToLog():
     for x in Parameters:
-        if Parameters[x] != "":
-            Debug(event='config', message=f"'{x}':'{Parameters[x]}'")
+        if Parameters[x] == "":
+            continue
+        value = '<set>' if x in SENSITIVE_PARAMETERS else Parameters[x]
+        Debug(event='config', message=f"'{x}':'{value}'")
     Debug(event='config', message=f"Device count: {len(Devices)}")
     for DeviceName in Devices:
         Device = Devices[DeviceName]

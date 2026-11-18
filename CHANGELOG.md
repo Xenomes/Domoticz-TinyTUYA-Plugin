@@ -168,3 +168,5 @@
 | 3.2.9 | Fix Refresh button (TypeError and false orphaned devices) #230 (kofec) |
 | 3.3.0 | Fix Pulsar fast path for switch/sensor devices (T & H Sensor) to update Humidity and Temp+Hum units #231 |
 | 3.3.1 | Add Wall Mounted Heater extras: louver, open-window and level controls (Units 19-23) #232 |
+| 3.3.2 | Hybrid control, Pulsar realtime, credits |
+| 3.3.3 | Fix multi-gang switch commands |
